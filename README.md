@@ -46,6 +46,14 @@ which handles both hourly and 15-minute prices. Italy uses its North zone (IT-NO
   daily TTF, EUA and coal prices from `data/fuel_prices.csv`. Reservoir hydro is placed at the day's
   price (water value). Nuclear, biomass and "other" use fixed costs. The assumptions are in
   `scripts/build_fuel_prices.py`. Generation lives in `site/data/gen/<zone>.json`, one file per zone.
+- **Players and leaderboard:** optional. A player picks a display name (no email or password); the
+  browser keeps a private player code, which also moves the player to another device. Finished daily
+  rounds are saved to a Supabase database (free plan, EU region) and shown in "Today among players"
+  under the game and on the Leaderboard page (`#board`: today, this week, this month, all time;
+  points 4/3/2/1/0 by tries), with first-try accuracy by region against all players. The page only
+  calls the functions in `supabase/setup.sql`; the tables can't be read or changed directly. To
+  remove a player, delete their row in Supabase (Table Editor → players); their results go with it.
+  The daily workflow makes one small call so the free project isn't paused for inactivity.
 - **Skill profile** (in Stats): first-attempt accuracy and average places off per region, built from
   the daily rounds saved in the player's browser.
 

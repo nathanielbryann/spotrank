@@ -303,6 +303,38 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .pmo-ctrl .step:disabled { opacity: .4; cursor: default; }
 .pmo-day { font-size: 17px; font-weight: 600; margin: 6px 0 0; }
 
+/* Players */
+.crowd-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; }
+.crowd-lead { margin: 4px 0 14px; font-size: 15px; color: var(--ink-2); max-width: 75ch; }
+.crowd-lead b { color: var(--ink); }
+.crowd-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr); gap: 18px 28px; align-items: start; }
+@media (max-width: 720px) { .crowd-grid { grid-template-columns: minmax(0, 1fr); } }
+.cdist { display: grid; gap: 6px; }
+.cdist .d { display: grid; grid-template-columns: 54px minmax(0, 1fr) 34px; gap: 10px; align-items: center; font-size: 13px; color: var(--ink-2); }
+.cdist .track { height: 14px; border-radius: 0 4px 4px 0; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.cdist .fill { display: block; height: 100%; background: var(--bar-muted); border-radius: 0 4px 4px 0; }
+.cdist .d.me .fill { background: var(--accent); }
+.cdist .d.me { color: var(--ink); font-weight: 700; }
+.cdist .n { font-family: var(--f-mono); font-weight: 700; text-align: right; color: var(--ink); }
+table.lb td { white-space: nowrap; }
+table.lb td.me, table.lb tr.mine td { font-weight: 700; }
+table.lb tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.join { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.join input { font: inherit; font-size: 15px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); min-width: 0; width: 220px; }
+.join .btn { min-height: 38px; }
+.me-line { margin: 0 0 8px; font-size: 15px; }
+.me-line b { font-family: var(--f-mono); }
+.code-box { font-family: var(--f-mono); font-size: 13px; width: 340px; max-width: 100%; }
+.linkish { appearance: none; border: 0; background: none; padding: 0; color: var(--accent); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.lb-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 10px 16px; margin-bottom: 12px; }
+.vs-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 150px; gap: 10px; align-items: center; font-size: 13px; padding: 4px 0; }
+.vs-row .bars { display: grid; gap: 3px; }
+.vs-row .track { height: 8px; border-radius: 0 4px 4px 0; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.vs-row .fill { display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--accent); }
+.vs-row .fill.all { background: var(--muted); }
+.vs-row .v { font-family: var(--f-mono); font-size: 12px; color: var(--ink-2); text-align: right; white-space: nowrap; }
+.vs-row .v b { color: var(--ink); }
+
 /* Views */
 .view { display: grid; gap: 20px; }
 .view[hidden] { display: none; }
@@ -406,6 +438,7 @@ footer a, .data a { color: var(--accent); }
       <span class="tag">Rank five bidding zones by their day-ahead price</span>
     </div>
     <div class="actions">
+      <button class="btn" id="btn-board" type="button">Leaderboard</button>
       <button class="btn" id="btn-prices" type="button">Prices</button>
       <button class="btn" id="btn-help" type="button">How to play</button>
       <button class="btn" id="btn-stats" type="button">Stats</button>
@@ -446,6 +479,19 @@ footer a, .data a { color: var(--accent); }
       </section>
     </div>
   </div>
+
+  <section class="panel" id="crowd" hidden aria-labelledby="crowd-title">
+    <div class="crowd-head">
+      <h2 id="crowd-title">Today among players</h2>
+      <button class="linkish" type="button" data-go="board">Full leaderboard →</button>
+    </div>
+    <p class="crowd-lead" id="crowd-lead"></p>
+    <div class="crowd-grid">
+      <div><div class="cdist" id="crowd-dist"></div></div>
+      <div class="tbl-scroll" id="crowd-list"></div>
+    </div>
+    <div id="crowd-join" style="margin-top:14px"></div>
+  </section>
 
   <section class="panel" id="why" hidden aria-labelledby="why-title">
     <div class="why-head"><h2 id="why-title">Why these prices</h2></div>
@@ -542,6 +588,34 @@ footer a, .data a { color: var(--accent); }
       <h2 id="pt-title" style="margin-bottom:4px">Period average, all zones</h2>
       <p class="ph-sub" id="pt-sub"></p>
       <div class="tbl-scroll"><table id="ph-table"></table></div>
+    </section>
+  </div>
+
+  <div class="view" id="board-view" hidden>
+    <section class="panel" aria-labelledby="me-title">
+      <h2 id="me-title" style="margin-bottom:6px">You</h2>
+      <div id="me-body"></div>
+    </section>
+    <section class="panel" aria-labelledby="lb-title">
+      <div class="lb-head">
+        <div>
+          <h2 id="lb-title" style="margin-bottom:4px">Leaderboard</h2>
+          <p class="ph-sub" id="lb-sub">Daily puzzles only. Points: 4 for solving in 1 try, 3 in 2 tries, 2 in 3, 1 in 4, 0 for a miss.</p>
+        </div>
+        <div class="seg" role="group" aria-label="Period">
+          <button type="button" data-lb="today" aria-pressed="false">Today</button>
+          <button type="button" data-lb="week" aria-pressed="true">This week</button>
+          <button type="button" data-lb="month" aria-pressed="false">This month</button>
+          <button type="button" data-lb="all" aria-pressed="false">All time</button>
+        </div>
+      </div>
+      <div class="tbl-scroll" id="lb-body"></div>
+      <p class="status-line" id="lb-msg" role="status"></p>
+    </section>
+    <section class="panel" aria-labelledby="vs-title">
+      <h2 id="vs-title" style="margin-bottom:4px">You vs everyone</h2>
+      <p class="ph-sub">How often zones were placed right on the first attempt, by region. Your daily rounds against all players' rounds in the last 90 days.</p>
+      <div id="vs-body" style="margin-top:12px"></div>
     </section>
   </div>
 
@@ -828,6 +902,7 @@ function submitScore() {
   selected = null; animateNext = true;
   if (G.status !== 'playing' && G.mode === 'daily' && !G.counted) { recordStats(); G.counted = true; }
   persist();
+  if (G.status !== 'playing' && G.mode === 'daily') { CROWD.at = 0; submitDaily(); }
   say('Attempt ' + G.attempts.length + ': ' + nG + ' of ' + N + ' in the right place.' + (G.status === 'won' ? ' Solved.' : G.status === 'lost' ? ' Out of attempts.' : ''));
   render();
 }
@@ -1291,6 +1366,242 @@ function skillHtml() {
   return h + '</div>';
 }
 
+/* ---------- players: names, shared results and the leaderboard (Supabase) ---------- */
+const SB_URL = 'https://ywzvupcjyuvftnpchrtr.supabase.co';
+const SB_KEY = 'sb_publishable_uRr_kiMcy3RxNQk2_52AIg_h5QsoYLF';   // publishable: meant for web pages; the database only allows the functions in supabase/setup.sql
+let PLAYER = lsGet('player', null);   // {id, name, secret}
+let SB_SAVING = false;
+const SB_MSG = {
+  name_taken: 'That name is taken. Try another one.',
+  name_length: 'Use 2 to 20 characters.',
+  name_chars: 'Use letters, numbers, spaces and . _ -',
+  unknown_player: 'That player code wasn\'t found.',
+  not_todays_puzzle: 'Only today\'s daily puzzle can be saved.',
+};
+async function sb(fn, args) {
+  let r;
+  try {
+    r = await fetch(SB_URL + '/rest/v1/rpc/' + fn, {method: 'POST', headers: {apikey: SB_KEY, 'Content-Type': 'application/json'}, body: JSON.stringify(args || {})});
+  } catch (e) { throw new Error('The leaderboard can\'t be reached right now. Check your connection and try again.'); }
+  const j = await r.json().catch(() => null);
+  if (!r.ok) {
+    const code = j && j.message;
+    throw new Error(SB_MSG[code] || (j && j.hint) || 'The leaderboard answered with an error (' + r.status + ').');
+  }
+  return j;
+}
+function rankKey(o) { return [o.solved ? 0 : 1, o.tries, -o.first_greens]; }
+function cmpRes(a, b) { const x = rankKey(a), y = rankKey(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; }
+function resText(o) { return o.solved ? 'Solved in ' + o.tries : 'Missed'; }
+function attemptsOf(g) { return g.attempts.map(a => a.map(t => t.z)); }
+function todaysDaily() {
+  if (G && G.mode === 'daily' && G.puzzleNo === PUZZLE_NO) return G;
+  if (DAILY && DAILY.puzzleNo === PUZZLE_NO) return DAILY;
+  const d = DS && dailyDate(DS, PUZZLE_NO, TODAY);
+  return d ? lsGet(dailyKey(PUZZLE_NO, d.date), null) : null;
+}
+/* save today's finished daily round once; the database keeps only the first finish */
+async function submitDaily() {
+  const g = todaysDaily();
+  if (!PLAYER || !g || g.status === 'playing' || g.sbSaved || SB_SAVING) return;
+  SB_SAVING = true;
+  try {
+    await sb('submit_result', {p_secret: PLAYER.secret, p_puzzle: g.puzzleNo, p_price_date: g.date, p_answer: g.answer, p_attempts: attemptsOf(g)});
+    g.sbSaved = true; CROWD.err = null;
+  } catch (e) { CROWD.err = e.message; }
+  SB_SAVING = false;
+  lsSet(dailyKey(g.puzzleNo, g.date), g);
+  LB.cache = {};
+  loadCrowd(true);
+}
+async function joinWithName(name) {
+  const rows = await sb('register_player', {p_name: name});
+  const r = rows && rows[0];
+  if (!r) throw new Error('Something went wrong. Try again.');
+  PLAYER = {id: r.player_id, name: r.name, secret: r.secret}; lsSet('player', PLAYER);
+  LB.cache = {}; submitDaily();
+}
+async function joinWithCode(code) {
+  const c = String(code || '').trim().toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(c)) throw new Error('A player code looks like 1b9d6bcd-bbfd-4b2d-9b5d-ab8dfbbd4bed.');
+  const rows = await sb('whoami', {p_secret: c});
+  if (!rows || !rows.length) throw new Error(SB_MSG.unknown_player);
+  PLAYER = {id: rows[0].player_id, name: rows[0].name, secret: c}; lsSet('player', PLAYER);
+  LB.cache = {}; submitDaily();
+}
+/* a name field and a Join button, used in the game and on the leaderboard page */
+function joinFormHtml(id, lead) {
+  return '<p class="crowd-lead" style="margin:0 0 8px">' + lead + '</p>' +
+    '<form class="join" id="' + id + '" autocomplete="off"><label class="visually-hidden" for="' + id + '-name">Display name</label>' +
+    '<input id="' + id + '-name" maxlength="20" placeholder="Display name" required><button class="btn primary" type="submit">Join</button></form>' +
+    '<p class="status-line" id="' + id + '-msg" role="status"></p>';
+}
+function wireJoin(id, after) {
+  const f = $('#' + id); if (!f) return;
+  f.addEventListener('submit', async e => {
+    e.preventDefault();
+    const btn = f.querySelector('button'), msg = $('#' + id + '-msg');
+    btn.disabled = true; msg.textContent = 'Joining…';
+    try { await joinWithName($('#' + id + '-name').value); msg.textContent = ''; after(); }
+    catch (err) { msg.textContent = err.message; btn.disabled = false; }
+  });
+}
+
+/* today among players, under the game once the daily round is over */
+const CROWD = {rows: null, at: 0, err: null, loading: false};
+async function loadCrowd(force) {
+  if (CROWD.loading) { if (force) CROWD.again = true; return; }
+  if (!force && Date.now() - CROWD.at < 60000) return;
+  CROWD.loading = true;
+  try { CROWD.rows = await sb('day_results', {p_puzzle: PUZZLE_NO}); CROWD.loadErr = null; }
+  catch (e) { CROWD.loadErr = e.message; }
+  CROWD.loading = false; CROWD.at = Date.now();
+  if (CROWD.again) { CROWD.again = false; return loadCrowd(true); }
+  renderCrowd();
+}
+function renderCrowd() {
+  const sec = $('#crowd');
+  if (!G || G.mode !== 'daily' || G.status === 'playing' || G.puzzleNo !== PUZZLE_NO || !HOSTED) { sec.hidden = true; return; }
+  sec.hidden = false;
+  if (Date.now() - CROWD.at >= 60000 && !CROWD.loading) loadCrowd(false);
+  const rows = CROWD.rows || [];
+  const meRow = PLAYER ? rows.find(r => r.name === PLAYER.name) : null;
+  const mine = {solved: G.status === 'won', tries: G.attempts.length, first_greens: G.attempts[0].filter(t => t.r === 'g').length};
+  const dist = {1: 0, 2: 0, 3: 0, 4: 0, X: 0};
+  for (const r of rows) dist[r.solved ? r.tries : 'X']++;
+  const myKey = mine.solved ? String(mine.tries) : 'X';
+  const lead = $('#crowd-lead');
+  if (!CROWD.rows) lead.innerHTML = CROWD.loadErr ? esc(CROWD.loadErr) : 'Loading today\'s results…';
+  else {
+    const others = rows.filter(r => r !== meRow), n = others.length;
+    const worse = others.filter(r => cmpRes(r, mine) > 0).length, ahead = others.filter(r => cmpRes(r, mine) < 0).length;
+    const tied = others.filter(r => cmpRes(r, mine) === 0).length;
+    let t = rows.length ? '<b>' + rows.length + '</b> player' + (rows.length === 1 ? ' has' : 's have') + ' finished today\'s puzzle. ' : 'No one has saved a result for today\'s puzzle yet. ';
+    if (n) t += 'Your result (' + resText(mine).toLowerCase() + ') puts you ' + (tied ? 'joint ' : '') + '<b>' + ordinal(ahead + 1) + '</b> of ' + (n + 1) + ', ahead of <b>' + pct0(worse / n) + '</b> of the others.';
+    if (PLAYER && !meRow) t += CROWD.err ? ' Your result isn\'t saved yet: ' + esc(CROWD.err) : ' Saving your result…';
+    lead.innerHTML = t;
+  }
+  const maxD = Math.max(1, ...Object.values(dist));
+  $('#crowd-dist').innerHTML = ['1', '2', '3', '4', 'X'].map(k => '<div class="d' + (k === myKey ? ' me' : '') + '"><span>' + (k === 'X' ? 'Missed' : k + (k === '1' ? ' try' : ' tries')) + '</span><span class="track"><span class="fill" style="width:' + (100 * dist[k] / maxD).toFixed(0) + '%"></span></span><span class="n">' + dist[k] + '</span></div>').join('');
+  const sorted = rows.slice().sort(cmpRes);
+  let shown = sorted.slice(0, 10);
+  if (meRow && !shown.includes(meRow)) shown = shown.concat([meRow]);
+  $('#crowd-list').innerHTML = rows.length ? '<table class="lb"><thead><tr><th>#</th><th>Player</th><th>Result</th><th class="num" title="Zones in the right place on the first attempt">First try</th></tr></thead><tbody>' +
+    shown.map(r => { const pos = sorted.findIndex(o => cmpRes(o, r) === 0) + 1; return '<tr' + (r === meRow ? ' class="mine"' : '') + '><td>' + pos + '</td><td>' + esc(r.name) + '</td><td>' + resText(r) + '</td><td class="num">' + r.first_greens + ' of 5</td></tr>'; }).join('') +
+    '</tbody></table>' : '';
+  const join = $('#crowd-join');
+  if (PLAYER) join.innerHTML = '';
+  else if (!join.querySelector('form')) {
+    join.innerHTML = joinFormHtml('join-g', 'Pick a name to put your result on the leaderboard. No email or password: this browser remembers you.');
+    wireJoin('join-g', () => { renderCrowd(); });
+  }
+}
+
+/* leaderboard page */
+const LB = {period: lsGet('lb', 'week'), cache: {}};
+function lbRange(period) {
+  const t = parseISO(TODAY);
+  if (period === 'week') { const dow = (t.getDay() + 6) % 7; return [isoLocal(addDays(t, -dow)), TODAY]; }
+  if (period === 'month') return [isoLocal(new Date(t.getFullYear(), t.getMonth(), 1)), TODAY];
+  return [EPOCH, TODAY];
+}
+async function loadBoard(period) {
+  const c = LB.cache[period];
+  if (c && (c.loading || Date.now() - c.at < 60000)) return;
+  LB.cache[period] = {loading: true, at: 0, rows: c && c.rows};
+  try {
+    const rows = period === 'today' ? await sb('day_results', {p_puzzle: PUZZLE_NO}) : await sb('leaderboard', {p_from: lbRange(period)[0], p_to: lbRange(period)[1]});
+    LB.cache[period] = {at: Date.now(), rows};
+  } catch (e) { LB.cache[period] = {at: Date.now(), err: e.message, rows: c && c.rows}; }
+  if (!$('#board-view').hidden) renderLeaderboard();
+}
+function renderLeaderboard() {
+  if (!DS) return;
+  renderMe();
+  document.querySelectorAll('[data-lb]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lb === LB.period)));
+  const c = LB.cache[LB.period], box = $('#lb-body'), msg = $('#lb-msg');
+  if (!c || Date.now() - c.at >= 60000) loadBoard(LB.period);
+  if (!c || !c.rows) { box.innerHTML = ''; msg.textContent = c && c.err ? c.err : 'Loading…'; renderVs(); return; }
+  msg.textContent = c.err || '';
+  const me = PLAYER ? PLAYER.name : null;
+  if (LB.period === 'today') {
+    const rows = c.rows.slice().sort(cmpRes);
+    box.innerHTML = rows.length ? '<table class="lb"><thead><tr><th>#</th><th>Player</th><th>Result</th><th class="num" title="Zones in the right place on the first attempt">First try</th></tr></thead><tbody>' +
+      rows.map(r => '<tr' + (r.name === me ? ' class="mine"' : '') + '><td>' + (rows.findIndex(o => cmpRes(o, r) === 0) + 1) + '</td><td>' + esc(r.name) + '</td><td>' + resText(r) + '</td><td class="num">' + r.first_greens + ' of 5</td></tr>').join('') + '</tbody></table>'
+      : '<p class="ph-sub">No results for puzzle #' + PUZZLE_NO + ' yet.</p>';
+  } else {
+    const [a, b] = lbRange(LB.period);
+    const rows = c.rows;
+    const posOf = r => rows.findIndex(o => o.points === r.points && o.wins === r.wins) + 1;
+    box.innerHTML = rows.length ? '<table class="lb"><thead><tr><th>#</th><th>Player</th><th class="num">Points</th><th class="num">Played</th><th class="num">Won</th><th class="num">Win %</th><th class="num">Avg tries</th><th class="num">Streak</th></tr></thead><tbody>' +
+      rows.map(r => '<tr' + (r.name === me ? ' class="mine"' : '') + '><td>' + posOf(r) + '</td><td>' + esc(r.name) + '</td><td class="num">' + r.points + '</td><td class="num">' + r.played + '</td><td class="num">' + r.wins + '</td><td class="num">' + Math.round(100 * r.wins / r.played) + '%</td><td class="num">' + (r.avg_tries === null ? '–' : (+r.avg_tries).toFixed(1)) + '</td><td class="num">' + r.streak + '</td></tr>').join('') + '</tbody></table>'
+      : '<p class="ph-sub">No daily results ' + (LB.period === 'all' ? 'yet' : 'in this period yet') + '.</p>';
+    msg.textContent = (c.err ? c.err + ' ' : '') + 'Daily puzzles played ' + fmtShortDay(a) + ' – ' + fmtShortDay(b) + '. Ties are ordered by wins, then average tries. Streak: daily puzzles solved in a row.';
+  }
+  renderVs();
+}
+function renderMe() {
+  const box = $('#me-body');
+  if (!PLAYER) {
+    if (box.querySelector('#join-b')) return;
+    box.innerHTML = joinFormHtml('join-b', 'Pick a display name to appear on the leaderboard. No email or password: this browser remembers you, and your daily results are saved when you finish.') +
+      '<details style="margin-top:6px"><summary class="linkish" style="display:inline">Already joined on another device?</summary>' +
+      '<form class="join" id="code-b" style="margin-top:8px" autocomplete="off"><input id="code-b-in" class="code-box" placeholder="Player code" aria-label="Player code"><button class="btn" type="submit">Use code</button></form>' +
+      '<p class="status-line" id="code-b-msg" role="status"></p></details>';
+    wireJoin('join-b', () => { renderLeaderboard(); });
+    $('#code-b').addEventListener('submit', async e => {
+      e.preventDefault(); const m = $('#code-b-msg'); m.textContent = 'Checking…';
+      try { await joinWithCode($('#code-b-in').value); renderLeaderboard(); } catch (err) { m.textContent = err.message; }
+    });
+    return;
+  }
+  box.innerHTML = '<p class="me-line">Playing as <b>' + esc(PLAYER.name) + '</b>. Your daily results are saved when you finish a round.</p>' +
+    '<details><summary class="linkish" style="display:inline">Play on another device</summary><p class="ph-sub" style="margin:8px 0">Enter this player code there (Leaderboard → Already joined on another device?). Keep it to yourself: anyone with it can play as you.</p>' +
+    '<div class="join"><input class="code-box" id="code-show" readonly value="' + esc(PLAYER.secret) + '" aria-label="Your player code"><button class="btn" type="button" id="code-copy">Copy</button></div></details>' +
+    '<p style="margin:10px 0 0"><button class="linkish" type="button" id="me-forget">Forget me on this browser</button></p>';
+  $('#code-copy').addEventListener('click', async () => { try { await navigator.clipboard.writeText(PLAYER.secret); $('#code-copy').textContent = 'Copied'; } catch (e) { $('#code-show').select(); } });
+  $('#me-forget').addEventListener('click', () => {
+    if (!confirmForget()) return;
+    PLAYER = null; lsDel('player'); renderLeaderboard(); renderCrowd();
+  });
+}
+function confirmForget() {
+  const b = $('#me-forget');
+  if (b.dataset.sure) return true;
+  b.dataset.sure = '1'; b.textContent = 'Sure? You can come back only with your player code. Click again to forget.';
+  return false;
+}
+/* first-try accuracy by region: this browser's daily rounds vs everyone's */
+const VS = {rows: null, at: 0, err: null};
+async function loadVs() {
+  if (VS.loading) return; VS.loading = true;
+  try { VS.rows = await sb('first_attempts', {p_from: isoLocal(addDays(parseISO(TODAY), -90)), p_to: TODAY}); VS.err = null; }
+  catch (e) { VS.err = e.message; }
+  VS.loading = false; VS.at = Date.now();
+  if (!$('#board-view').hidden) renderVs();
+}
+function renderVs() {
+  const box = $('#vs-body');
+  if (Date.now() - VS.at >= 300000) loadVs();
+  if (!VS.rows) { box.innerHTML = '<p class="ph-sub">' + esc(VS.err || 'Loading…') + '</p>'; return; }
+  const all = {};
+  for (const r of VS.rows) {
+    if (!Array.isArray(r.first_try) || !Array.isArray(r.answer)) continue;
+    r.first_try.forEach((z, i) => { const k = zm(z).r, o = all[k] || (all[k] = {n: 0, ok: 0}); o.n++; if (r.answer[i] === z) o.ok++; });
+  }
+  const mine = skillData().reg;
+  if (!VS.rows.length) { box.innerHTML = '<p class="ph-sub">No daily rounds from players yet.</p>'; return; }
+  box.innerHTML = '<div class="key" style="margin-bottom:8px"><span><i style="background:var(--accent)"></i>You</span><span><i style="background:var(--muted)"></i>All players</span></div>' +
+    REGIONS.map(k => {
+      const m = mine[k], a = all[k];
+      const mp = m && m.n ? m.ok / m.n : null, ap = a && a.n ? a.ok / a.n : null;
+      return '<div class="vs-row"><span>' + k + '</span><span class="bars"><span class="track"><span class="fill" style="width:' + (!mp ? 0 : Math.max(2, 100 * mp)).toFixed(0) + '%"></span></span><span class="track"><span class="fill all" style="width:' + (!ap ? 0 : Math.max(2, 100 * ap)).toFixed(0) + '%"></span></span></span>' +
+        '<span class="v">you <b>' + (mp === null ? '–' : pct0(mp)) + '</b> · all <b>' + (ap === null ? '–' : pct0(ap)) + '</b></span></div>';
+    }).join('') +
+    '<p class="skill-note" style="font-size:12px;color:var(--muted)">From ' + VS.rows.length + ' player round' + (VS.rows.length === 1 ? '' : 's') + '. Yours come from the daily rounds saved in this browser.</p>';
+}
+function setBoardPeriod(p) { LB.period = p; lsSet('lb', p); renderLeaderboard(); }
+
 /* ---------- price history page ---------- */
 const PH_MAX = 6;
 let PH = null;
@@ -1483,13 +1794,16 @@ function phToggle(z) {
   phSave(); renderPrices();
 }
 function route() {
-  const prices = location.hash === '#prices';
-  $('#game-view').hidden = prices;
-  $('#prices-view').hidden = !prices;
-  $('#btn-prices').textContent = prices ? 'Back to the game' : 'Prices';
-  $('#btn-mode').hidden = prices;
-  if (prices) renderPrices();
-  else if (G && G.status !== 'playing') renderAllZones();
+  const view = location.hash === '#prices' ? 'prices' : location.hash === '#board' ? 'board' : 'game';
+  $('#game-view').hidden = view !== 'game';
+  $('#prices-view').hidden = view !== 'prices';
+  $('#board-view').hidden = view !== 'board';
+  $('#btn-prices').textContent = view === 'prices' ? 'Back to the game' : 'Prices';
+  $('#btn-board').textContent = view === 'board' ? 'Back to the game' : 'Leaderboard';
+  $('#btn-mode').hidden = view !== 'game';
+  if (view === 'prices') renderPrices();
+  else if (view === 'board') renderLeaderboard();
+  else if (G && G.status !== 'playing') { renderAllZones(); renderCrowd(); }
 }
 
 /* ---------- all-zones chart ---------- */
@@ -1971,7 +2285,7 @@ function render() {
     $('#ladder').innerHTML = '<li class="clue locked">No puzzle could be built from this data. Load a file with at least 12 zones per day.</li>';
     return;
   }
-  renderMeta(); renderBoard(); renderLog(); renderClues(); renderResult(); renderInsights(); renderAllZones(); renderData();
+  renderMeta(); renderBoard(); renderLog(); renderClues(); renderResult(); renderCrowd(); renderInsights(); renderAllZones(); renderData();
 }
 
 /* ---------- drag (grip) ---------- */
@@ -2034,6 +2348,9 @@ $('#pmo-prev').addEventListener('click', () => pmoSet(null, isoLocal(addDays(par
 $('#pmo-next').addEventListener('click', () => pmoSet(null, isoLocal(addDays(parseISO(PMO.date), 1))));
 $('#view-month').addEventListener('click', () => setView('month'));
 $('#btn-prices').addEventListener('click', () => { location.hash = location.hash === '#prices' ? 'game' : 'prices'; });
+$('#btn-board').addEventListener('click', () => { location.hash = location.hash === '#board' ? 'game' : 'board'; });
+document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) { location.hash = b.dataset.go; window.scrollTo({top: 0}); } });
+document.querySelectorAll('[data-lb]').forEach(b => b.addEventListener('click', () => setBoardPeriod(b.dataset.lb)));
 window.addEventListener('hashchange', route);
 $('#ph-presets').addEventListener('click', e => { const b = e.target.closest('[data-preset]'); if (!b) return; PH.preset = b.dataset.preset; [PH.from, PH.to] = phRange(PH.preset); phSave(); renderPrices(); });
 $('#ph-from').addEventListener('change', e => { if (!e.target.value) return; PH.from = e.target.value; if (PH.from > PH.to) PH.to = PH.from; PH.preset = 'custom'; phSave(); renderPrices(); });
@@ -2088,6 +2405,7 @@ async function boot(snap) {
   render();
   route();
   loadDrivers();   // wind/solar/demand data for clues and insights
+  if (PLAYER && HOSTED) submitDaily();   // a finished round that wasn't saved yet (offline, closed tab)
 }
 window.claude?.hot?.snapshot?.(() => ({G}));
 window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});

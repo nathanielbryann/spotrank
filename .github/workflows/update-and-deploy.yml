@@ -82,6 +82,13 @@ jobs:
           python scripts/build_spotrank_data.py --skip-prices --end today --workers 16 \
             --gen-out site/data/gen --gen-budget $((MINUTES * 60))
 
+      - name: Keep the leaderboard database awake
+        # Supabase pauses free projects after a week without activity; one small call a day prevents that
+        continue-on-error: true
+        run: |
+          curl -sS -m 30 -X POST "https://ywzvupcjyuvftnpchrtr.supabase.co/rest/v1/rpc/ping" \
+            -H "apikey: sb_publishable_uRr_kiMcy3RxNQk2_52AIg_h5QsoYLF" -H "Content-Type: application/json" -d '{}' || true
+
       - name: Commit updated prices
         run: |
           if [ -z "$(git status --porcelain site/data)" ]; then
