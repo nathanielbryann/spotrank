@@ -617,7 +617,7 @@ def run_generation(args, make_client, zones, first_day, end_day, today):
     t0 = time.time()
     os.makedirs(args.gen_out, exist_ok=True)
     state = {z: load_gen_zone(os.path.join(args.gen_out, z + ".json")) for z in zones}
-    last = min(end_day, today)   # actual generation exists up to now
+    last = min(end_day, today - pd.Timedelta(days=1))   # whole days only: today is still being published
     cutoff = (today - pd.Timedelta(days=GEN_RECENT_DAYS)).to_period("M")
     recent_from = max(first_day, cutoff.start_time)
     tasks = []

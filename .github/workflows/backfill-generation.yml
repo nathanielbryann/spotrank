@@ -52,7 +52,7 @@ jobs:
           EXTRA=""
           [ -n "$ZONES" ] && EXTRA="--zones $ZONES"
           echo "Backfilling for $MINUTES minutes ${ZONES:+(zones $ZONES)}"
-          python scripts/build_spotrank_data.py --skip-prices --end today --workers 16 $EXTRA \
+          python scripts/build_spotrank_data.py --skip-prices --end today --workers 24 $EXTRA \
             --gen-out site/data/gen --gen-budget $((MINUTES * 60))
       - name: Save the data
         run: |
