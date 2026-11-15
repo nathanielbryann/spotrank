@@ -56,6 +56,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; }
 body {
   background: var(--bg); color: var(--ink); font-family: var(--f-body);
@@ -274,6 +275,58 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 }
 :root[data-theme="dark"] { --map-land: #222c37; }
 
+/* Views */
+.view { display: grid; gap: 20px; }
+.view[hidden] { display: none; }
+
+/* Skill profile */
+.skill h3 { font-family: var(--f-display); font-weight: 800; text-transform: uppercase; font-size: 20px; letter-spacing: .02em; margin: 20px 0 2px; }
+.skill .sub { font-size: 12.5px; color: var(--ink-2); margin: 0 0 10px; }
+.skill-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 118px; gap: 10px; align-items: center; font-size: 13px; padding: 3px 0; }
+.skill-row .track { height: 10px; border-radius: 0 5px 5px 0; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.skill-row .fill { display: block; height: 100%; background: var(--accent); border-radius: 0 5px 5px 0; }
+.skill-row .v { font-family: var(--f-mono); font-size: 12px; color: var(--ink-2); text-align: right; white-space: nowrap; }
+.skill-row .v b { color: var(--ink); }
+.skill-row.none { color: var(--muted); }
+.skill-note { font-size: 13px; color: var(--ink-2); margin: 10px 0 0; }
+.skill-note b { color: var(--ink); }
+
+/* Price history */
+:root { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #0ca30c; } }
+:root[data-theme="dark"] { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #0ca30c; }
+.ph-sub { margin: 0; font-size: 13.5px; color: var(--ink-2); }
+.ph-controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; margin: 16px 0 8px; }
+.presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.presets button { appearance: none; border: 1px solid var(--line-strong); background: var(--surface); border-radius: 999px; padding: 5px 11px; font-size: 13px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.presets button[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--bg); }
+.dates { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
+.dates input { font: inherit; font-family: var(--f-mono); font-size: 13px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+.ph-period { margin: 4px 0 10px; font-size: 13.5px; color: var(--ink-2); }
+.ph-period b { color: var(--ink); }
+.ph-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.lg { display: inline-flex; align-items: center; gap: 8px; padding: 6px 6px 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); font-size: 13px; }
+.lg i { width: 12px; height: 4px; border-radius: 2px; display: inline-block; }
+.lg .avg { font-family: var(--f-mono); font-weight: 700; color: var(--ink); }
+.lg .nm { color: var(--ink-2); }
+.lg button { appearance: none; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; padding: 2px 5px; border-radius: 6px; }
+.lg button:hover { color: var(--ink); background: var(--line); }
+.ph-overview-wrap { margin-top: 10px; }
+#ph-overview svg { display: block; width: 100%; cursor: crosshair; touch-action: none; }
+.ph-h3 { font-family: var(--f-display); font-weight: 800; text-transform: uppercase; font-size: 18px; letter-spacing: .03em; margin: 18px 0 8px; }
+.ph-h3 span { font-family: var(--f-body); text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 13px; color: var(--muted); margin-left: 6px; }
+.zone-picker { display: grid; gap: 8px; }
+.zp-row { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 10px; align-items: start; }
+.zp-row .rg { font-size: 12.5px; color: var(--muted); padding-top: 6px; }
+.zp-row .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.zp { appearance: none; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line-strong); background: var(--surface); border-radius: 8px; padding: 4px 9px; font-family: var(--f-mono); font-size: 12.5px; font-weight: 700; color: var(--ink-2); cursor: pointer; }
+.zp i { width: 8px; height: 8px; border-radius: 50%; background: transparent; border: 1.5px solid var(--line-strong); }
+.zp[aria-pressed="true"] { color: var(--ink); border-color: var(--ink); }
+.zp[aria-pressed="true"] i { border: 0; }
+#ph-table tbody tr { cursor: pointer; }
+#ph-table tbody tr:hover td { background: var(--surface-2); }
+@media (max-width: 520px) { .zp-row { grid-template-columns: minmax(0, 1fr); gap: 4px; } .zp-row .rg { padding-top: 0; } .skill-row { grid-template-columns: 82px minmax(0, 1fr) 96px; } }
+
 /* Data panel */
 .data { display: grid; gap: 10px; }
 .data .line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -325,12 +378,14 @@ footer a, .data a { color: var(--accent); }
       <span class="tag">Rank five bidding zones by their day-ahead price</span>
     </div>
     <div class="actions">
+      <button class="btn" id="btn-prices" type="button">Prices</button>
       <button class="btn" id="btn-help" type="button">How to play</button>
       <button class="btn" id="btn-stats" type="button">Stats</button>
       <button class="btn" id="btn-mode" type="button">Practice round</button>
     </div>
   </header>
 
+  <div class="view" id="game-view">
   <div class="meta" id="meta"></div>
   <p class="rule">Order the five zones from cheapest to most expensive <b>daily baseload price</b>. You get 4 attempts. After each one, zones in the right place turn <span class="k g">✓</span>green and lock; the rest turn <span class="k x">✕</span>grey.</p>
 
@@ -393,6 +448,40 @@ footer a, .data a { color: var(--accent); }
     </div>
     <details class="tableview"><summary>Table view</summary><div class="tbl-scroll" id="table"></div></details>
   </section>
+  </div>
+
+  <div class="view" id="prices-view" hidden>
+    <section class="panel" aria-labelledby="ph-title">
+      <div class="ph-head">
+        <div>
+          <h2 id="ph-title" style="margin-bottom:4px">Price history</h2>
+          <p class="ph-sub" id="ph-sub"></p>
+        </div>
+      </div>
+      <div class="ph-controls">
+        <div class="presets" id="ph-presets" role="group" aria-label="Period presets"></div>
+        <div class="dates">
+          <label for="ph-from">From</label><input type="date" id="ph-from">
+          <label for="ph-to">To</label><input type="date" id="ph-to">
+        </div>
+      </div>
+      <p class="ph-period" id="ph-period"></p>
+      <div class="ph-legend" id="ph-legend"></div>
+      <div class="chart-wrap" id="ph-chart"></div>
+      <div class="ph-overview-wrap">
+        <div id="ph-overview"></div>
+        <p class="hint" style="margin:6px 0 0">Drag across this strip to pick a period. The shaded part is the period shown above.</p>
+      </div>
+      <h3 class="ph-h3">Zones <span id="ph-count"></span></h3>
+      <div class="zone-picker" id="ph-zones"></div>
+      <p class="status-line" id="ph-msg" role="status"></p>
+    </section>
+    <section class="panel" aria-labelledby="pt-title">
+      <h2 id="pt-title" style="margin-bottom:4px">Period average, all zones</h2>
+      <p class="ph-sub" id="pt-sub"></p>
+      <div class="tbl-scroll"><table id="ph-table"></table></div>
+    </section>
+  </div>
 
   <section class="panel data" aria-labelledby="data-title">
     <h2 id="data-title" style="margin:0">Data</h2>
@@ -1097,6 +1186,250 @@ function renderInsights() {
   $('#why-foot').textContent = foot.join(' ');
 }
 
+/* ---------- skill profile (Stats) ---------- */
+const REGIONS = ['Nordics', 'Baltics', 'Central West', 'Central East', 'South East', 'Iberia', 'Italy'];
+function skillData() {
+  const rounds = new Map();
+  try {
+    for (let k = 0; k < localStorage.length; k++) {
+      const key = localStorage.key(k);
+      if (!key || key.indexOf(LSK + 'daily:') !== 0) continue;
+      const g = JSON.parse(localStorage.getItem(key));
+      if (!g || g.mode !== 'daily' || g.status === 'playing' || !Array.isArray(g.attempts) || !g.attempts.length || !Array.isArray(g.answer)) continue;
+      rounds.set(g.puzzleNo + '|' + g.date, g);
+    }
+  } catch (e) { /* storage unavailable */ }
+  const reg = {}, zone = {};
+  const add = (o, k, off) => { const r = o[k] || (o[k] = {n: 0, ok: 0, off: 0}); r.n++; r.off += off; if (off === 0) r.ok++; };
+  for (const g of rounds.values()) {
+    g.attempts[0].forEach((t, i) => {
+      const off = Math.abs(i - g.answer.indexOf(t.z));
+      add(reg, zm(t.z).r, off); add(zone, t.z, off);
+    });
+  }
+  return {rounds: rounds.size, reg, zone};
+}
+function skillHtml() {
+  const s = skillData();
+  let h = '<div class="skill"><h3>Skill by region</h3>';
+  if (!s.rounds) return h + '<p class="sub">Finish a daily puzzle to start your profile. It is built from your first attempt in each daily round.</p></div>';
+  h += '<p class="sub">How often you placed a zone correctly on your first attempt, from ' + s.rounds + ' daily round' + (s.rounds === 1 ? '' : 's') + '.</p>';
+  const rows = REGIONS.map(r => ({r, d: s.reg[r]})).sort((a, b) => (b.d ? b.d.ok / b.d.n : -1) - (a.d ? a.d.ok / a.d.n : -1));
+  h += rows.map(({r, d}) => d
+    ? '<div class="skill-row"><span>' + r + '</span><span class="track"><span class="fill" style="width:' + Math.max(2, 100 * d.ok / d.n).toFixed(0) + '%"></span></span><span class="v"><b>' + Math.round(100 * d.ok / d.n) + '%</b> · ' + (d.off / d.n).toFixed(1) + ' off · ' + d.n + '</span></div>'
+    : '<div class="skill-row none"><span>' + r + '</span><span class="track"></span><span class="v">no zones yet</span></div>').join('');
+  h += '<p class="skill-note" style="margin-top:6px;font-size:12px;color:var(--muted)">Right column: first-try accuracy · average places off · zones seen.</p>';
+  const solid = rows.filter(x => x.d && x.d.n >= 5);
+  if (solid.length >= 2) {
+    const best = solid[0], worst = solid[solid.length - 1];
+    h += '<p class="skill-note">Strongest: <b>' + best.r + '</b> (' + Math.round(100 * best.d.ok / best.d.n) + '%). Weakest: <b>' + worst.r + '</b> (' + Math.round(100 * worst.d.ok / worst.d.n) + '%).</p>';
+  }
+  const blind = Object.entries(s.zone).filter(([, d]) => d.n >= 2 && d.off / d.n >= 1).sort((a, b) => b[1].off / b[1].n - a[1].off / a[1].n).slice(0, 3);
+  if (blind.length) h += '<p class="skill-note">Blind spots: ' + blind.map(([z, d]) => '<b>' + esc(z) + '</b> (' + (d.off / d.n).toFixed(1) + ' places off, ' + d.n + ' rounds)').join(', ') + '.</p>';
+  return h + '</div>';
+}
+
+/* ---------- price history page ---------- */
+const PH_MAX = 6;
+let PH = null;
+const PRESETS = [['30d', 'Last 30 days'], ['90d', 'Last 90 days'], ['mtd', 'This month'], ['lm', 'Last month'], ['ytd', 'Year to date'], ['ly', 'Last year'], ['12m', 'Last 12 months'], ['all', 'All']];
+function phRange(preset) {
+  const first = DS.days[0][0], last = DS.days[DS.days.length - 1][0], L = parseISO(last);
+  const clamp = d => (d < first ? first : d);
+  const y = L.getFullYear(), m = L.getMonth();
+  switch (preset) {
+    case '30d': return [clamp(isoLocal(addDays(L, -29))), last];
+    case '90d': return [clamp(isoLocal(addDays(L, -89))), last];
+    case 'mtd': return [clamp(isoLocal(new Date(y, m, 1))), last];
+    case 'lm': return [clamp(isoLocal(new Date(y, m - 1, 1))), isoLocal(new Date(y, m, 0))];
+    case 'ytd': return [clamp(isoLocal(new Date(y, 0, 1))), last];
+    case 'ly': return [clamp(isoLocal(new Date(y - 1, 0, 1))), isoLocal(new Date(y - 1, 11, 31))];
+    case '12m': return [clamp(isoLocal(addDays(new Date(y, m, L.getDate()), -364))), last];
+    default: return [first, last];
+  }
+}
+function phInit() {
+  if (PH && PH.dsId === DS.id) return;
+  const saved = lsGet('ph', null) || {};
+  let sel = Array.isArray(saved.sel) ? saved.sel.filter(o => o && DS.zones.includes(o.z) && o.slot >= 0 && o.slot < PH_MAX) : null;
+  if (!sel || !sel.length) sel = ['FI', 'SE3', 'DE-LU', 'FR'].filter(z => DS.zones.includes(z)).map((z, i) => ({z, slot: i}));
+  PH = {dsId: DS.id, sel: sel.slice(0, PH_MAX), preset: saved.preset || '90d', from: saved.from, to: saved.to};
+  const first = DS.days[0][0], last = DS.days[DS.days.length - 1][0];
+  if (PH.preset !== 'custom' || !PH.from || !PH.to || PH.from < first || PH.to > last || PH.from > PH.to) {
+    if (PH.preset === 'custom') PH.preset = '90d';
+    [PH.from, PH.to] = phRange(PH.preset);
+  }
+}
+function phSave() { lsSet('ph', {sel: PH.sel, preset: PH.preset, from: PH.from, to: PH.to}); }
+function phSeries(z, from, to) {
+  const i = DS.zones.indexOf(z), out = [];
+  for (const [d, v] of DS.days) if (d >= from && d <= to) out.push([d, v[i]]);
+  return out;
+}
+function phAvg(z, from, to) {
+  const v = phSeries(z, from, to).map(x => x[1]).filter(x => x !== null);
+  return v.length ? {avg: v.reduce((a, b) => a + b, 0) / v.length, n: v.length} : null;
+}
+function phColor(slot) { return 'var(--s' + (slot + 1) + ')'; }
+function phTicks(from, to) {
+  const span = daysBetween(from, to), out = [], a = parseISO(from), b = parseISO(to);
+  if (span <= 45) {
+    let d = new Date(a); while (d.getDay() !== 1) d = addDays(d, 1);
+    for (; d <= b; d = addDays(d, 7)) out.push([isoLocal(d), d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short'})]);
+  } else {
+    const every = span <= 200 ? 1 : span <= 800 ? 3 : 6;
+    let d = new Date(a.getFullYear(), a.getMonth() + (a.getDate() > 1 ? 1 : 0), 1);
+    while (d.getMonth() % every) d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    for (; d <= b; d = new Date(d.getFullYear(), d.getMonth() + every, 1)) {
+      const lab = d.toLocaleDateString('en-GB', {month: 'short'}) + (d.getMonth() === 0 || every > 1 ? ' ' + d.getFullYear() : '');
+      out.push([isoLocal(d), lab]);
+    }
+  }
+  return out;
+}
+function renderPrices() {
+  phInit();
+  $('#ph-msg').textContent = '';
+  const first = DS.days[0][0], last = DS.days[DS.days.length - 1][0];
+  $('#ph-sub').textContent = 'Daily baseload, €/MWh, SDAC day-ahead. Data from ' + (DS.meta.source_short || 'the loaded file') + ', ' + fmtShortDay(first) + ' to ' + fmtShortDay(last) + '.';
+  $('#ph-presets').innerHTML = PRESETS.map(([k, l]) => '<button type="button" data-preset="' + k + '" aria-pressed="' + (PH.preset === k) + '">' + l + '</button>').join('');
+  const fi = $('#ph-from'), ti = $('#ph-to');
+  fi.min = ti.min = first; fi.max = ti.max = last; fi.value = PH.from; ti.value = PH.to;
+  const days = daysBetween(PH.from, PH.to) + 1;
+  $('#ph-period').innerHTML = 'Period: <b>' + esc(fmtShortDay(PH.from)) + ' – ' + esc(fmtShortDay(PH.to)) + '</b> · ' + days + ' day' + (days === 1 ? '' : 's');
+  // legend with period averages
+  $('#ph-legend').innerHTML = PH.sel.length ? PH.sel.map(({z, slot}) => {
+    const a = phAvg(z, PH.from, PH.to);
+    return '<span class="lg"><i style="background:' + phColor(slot) + '"></i><b>' + esc(z) + '</b><span class="nm">' + esc(zm(z).c) + '</span><span class="avg">' + (a ? fmtP(a.avg) : 'no data') + '</span><button type="button" data-remove="' + esc(z) + '" aria-label="Remove ' + esc(z) + '">×</button></span>';
+  }).join('') : '<span class="ph-sub">Pick up to ' + PH_MAX + ' zones below.</span>';
+  $('#ph-count').textContent = PH.sel.length + ' of ' + PH_MAX + ' selected';
+  renderPhChart(); renderPhOverview(); renderPhPicker(); renderPhTable();
+}
+function renderPhChart() {
+  const box = $('#ph-chart');
+  const W = Math.max(300, box.clientWidth || 800), H = W < 520 ? 240 : 320;
+  const padL = 46, padR = 14, padT = 10, padB = 28;
+  const series = PH.sel.map(o => ({...o, pts: phSeries(o.z, PH.from, PH.to), a: phAvg(o.z, PH.from, PH.to)}));
+  const all = series.flatMap(s => s.pts.map(p => p[1])).filter(v => v !== null);
+  if (!all.length) { box.innerHTML = '<p class="map-msg">No prices for this selection.</p>'; return; }
+  let lo = Math.min(0, ...all), hi = Math.max(...all);
+  const step = niceStep((hi - lo) || 1, H < 300 ? 4 : 5);
+  lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step || step;
+  const n = daysBetween(PH.from, PH.to);
+  const x = d => padL + (n ? daysBetween(PH.from, d) / n : 0.5) * (W - padL - padR);
+  const y = v => padT + (hi - v) / (hi - lo) * (H - padT - padB);
+  let s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Daily baseload prices for the selected zones">';
+  for (let t = lo; t <= hi + 1e-9; t += step) {
+    s += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(t).toFixed(1) + '" y2="' + y(t).toFixed(1) + '" stroke="' + (Math.abs(t) < 1e-9 ? 'var(--line-strong)' : 'var(--line)') + '" stroke-width="1"/>';
+    s += '<text x="' + (padL - 8) + '" y="' + (y(t) + 4).toFixed(1) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + (t < 0 ? '−' : '') + Math.abs(Math.round(t)) + '</text>';
+  }
+  for (const [d, lab] of phTicks(PH.from, PH.to)) s += '<text x="' + x(d).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + esc(lab) + '</text>';
+  for (const sr of series) {   // period average: thin line across the chart
+    if (sr.a) s += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(sr.a.avg).toFixed(1) + '" y2="' + y(sr.a.avg).toFixed(1) + '" stroke="' + phColor(sr.slot) + '" stroke-width="1" opacity=".55"/>';
+  }
+  for (const sr of series) {
+    let dpath = '', pen = false;
+    for (const [d, v] of sr.pts) {
+      if (v === null) { pen = false; continue; }
+      dpath += (pen ? 'L' : 'M') + x(d).toFixed(1) + ',' + y(v).toFixed(1); pen = true;
+    }
+    s += '<path d="' + dpath + '" fill="none" stroke="' + phColor(sr.slot) + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>';
+  }
+  s += '<line id="ph-cross" x1="0" x2="0" y1="' + padT + '" y2="' + (H - padB) + '" stroke="var(--ink-2)" stroke-width="1" visibility="hidden"/>';
+  s += '<rect id="ph-hit" x="' + padL + '" y="' + padT + '" width="' + (W - padL - padR) + '" height="' + (H - padT - padB) + '" fill="transparent"/></svg><div class="tip" id="ph-tip"></div>';
+  box.innerHTML = s;
+  const hit = $('#ph-hit'), cross = $('#ph-cross'), tip = $('#ph-tip');
+  hit.addEventListener('pointermove', e => {
+    const r = box.getBoundingClientRect(), px = e.clientX - r.left;
+    const k = Math.max(0, Math.min(n, Math.round((px - padL) / (W - padL - padR) * n)));
+    const d = isoLocal(addDays(parseISO(PH.from), k));
+    const rows = series.map(sr => ({sr, v: (sr.pts.find(p => p[0] === d) || [])[1]})).filter(o => o.v !== null && o.v !== undefined).sort((a, b) => b.v - a.v);
+    cross.setAttribute('x1', x(d)); cross.setAttribute('x2', x(d)); cross.setAttribute('visibility', 'visible');
+    tip.innerHTML = '<b>' + esc(fmtDay(d)) + '</b>' + rows.map(o => '<br><span style="display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:' + phColor(o.sr.slot) + '"></span>' + esc(o.sr.z) + ' <b>' + fmtP(o.v) + '</b>').join('');
+    tip.style.display = 'block';
+    tip.style.left = Math.min(Math.max(x(d), 90), W - 90) + 'px';
+    tip.style.top = (padT + 6) + 'px';
+    tip.style.transform = 'translate(-50%, 0)';
+  });
+  hit.addEventListener('pointerleave', () => { tip.style.display = 'none'; cross.setAttribute('visibility', 'hidden'); });
+}
+function renderPhOverview() {
+  const box = $('#ph-overview');
+  const W = Math.max(300, box.clientWidth || 800), H = 56, pad = 4;
+  const first = DS.days[0][0], last = DS.days[DS.days.length - 1][0], n = daysBetween(first, last) || 1;
+  const x = d => pad + daysBetween(first, d) / n * (W - 2 * pad);
+  const vals = PH.sel.flatMap(o => phSeries(o.z, first, last).map(p => p[1])).filter(v => v !== null);
+  const sortedV = vals.slice().sort((a, b) => a - b);   // clip the scale at the 99th percentile so one spike doesn't flatten the strip
+  const lo = Math.min(0, sortedV[0] ?? 0), hi = Math.max(1, sortedV[Math.floor(sortedV.length * 0.99)] ?? 1);
+  const y = v => Math.max(1, pad + (hi - Math.min(v, hi)) / (hi - lo) * (H - 2 * pad));
+  let s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" aria-label="Whole archive; drag to choose a period">';
+  s += '<rect x="0" y="0" width="' + W + '" height="' + H + '" rx="6" fill="var(--surface-2)" stroke="var(--line)"/>';
+  s += '<rect id="ph-band" x="' + x(PH.from).toFixed(1) + '" y="1" width="' + Math.max(2, x(PH.to) - x(PH.from)).toFixed(1) + '" height="' + (H - 2) + '" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1"/>';
+  for (const o of PH.sel) {
+    let dpath = '', pen = false;
+    for (const [d, v] of phSeries(o.z, first, last)) { if (v === null) { pen = false; continue; } dpath += (pen ? 'L' : 'M') + x(d).toFixed(1) + ',' + y(v).toFixed(1); pen = true; }
+    s += '<path d="' + dpath + '" fill="none" stroke="' + phColor(o.slot) + '" stroke-width="1" opacity=".8"/>';
+  }
+  for (let yr = parseISO(first).getFullYear() + 1; yr <= parseISO(last).getFullYear(); yr++) {
+    const xx = x(yr + '-01-01');
+    s += '<line x1="' + xx + '" x2="' + xx + '" y1="0" y2="' + H + '" stroke="var(--line-strong)"/><text x="' + (xx + 4) + '" y="12" font-size="10" fill="var(--muted)">' + yr + '</text>';
+  }
+  s += '</svg>';
+  box.innerHTML = s;
+  const svg = box.querySelector('svg'), band = $('#ph-band');
+  const toDate = cx => { const r = svg.getBoundingClientRect(); const k = Math.round(Math.max(0, Math.min(1, (cx - r.left - pad) / (r.width - 2 * pad))) * n); return isoLocal(addDays(parseISO(first), k)); };
+  let start = null, startX = 0;
+  svg.addEventListener('pointerdown', e => { start = toDate(e.clientX); startX = e.clientX; try { svg.setPointerCapture(e.pointerId); } catch (_) {} e.preventDefault(); });
+  svg.addEventListener('pointermove', e => {
+    if (start === null) return;
+    const cur = toDate(e.clientX), a = start < cur ? start : cur, b = start < cur ? cur : start;
+    band.setAttribute('x', x(a).toFixed(1)); band.setAttribute('width', Math.max(2, x(b) - x(a)).toFixed(1));
+  });
+  const finish = e => {
+    if (start === null) return;
+    const cur = toDate(e.clientX), moved = Math.abs(e.clientX - startX) > 4;
+    if (moved) { PH.from = start < cur ? start : cur; PH.to = start < cur ? cur : start; PH.preset = 'custom'; phSave(); }
+    start = null; renderPrices();
+  };
+  svg.addEventListener('pointerup', finish);
+  svg.addEventListener('pointercancel', () => { start = null; renderPrices(); });
+}
+function renderPhPicker() {
+  const used = new Map(PH.sel.map(o => [o.z, o.slot]));
+  $('#ph-zones').innerHTML = REGIONS.map(r => {
+    const zs = DS.zones.filter(z => zm(z).r === r);
+    if (!zs.length) return '';
+    return '<div class="zp-row"><span class="rg">' + r + '</span><span class="chips">' + zs.map(z =>
+      '<button type="button" class="zp" data-zone="' + esc(z) + '" aria-pressed="' + used.has(z) + '" title="' + esc(zm(z).c + (zm(z).a ? ' · ' + zm(z).a : '')) + '"><i' + (used.has(z) ? ' style="background:' + phColor(used.get(z)) + '"' : '') + '></i>' + esc(z) + '</button>').join('') + '</span></div>';
+  }).join('');
+}
+function renderPhTable() {
+  const rows = DS.zones.map(z => ({z, a: phAvg(z, PH.from, PH.to)})).filter(o => o.a).sort((a, b) => a.a.avg - b.a.avg);
+  const used = new Map(PH.sel.map(o => [o.z, o.slot]));
+  $('#pt-sub').textContent = fmtShortDay(PH.from) + ' – ' + fmtShortDay(PH.to) + '. Mean of the daily baseload prices, cheapest first. Click a row to add or remove it from the chart.';
+  $('#ph-table').innerHTML = '<thead><tr><th>#</th><th>Zone</th><th>Name</th><th class="num">Average €/MWh</th><th class="num">Days</th></tr></thead><tbody>' +
+    rows.map((o, k) => '<tr data-zone="' + esc(o.z) + '"' + (used.has(o.z) ? ' class="mine"' : '') + '><td>' + (k + 1) + '</td><td>' +
+      (used.has(o.z) ? '<span style="display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:' + phColor(used.get(o.z)) + '"></span>' : '') + esc(o.z) + '</td><td>' +
+      esc(zm(o.z).c + (zm(o.z).a ? ' · ' + zm(o.z).a : '')) + '</td><td class="num">' + o.a.avg.toFixed(2) + '</td><td class="num">' + o.a.n + '</td></tr>').join('') + '</tbody>';
+}
+function phToggle(z) {
+  const i = PH.sel.findIndex(o => o.z === z);
+  if (i >= 0) PH.sel.splice(i, 1);
+  else if (PH.sel.length >= PH_MAX) { renderPrices(); $('#ph-msg').textContent = 'You can compare up to ' + PH_MAX + ' zones. Remove one first.'; return; }
+  else { const free = [0, 1, 2, 3, 4, 5].find(k => !PH.sel.some(o => o.slot === k)); PH.sel.push({z, slot: free}); }
+  $('#ph-msg').textContent = '';
+  phSave(); renderPrices();
+}
+function route() {
+  const prices = location.hash === '#prices';
+  $('#game-view').hidden = prices;
+  $('#prices-view').hidden = !prices;
+  $('#btn-prices').textContent = prices ? 'Back to the game' : 'Prices';
+  $('#btn-mode').hidden = prices;
+  if (prices) renderPrices();
+  else if (G && G.status !== 'playing') renderAllZones();
+}
+
 /* ---------- all-zones chart ---------- */
 function niceStep(range, target) { const raw = range / target, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p; }
 function barPath(x0, x1, y, h, r) {
@@ -1261,6 +1594,7 @@ function renderStats() {
   $('#stats-body').innerHTML = '<div class="stats">' +
     [['Played', s.played], ['Win %', s.played ? Math.round(100 * s.wins / s.played) : 0], ['Streak', s.streak], ['Best', s.best]].map(([l, v]) => '<div class="stat"><div class="v">' + v + '</div><div class="l">' + l + '</div></div>').join('') +
     '</div><div class="dist">' + ['1', '2', '3', '4', 'X'].map(k => '<div class="d"><span>' + k + '</span><span class="bar' + (k === cur ? ' cur' : '') + '" style="width:' + Math.max(8, 100 * s.dist[k] / maxD) + '%">' + s.dist[k] + '</span></div>').join('') + '</div>' +
+    skillHtml() +
     '<p style="font-size:13px;color:var(--ink-2);margin:14px 0 0">Daily puzzles only. Stats are kept in this browser.</p>';
 }
 
@@ -1325,6 +1659,14 @@ $('#ladder').addEventListener('keydown', e => {
 });
 $('#btn-submit').addEventListener('click', submit);
 $('#view-map').addEventListener('click', () => setView('map'));
+$('#btn-prices').addEventListener('click', () => { location.hash = location.hash === '#prices' ? 'game' : 'prices'; });
+window.addEventListener('hashchange', route);
+$('#ph-presets').addEventListener('click', e => { const b = e.target.closest('[data-preset]'); if (!b) return; PH.preset = b.dataset.preset; [PH.from, PH.to] = phRange(PH.preset); phSave(); renderPrices(); });
+$('#ph-from').addEventListener('change', e => { if (!e.target.value) return; PH.from = e.target.value; if (PH.from > PH.to) PH.to = PH.from; PH.preset = 'custom'; phSave(); renderPrices(); });
+$('#ph-to').addEventListener('change', e => { if (!e.target.value) return; PH.to = e.target.value; if (PH.to < PH.from) PH.from = PH.to; PH.preset = 'custom'; phSave(); renderPrices(); });
+$('#ph-zones').addEventListener('click', e => { const b = e.target.closest('[data-zone]'); if (b) phToggle(b.dataset.zone); });
+$('#ph-legend').addEventListener('click', e => { const b = e.target.closest('[data-remove]'); if (b) phToggle(b.dataset.remove); });
+$('#ph-table').addEventListener('click', e => { const r = e.target.closest('tr[data-zone]'); if (r) phToggle(r.dataset.zone); });
 $('#view-rank').addEventListener('click', () => setView('rank'));
 function startPractice() { const pz = practicePuzzle(DS); if (pz) { if (G && G.mode === 'daily') DAILY = G; G = newGame('practice', pz, null); selected = null; render(); window.scrollTo({top: 0, behavior: 'smooth'}); } }
 $('#btn-mode').addEventListener('click', () => { if (G.mode === 'daily') startPractice(); else { G = (DAILY && DAILY.dsId === DS.id) ? DAILY : loadDaily(); selected = null; render(); } });
@@ -1356,7 +1698,7 @@ $('#file-in').addEventListener('change', async e => {
 $('#btn-reset-data').addEventListener('click', () => { lsDel('data'); DS = BUILTIN_DS; G = loadDaily(); render(); $('#data-msg').textContent = 'Back on the built-in data.'; });
 
 let rz = null;
-window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (G && G.status !== 'playing') renderAllZones(); }, 150); });
+window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (location.hash === '#prices') renderPrices(); else if (G && G.status !== 'playing') renderAllZones(); }, 150); });
 
 /* ---------- boot ---------- */
 async function boot(snap) {
@@ -1370,6 +1712,7 @@ async function boot(snap) {
   if (snap && snap.G && snap.G.dsId === DS.id) G = snap.G;
   else G = loadDaily();
   render();
+  route();
   loadDrivers();   // wind/solar/demand data for clues and insights
 }
 window.claude?.hot?.snapshot?.(() => ({G}));

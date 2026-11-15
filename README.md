@@ -33,6 +33,12 @@ which handles both hourly and 15-minute prices. Italy uses its North zone (IT-NO
   and surrounding countries from Natural Earth (public domain); `scripts/build_map.py` rebuilds
   `site/data/zones-map.json`.
 
+- **Prices page** (`#prices`): daily baseload history for up to six zones, a period picker (presets,
+  dates, or drag on the overview strip) and the period average per zone, for the chart's zones and
+  for all 32 zones in a table. The average is the mean of the daily baseload prices in the period.
+- **Skill profile** (in Stats): first-attempt accuracy and average places off per region, built from
+  the daily rounds saved in the player's browser.
+
 The drivers history is backfilled a few months per run, newest first. A run can be given more time
 with **Run workflow**, using the "Minutes to spend on wind/solar/load data" field.
 
