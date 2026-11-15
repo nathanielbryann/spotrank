@@ -1,0 +1,45 @@
+name: Forecast data availability check
+
+# Test runs for the planned Forecast challenge: which zones already have tomorrow's
+# load, wind and solar forecasts (and prices) on ENTSO-E before the 12:00 CET auction.
+# Times are UTC; in November 08:30 UTC = 09:30 CET = 10:30 Helsinki.
+on:
+  schedule:
+    - cron: "30 8 16,17 11 *"    # 09:30 CET
+    - cron: "30 9 16,17 11 *"    # 10:30 CET
+    - cron: "15 10 16,17 11 *"   # 11:15 CET
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: spotrank-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install packages
+        run: pip install -r requirements.txt
+      - name: Check what ENTSO-E has for tomorrow
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+          PYTHONUNBUFFERED: "1"
+        run: python scripts/forecast_diagnostic.py --out-dir diagnostics
+      - name: Save the results
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add diagnostics
+          git commit -m "Forecast availability check $(date -u +%FT%H%MZ)" || exit 0
+          for i in 1 2 3; do git pull --rebase && git push && break; sleep 10; done
