@@ -25,9 +25,9 @@ GAME = {"NO1": "NO_1", "NO2": "NO_2", "NO3": "NO_3", "NO4": "NO_4", "NO5": "NO_5
         "DK1": "DK_1", "DK2": "DK_2", "EE": "EE", "LV": "LV", "LT": "LT", "PL": "PL",
         "DE-LU": "DE_LU", "NL": "NL", "BE": "BE", "FR": "FR", "AT": "AT", "CZ": "CZ",
         "SK": "SK", "HU": "HU", "SI": "SI", "HR": "HR", "RO": "RO", "BG": "BG", "GR": "GR",
-        "IT": "IT_NORD", "ES": "ES", "PT": "PT"}
+        "IT": "IT_NORD", "ES": "ES", "PT": "PT", "CH": "CH"}
 CONTEXT_ZONES = {"IT-CNOR": "IT_CNOR", "IT-CSUD": "IT_CSUD", "IT-SUD": "IT_SUD", "IT-CALA": "IT_CALA",
-                 "IT-SICI": "IT_SICI", "IT-SARD": "IT_SARD", "CH": "CH", "RS": "RS"}
+                 "IT-SICI": "IT_SICI", "IT-SARD": "IT_SARD", "RS": "RS"}
 NE_CONTEXT = ["United Kingdom", "Ireland", "Bosnia and Herz.", "Montenegro", "Albania", "North Macedonia",
               "Kosovo", "Ukraine", "Belarus", "Moldova", "Russia", "Turkey", "Morocco", "Algeria", "Tunisia",
               "Iceland"]

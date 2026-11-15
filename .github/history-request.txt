@@ -1,0 +1,4 @@
+prices_from: 2021-01-01
+prices_to: 2023-12-31
+new_zones: CH
+minutes: 95

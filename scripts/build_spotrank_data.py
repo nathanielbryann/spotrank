@@ -42,6 +42,7 @@ ZONES = {
     "DE-LU": "DE_LU", "NL": "NL", "BE": "BE", "FR": "FR", "AT": "AT", "CZ": "CZ",
     "SK": "SK", "HU": "HU", "SI": "SI", "HR": "HR", "RO": "RO", "BG": "BG", "GR": "GR",
     "IT": "IT_NORD", "ES": "ES", "PT": "PT",
+    "CH": "CH",   # Switzerland: its own day-ahead auction, outside SDAC
 }
 ITALY_ZONES = ["IT_NORD", "IT_CNOR", "IT_CSUD", "IT_SUD", "IT_CALA", "IT_SICI", "IT_SARD"]
 
@@ -149,7 +150,11 @@ def load_existing(path):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--start", default="2024-01-01", help="first delivery day, YYYY-MM-DD")
+    ap.add_argument("--start", default="2021-01-01",
+                    help="first delivery day kept in the files, YYYY-MM-DD (older days are dropped)")
+    ap.add_argument("--fetch-from", default=None,
+                    help="with --update: fetch prices from this day instead of a week before the last one (backfill)")
+    ap.add_argument("--fetch-to", default=None, help="with --fetch-from: last day to fetch")
     ap.add_argument("--end", default="yesterday", help="last delivery day: YYYY-MM-DD, yesterday (default), today or tomorrow")
     ap.add_argument("--update", action="store_true",
                     help="keep the days already in --out and only fetch from 7 days before its last day")
@@ -210,6 +215,11 @@ def run_prices(args, make_client, zones, first_day, end_day):
         last = pd.Timestamp(existing.dropna(how="all").index.max())
         fetch_from = max(first_day, last - pd.Timedelta(days=7))  # re-fetch a week to pick up any revisions
         print(f"Updating {os.path.basename(args.out)}: it ends {last.date()}, fetching from {fetch_from.date()}")
+    if args.fetch_from:   # backfill: days already in the file are kept unless the new fetch has them
+        fetch_from = max(first_day, pd.Timestamp(args.fetch_from))
+        if args.fetch_to:
+            end_day = min(end_day, pd.Timestamp(args.fetch_to))
+        print(f"Backfilling {fetch_from.date()} to {end_day.date()}")
     if fetch_from > end_day:
         print("Nothing to fetch.")
         return False

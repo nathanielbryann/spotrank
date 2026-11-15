@@ -1,0 +1,122 @@
+name: Backfill history
+
+# One-off catch-up of older data (prices, forecasts, generation) and of new zones.
+# Starts when .github/history-request.txt changes, or with "Run workflow".
+# The request file holds: prices_from, prices_to, new_zones, minutes (per job).
+on:
+  push:
+    branches: [main]
+    paths: [".github/history-request.txt"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: spotrank-history
+  cancel-in-progress: false
+
+env:
+  REQ: .github/history-request.txt
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  prices:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -r requirements.txt
+      - name: Fetch older prices, and every day for new zones
+        continue-on-error: true
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+        run: |
+          get() { sed -n "s/^$1: *//p" "$REQ" | head -1; }
+          FROM=$(get prices_from); TO=$(get prices_to); NEW=$(get new_zones); MIN=$(get minutes); MIN=${MIN:-90}
+          if [ -n "$FROM" ]; then
+            python scripts/build_spotrank_data.py --update --no-csv --workers 8 --fetch-from "$FROM" ${TO:+--fetch-to "$TO"} \
+              --end tomorrow --time-budget $((MIN * 60 / 2)) --out site/data/spotrank_data.json
+          fi
+          if [ -n "$NEW" ]; then
+            python scripts/build_spotrank_data.py --update --no-csv --workers 8 --zones "$NEW" --fetch-from 2021-01-01 \
+              --end tomorrow --time-budget $((MIN * 60 / 2)) --out site/data/spotrank_data.json
+          fi
+      - name: Save
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/data/spotrank_data.json
+          git commit -m "History backfill: prices $(date -u +%FT%H%MZ)" || exit 0
+          for i in 1 2 3 4 5 6; do git pull --rebase && git push && break; sleep 20; done
+
+  drivers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -r requirements.txt
+      - name: Fetch load, wind and solar forecasts back to the start date
+        continue-on-error: true
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+        run: |
+          MIN=$(sed -n 's/^minutes: *//p' "$REQ" | head -1); MIN=${MIN:-90}
+          python scripts/build_spotrank_data.py --skip-prices --end tomorrow --workers 20 \
+            --drivers-out site/data/spotrank_drivers.json --drivers-budget $((MIN * 60))
+      - name: Save
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/data/spotrank_drivers.json
+          git commit -m "History backfill: forecasts $(date -u +%FT%H%MZ)" || exit 0
+          for i in 1 2 3 4 5 6; do git pull --rebase && git push && break; sleep 20; done
+
+  generation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main}
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12", cache: pip}
+      - run: pip install -r requirements.txt
+      - name: Fetch generation by technology and installed capacity back to the start date
+        continue-on-error: true
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+        run: |
+          MIN=$(sed -n 's/^minutes: *//p' "$REQ" | head -1); MIN=${MIN:-90}
+          python scripts/build_spotrank_data.py --skip-prices --end today --workers 24 \
+            --gen-out site/data/gen --gen-budget $((MIN * 60))
+      - name: Save
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add site/data/gen
+          git commit -m "History backfill: generation $(date -u +%FT%H%MZ)" || exit 0
+          for i in 1 2 3 4 5 6; do git pull --rebase && git push && break; sleep 20; done
+
+  deploy:
+    needs: [prices, drivers, generation]
+    if: always()
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with: {ref: main}
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with: {path: site}
+      - id: deploy
+        uses: actions/deploy-pages@v4

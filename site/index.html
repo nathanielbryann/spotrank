@@ -655,7 +655,7 @@ footer a, .data a { color: var(--accent); }
   </section>
 
   <footer>
-    Prices: SDAC day-ahead, €/MWh. Real data comes from the <a href="https://transparency.entsoe.eu/">ENTSO-E Transparency Platform</a>. Italy is shown as one zone. Ireland (SEM) and Switzerland are not in SDAC and are left out.
+    Prices: SDAC day-ahead, €/MWh. Real data comes from the <a href="https://transparency.entsoe.eu/">ENTSO-E Transparency Platform</a>. Italy is shown as one zone. Switzerland (CH) is included although it runs its own day-ahead auction outside SDAC; Ireland (SEM) is left out.
   </footer>
 </div>
 
@@ -711,7 +711,8 @@ const ZONE_META = {
   AT:{c:'Austria',r:'Central West'}, CZ:{c:'Czechia',r:'Central East'}, SK:{c:'Slovakia',r:'Central East'},
   HU:{c:'Hungary',r:'Central East'}, SI:{c:'Slovenia',r:'Central East'}, HR:{c:'Croatia',r:'South East'},
   RO:{c:'Romania',r:'South East'}, BG:{c:'Bulgaria',r:'South East'}, GR:{c:'Greece',r:'South East'},
-  IT:{c:'Italy',a:'Single zone',r:'Italy'}, ES:{c:'Spain',r:'Iberia'}, PT:{c:'Portugal',r:'Iberia'}
+  IT:{c:'Italy',a:'Single zone',r:'Italy'}, ES:{c:'Spain',r:'Iberia'}, PT:{c:'Portugal',r:'Iberia'},
+  CH:{c:'Switzerland',a:'Own auction, outside SDAC',r:'Central West'}
 };
 function zm(z) {
   const m = ZONE_META[z] || {c: z, r: 'Other'};
@@ -1081,7 +1082,7 @@ const NEIGHBOURS = [['NO1','NO2'],['NO1','NO3'],['NO1','NO5'],['NO2','NO5'],['NO
   ['DK1','DK2'],['DK1','DE-LU'],['DK2','DE-LU'],['DK1','NL'],['DE-LU','NL'],['DE-LU','FR'],['DE-LU','BE'],['DE-LU','AT'],
   ['DE-LU','CZ'],['DE-LU','PL'],['NL','BE'],['BE','FR'],['FR','ES'],['ES','PT'],['FR','IT'],['AT','IT'],['SI','IT'],['AT','CZ'],
   ['AT','HU'],['AT','SI'],['CZ','SK'],['CZ','PL'],['SK','PL'],['SK','HU'],['HU','RO'],['HU','HR'],['HU','SI'],['SI','HR'],
-  ['RO','BG'],['BG','GR']];
+  ['RO','BG'],['BG','GR'],['CH','DE-LU'],['CH','FR'],['CH','IT'],['CH','AT']];
 const HYDRO = new Set(['NO1', 'NO2', 'NO3', 'NO4', 'NO5', 'SE1', 'SE2']);
 let HX = null;
 function hx() {

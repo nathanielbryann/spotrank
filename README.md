@@ -3,7 +3,8 @@
 A daily game: rank five European bidding zones by their day-ahead baseload price.
 
 - `site/` is the website (published with GitHub Pages).
-- `site/data/spotrank_data.json` holds daily baseload prices for 32 SDAC zones from the
+- `site/data/spotrank_data.json` holds daily baseload prices from January 2021 for 32 SDAC zones
+  plus Switzerland (its own day-ahead auction, outside SDAC), from the
   [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/).
 - `.github/workflows/update-and-deploy.yml` runs every day at 14:37 UTC. It fetches the newest
   prices, commits them, and republishes the site.
@@ -12,6 +13,10 @@ A daily game: rank five European bidding zones by their day-ahead baseload price
 
 Daily baseload is the time-weighted average of all market time units in the CET delivery day,
 which handles both hourly and 15-minute prices. Italy uses its North zone (IT-NORD).
+
+To extend the history (or after adding a zone), change `.github/history-request.txt`: the
+**Backfill history** workflow fetches older prices, forecasts and generation in three parallel jobs
+and redeploys the site.
 
 ## How the game picks puzzles and explains prices
 
@@ -40,7 +45,7 @@ which handles both hourly and 15-minute prices. Italy uses its North zone (IT-NO
   two previous calendar months.
 - **Prices page** (`#prices`): daily baseload history for up to six zones, a period picker (presets,
   dates, or drag on the overview strip) and the period average per zone, for the chart's zones and
-  for all 32 zones in a table. The average is the mean of the daily baseload prices in the period.
+  for all zones in a table. The average is the mean of the daily baseload prices in the period.
 - **Merit order:** below the map, for any zone you click (default: the dearest of the five), and on
   the Prices page for any zone and any past day (date picker with ‹ › day steps). Blocks
   are what each technology produced that day (ENTSO-E actual generation per production type, daily
