@@ -1,0 +1,67 @@
+name: Update prices and deploy
+
+on:
+  schedule:
+    - cron: "37 14 * * *"   # every day 14:37 UTC, after the SDAC day-ahead results are published
+  workflow_dispatch:        # "Run workflow" button in the Actions tab
+  push:
+    branches: [main]        # redeploy when you change the site
+
+permissions:
+  contents: write           # commit the updated price file
+  pages: write              # deploy to GitHub Pages
+  id-token: write
+
+concurrency:
+  group: spotrank
+  cancel-in-progress: false
+
+jobs:
+  update-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install packages
+        run: pip install -r requirements.txt
+
+      - name: Fetch latest ENTSO-E prices
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+        run: |
+          if [ -z "$ENTSOE_API_KEY" ]; then
+            echo "::warning::The ENTSOE_API_KEY secret is not set, so the existing prices are deployed unchanged."
+            exit 0
+          fi
+          python scripts/build_spotrank_data.py --update --end tomorrow --no-csv --out site/data/spotrank_data.json
+
+      - name: Commit updated prices
+        run: |
+          if [ -z "$(git status --porcelain site/data)" ]; then
+            echo "No new prices."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add site/data
+            git commit -m "Prices updated $(date -u +%F)"
+            git pull --rebase
+            git push
+          fi
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

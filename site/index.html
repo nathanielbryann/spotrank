@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spotrank</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;800&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: a price ladder. Five zone plates sit on a cheap-to-dear rail; the attempt log and clues sit beside it; the full 32-zone price ladder is revealed after the round. */
+:root {
+  --bg: #edf0f3;
+  --surface: #ffffff;
+  --surface-2: #f5f7f9;
+  --ink: #0f1722;
+  --ink-2: #4b5664;
+  --muted: #7b8694;
+  --line: #d8dee5;
+  --line-strong: #b9c2cc;
+  --accent: #2443c8;
+  --accent-ink: #ffffff;
+  --accent-soft: #e4e9fb;
+  --cheap: #2b8fd8;
+  --dear: #d8434e;
+  --good: #1d8a4e;
+  --good-ink: #ffffff;
+  --near: #e0a10b;
+  --near-ink: #1d1500;
+  --miss: #8c96a2;
+  --miss-ink: #ffffff;
+  --bar-muted: #c4ccd5;
+  --shadow: 0 1px 2px rgba(15,23,34,.06), 0 4px 14px rgba(15,23,34,.06);
+  --f-display: "Big Shoulders Display", "Arial Narrow", "Roboto Condensed", Impact, sans-serif;
+  --f-body: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b1016; --surface: #131a22; --surface-2: #19222c; --ink: #e8edf2; --ink-2: #aab4bf;
+    --muted: #7d8895; --line: #25303b; --line-strong: #3a4653; --accent: #8399ff; --accent-ink: #0b1016;
+    --accent-soft: #1d2645; --cheap: #4aa8ee; --dear: #ef6670; --good: #2aa863; --good-ink: #04140a;
+    --near: #e8ad25; --near-ink: #1d1500; --miss: #5e6874; --miss-ink: #ffffff; --bar-muted: #34404c;
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b1016; --surface: #131a22; --surface-2: #19222c; --ink: #e8edf2; --ink-2: #aab4bf;
+  --muted: #7d8895; --line: #25303b; --line-strong: #3a4653; --accent: #8399ff; --accent-ink: #0b1016;
+  --accent-soft: #1d2645; --cheap: #4aa8ee; --dear: #ef6670; --good: #2aa863; --good-ink: #04140a;
+  --near: #e8ad25; --near-ink: #1d1500; --miss: #5e6874; --miss-ink: #ffffff; --bar-muted: #34404c;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 6px 18px rgba(0,0,0,.35);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--f-body);
+  font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+.wrap { max-width: 1060px; margin: 0 auto; padding: 20px 20px 48px; display: grid; gap: 20px; }
+
+/* Header */
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.wordmark {
+  font-family: var(--f-display); font-weight: 800; font-size: 52px; line-height: .86;
+  letter-spacing: .01em; text-transform: uppercase; margin: 0;
+}
+.wordmark .unit { font-family: var(--f-mono); font-size: 13px; font-weight: 700; letter-spacing: 0; color: var(--accent); vertical-align: top; margin-left: 4px; text-transform: none; }
+.tag { color: var(--ink-2); font-size: 14px; max-width: 30ch; line-height: 1.3; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn {
+  appearance: none; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink);
+  border-radius: 999px; padding: 7px 14px; font-weight: 600; font-size: 14px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; min-height: 36px;
+}
+.btn:hover { border-color: var(--ink-2); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn[disabled] { opacity: .45; cursor: not-allowed; filter: none; }
+.btn.big { padding: 11px 22px; font-size: 16px; min-height: 46px; }
+
+.meta { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px;
+  background: var(--surface); border: 1px solid var(--line); font-size: 13px; color: var(--ink-2); white-space: nowrap;
+}
+.chip b { color: var(--ink); font-weight: 600; }
+.chip.day { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chip.day b { color: var(--bg); }
+.chip.warn { border-style: dashed; border-color: var(--line-strong); }
+.chip.practice { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+.rule { margin: 0; color: var(--ink-2); font-size: 14px; max-width: 75ch; }
+.rule .k { display: inline-block; min-width: 1.6em; text-align: center; border-radius: 4px; font-weight: 700; font-size: 12px; padding: 0 4px; margin: 0 2px; }
+.k.g { background: var(--good); color: var(--good-ink); }
+.k.y { background: var(--near); color: var(--near-ink); }
+.k.x { background: var(--miss); color: var(--miss-ink); }
+
+/* Main grid */
+.main { display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 840px) { .main { grid-template-columns: minmax(0, 1.12fr) minmax(0, .88fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px; box-shadow: var(--shadow); }
+.panel h2 { font-family: var(--f-display); font-weight: 800; text-transform: uppercase; letter-spacing: .03em; font-size: 22px; line-height: 1; margin: 0 0 12px; }
+.panel h2 .sub { font-family: var(--f-body); text-transform: none; letter-spacing: 0; font-weight: 500; font-size: 13px; color: var(--muted); margin-left: 6px; }
+.side { display: grid; gap: 20px; }
+
+/* Board */
+.ends { display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px 56px; }
+.ends .hot { color: var(--dear); }
+.ends .cool { color: var(--cheap); }
+.ladder { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; position: relative; }
+.ladder::before {
+  content: ""; position: absolute; left: 19px; top: 18px; bottom: 18px; width: 4px; border-radius: 2px;
+  background: linear-gradient(var(--cheap), var(--dear));
+}
+.slot { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 14px; align-items: center; position: relative; }
+.rank {
+  width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; position: relative; z-index: 1;
+  background: var(--surface); border: 2px solid var(--line-strong); font-family: var(--f-mono); font-weight: 700; font-size: 15px;
+}
+.slot:nth-child(1) .rank { border-color: var(--cheap); }
+.slot:nth-child(5) .rank { border-color: var(--dear); }
+.plate {
+  position: relative; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  min-height: 68px; padding: 8px 8px 8px 6px; border-radius: 12px; background: var(--surface-2);
+  border: 1px solid var(--line); cursor: pointer; user-select: none; -webkit-user-select: none;
+  transition: transform .14s ease, box-shadow .14s ease, border-color .14s ease, background-color .2s ease;
+}
+.plate:hover { border-color: var(--line-strong); }
+.plate.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); background: var(--accent-soft); }
+.plate.dragging { z-index: 5; box-shadow: 0 12px 30px rgba(0,0,0,.22); transition: none; cursor: grabbing; }
+.slot.target .plate { border-style: dashed; border-color: var(--accent); }
+.plate::before { content: ""; position: absolute; left: -1px; top: -1px; bottom: -1px; width: 6px; border-radius: 12px 0 0 12px; background: transparent; }
+.plate.r-g::before { background: var(--good); }
+.plate.r-y::before { background: var(--near); }
+.plate.r-x::before { background: var(--miss); }
+.plate.locked { cursor: default; background: var(--surface); }
+.grip { width: 28px; height: 44px; display: grid; place-items: center; color: var(--muted); cursor: grab; touch-action: none; border-radius: 8px; }
+.grip:hover { background: var(--line); color: var(--ink); }
+.plate.locked .grip { cursor: default; visibility: hidden; }
+.plate .id { min-width: 0; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.code { font-family: var(--f-display); font-weight: 800; font-size: 36px; line-height: .95; letter-spacing: .01em; }
+.where { font-size: 13px; color: var(--ink-2); line-height: 1.25; min-width: 0; }
+.where b { color: var(--ink); font-weight: 600; display: block; font-size: 14px; }
+.right { display: flex; align-items: center; gap: 8px; }
+.badge { font-size: 12px; font-weight: 700; border-radius: 6px; padding: 3px 7px; white-space: nowrap; }
+.badge.g { background: var(--good); color: var(--good-ink); }
+.badge.y { background: var(--near); color: var(--near-ink); }
+.badge.x { background: var(--miss); color: var(--miss-ink); }
+.price { font-family: var(--f-mono); font-weight: 700; font-size: 16px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.price small { font-weight: 500; font-size: 11px; color: var(--muted); }
+.moves { display: grid; gap: 4px; }
+.mv {
+  appearance: none; width: 34px; height: 26px; border-radius: 7px; border: 1px solid var(--line-strong);
+  background: var(--surface); cursor: pointer; display: grid; place-items: center; padding: 0; color: var(--ink-2);
+}
+.mv:hover:not([disabled]) { color: var(--ink); border-color: var(--ink-2); }
+.mv[disabled] { opacity: .3; cursor: default; }
+.lock { color: var(--good); display: grid; place-items: center; width: 34px; }
+.controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; padding-left: 56px; }
+.pips { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--ink-2); }
+.pip { width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--line-strong); }
+.pip.used { background: var(--ink-2); border-color: var(--ink-2); }
+.hint { font-size: 12.5px; color: var(--muted); margin: 10px 0 0 56px; }
+
+@keyframes flip { 0% { transform: rotateX(0); } 45% { transform: rotateX(88deg); } 55% { transform: rotateX(88deg); } 100% { transform: rotateX(0); } }
+.plate.flip { animation: flip .5s ease both; }
+@media (prefers-reduced-motion: reduce) { .plate.flip { animation: none; } .plate { transition: none; } }
+
+/* Log */
+.log { display: grid; gap: 8px; }
+.row { display: grid; grid-template-columns: 22px repeat(5, minmax(0, 1fr)); gap: 6px; align-items: center; }
+.row .n { font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+.tile {
+  height: 44px; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: var(--f-display); font-weight: 800; font-size: 18px; line-height: 1; letter-spacing: .02em; position: relative;
+}
+.tile .gl { font-family: var(--f-body); font-size: 10.5px; font-weight: 700; margin-top: 2px; letter-spacing: 0; }
+.tile.g { background: var(--good); color: var(--good-ink); }
+.tile.y { background: var(--near); color: var(--near-ink); }
+.tile.x { background: var(--miss); color: var(--miss-ink); }
+.tile.empty { border: 1.5px dashed var(--line-strong); }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12.5px; color: var(--ink-2); margin-top: 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* Clues */
+.clues { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.clue { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px; align-items: start; padding: 10px 12px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line); font-size: 14px; }
+.clue .no { font-family: var(--f-mono); font-weight: 700; font-size: 12px; color: var(--accent); padding-top: 2px; }
+.clue.locked { color: var(--muted); border-style: dashed; background: transparent; }
+.clue.locked .no { color: var(--muted); }
+.clue .v { font-family: var(--f-mono); font-weight: 700; white-space: nowrap; }
+
+/* Result */
+.result h3 { font-family: var(--f-display); font-weight: 800; font-size: 34px; line-height: 1; text-transform: uppercase; margin: 0 0 6px; letter-spacing: .02em; }
+.result p { margin: 0 0 12px; color: var(--ink-2); }
+.result .row-btns { display: flex; flex-wrap: wrap; gap: 8px; }
+.sharebox { width: 100%; margin-top: 10px; font-family: var(--f-mono); font-size: 13px; padding: 10px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface-2); color: var(--ink); resize: none; }
+.countdown { font-family: var(--f-mono); font-weight: 700; color: var(--ink); }
+.status-line { font-size: 13px; color: var(--ink-2); min-height: 1.4em; margin-top: 8px; }
+
+/* Chart */
+.chart-wrap { position: relative; }
+.chart-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 8px 16px; margin-bottom: 8px; }
+.chart-head p { margin: 0; color: var(--ink-2); font-size: 13.5px; }
+.key { display: flex; gap: 14px; font-size: 12.5px; color: var(--ink-2); }
+.key span { display: inline-flex; align-items: center; gap: 6px; }
+.key i { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+svg text { font-family: var(--f-mono); }
+.tip {
+  position: absolute; pointer-events: none; background: var(--ink); color: var(--bg); border-radius: 8px; padding: 7px 10px;
+  font-size: 12.5px; line-height: 1.35; white-space: nowrap; box-shadow: var(--shadow); transform: translate(-50%, -100%); display: none; z-index: 3;
+}
+.tip b { font-family: var(--f-mono); }
+details.tableview { margin-top: 10px; }
+details.tableview summary { cursor: pointer; font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+.tbl-scroll { overflow-x: auto; margin-top: 8px; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+th { font-weight: 600; color: var(--ink-2); font-size: 12.5px; }
+td.num, th.num { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+tr.mine td { font-weight: 700; }
+tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+
+/* Data panel */
+.data { display: grid; gap: 10px; }
+.data .line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.data p { margin: 0; font-size: 13.5px; color: var(--ink-2); max-width: 80ch; }
+.data code { font-family: var(--f-mono); font-size: 12.5px; background: var(--surface-2); border: 1px solid var(--line); padding: 1px 5px; border-radius: 5px; }
+.err { color: var(--dear); font-weight: 600; }
+.ok { color: var(--good); font-weight: 600; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+footer { font-size: 12.5px; color: var(--muted); }
+footer a, .data a { color: var(--accent); }
+
+/* Overlay */
+.overlay { position: fixed; inset: 0; background: rgba(5,10,16,.55); display: none; align-items: flex-start; justify-content: center; padding: 6vh 16px; z-index: 20; overflow-y: auto; }
+.overlay.open { display: flex; }
+.dialog { background: var(--surface); color: var(--ink); border-radius: 16px; max-width: 520px; width: 100%; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.35); border: 1px solid var(--line); }
+.dialog h2 { font-family: var(--f-display); font-weight: 800; text-transform: uppercase; font-size: 30px; line-height: 1; margin: 0 0 14px; letter-spacing: .02em; }
+.dialog ul { padding-left: 18px; margin: 0 0 14px; display: grid; gap: 6px; }
+.dialog .close { float: right; }
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-bottom: 16px; }
+.stat { text-align: center; }
+.stat .v { font-size: 30px; font-weight: 700; line-height: 1.1; }
+.stat .l { font-size: 12px; color: var(--ink-2); }
+.dist { display: grid; gap: 5px; }
+.dist .d { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; align-items: center; font-family: var(--f-mono); font-size: 12px; }
+.dist .bar { height: 18px; border-radius: 0 4px 4px 0; background: var(--bar-muted); color: var(--ink); font-weight: 700; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; min-width: 24px; }
+.dist .bar.cur { background: var(--accent); color: var(--accent-ink); }
+
+@media (max-width: 520px) {
+  .wrap { padding: 16px 16px 40px; }
+  .wordmark { font-size: 44px; }
+  .code { font-size: 30px; }
+  .slot { grid-template-columns: 34px minmax(0, 1fr); gap: 10px; }
+  .rank { width: 34px; height: 34px; font-size: 13px; }
+  .ladder::before { left: 15px; }
+  .ends, .controls, .hint { margin-left: 44px; padding-left: 0; }
+  .controls { margin-left: 44px; }
+  .plate { grid-template-columns: 24px minmax(0, 1fr) auto; gap: 8px; }
+  .where { font-size: 12px; }
+  .where b { font-size: 13px; }
+  .tile { font-size: 15px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1 class="wordmark">Spotrank<span class="unit">€/MWh</span></h1>
+      <span class="tag">Rank five bidding zones by their day-ahead price</span>
+    </div>
+    <div class="actions">
+      <button class="btn" id="btn-help" type="button">How to play</button>
+      <button class="btn" id="btn-stats" type="button">Stats</button>
+      <button class="btn" id="btn-mode" type="button">Practice round</button>
+    </div>
+  </header>
+
+  <div class="meta" id="meta"></div>
+  <p class="rule">Order the five zones from cheapest to most expensive <b>daily baseload price</b>. You get 4 attempts. After each one, zones in the right place turn <span class="k g">✓</span>green and lock; the rest turn <span class="k x">✕</span>grey.</p>
+
+  <div class="main">
+    <section class="panel" aria-labelledby="board-title">
+      <h2 id="board-title">The ladder <span class="sub" id="board-sub">SDAC day-ahead · daily baseload average</span></h2>
+      <div class="ends"><span class="cool">▲ Cheapest</span></div>
+      <ol class="ladder" id="ladder"><li class="clue locked">Loading prices…</li></ol>
+      <div class="ends" style="margin-top:8px"><span class="hot">▼ Most expensive</span></div>
+      <div class="controls">
+        <div class="pips" id="pips"></div>
+        <button class="btn primary big" id="btn-submit" type="button">Check ranking</button>
+      </div>
+      <p class="hint" id="hint">Drag a zone by its grip, tap two zones to swap them, or use the arrows. With a zone focused, ↑ and ↓ move it.</p>
+    </section>
+
+    <div class="side">
+      <section class="panel result" id="result" hidden></section>
+      <section class="panel" aria-labelledby="log-title">
+        <h2 id="log-title">Attempts</h2>
+        <div class="log" id="log"></div>
+        <div class="legend">
+          <span><span class="k g">✓</span>Right place</span>
+          <span><span class="k x">✕</span>Wrong place</span>
+        </div>
+      </section>
+      <section class="panel" aria-labelledby="clue-title">
+        <h2 id="clue-title">Clues <span class="sub">one unlocks per miss</span></h2>
+        <ul class="clues" id="clues"></ul>
+      </section>
+    </div>
+  </div>
+
+  <section class="panel" id="all-zones" hidden aria-labelledby="all-title">
+    <div class="chart-head">
+      <div>
+        <h2 id="all-title" style="margin-bottom:4px">All zones that day</h2>
+        <p id="all-sub"></p>
+      </div>
+      <div class="key"><span><i style="background:var(--accent)"></i>Today's five</span><span><i style="background:var(--bar-muted)"></i>Other zones</span></div>
+    </div>
+    <div class="chart-wrap" id="chart"></div>
+    <details class="tableview"><summary>Table view</summary><div class="tbl-scroll" id="table"></div></details>
+  </section>
+
+  <section class="panel data" aria-labelledby="data-title">
+    <h2 id="data-title" style="margin:0">Data</h2>
+    <div class="line" id="data-status"></div>
+    <div class="line" id="data-tools">
+      <label class="btn" for="file-in">Load data file…</label>
+      <input type="file" id="file-in" accept=".json,.csv,application/json,text/csv" class="visually-hidden">
+      <button class="btn" type="button" id="btn-reset-data">Use built-in data</button>
+      <span id="data-msg" class="status-line" role="status"></span>
+    </div>
+    <p id="data-desc">Built in: ENTSO-E day-ahead prices for 32 SDAC zones, as daily baseload averages (time-weighted, CET delivery day). Italy uses the North zone (IT-NORD). To add newer days, run the Spotrank data builder and load the new <code>spotrank_data.json</code> here. A wide CSV also works: a <code>date</code> column followed by zone columns such as <code>NO1</code>, <code>SE3</code>, <code>DE-LU</code> in €/MWh. Loaded files stay in this browser, and your API key never goes into the page.</p>
+  </section>
+
+  <footer>
+    Prices: SDAC day-ahead, €/MWh. Real data comes from the <a href="https://transparency.entsoe.eu/">ENTSO-E Transparency Platform</a>. Italy is shown as one zone. Ireland (SEM) and Switzerland are not in SDAC and are left out. Inspired by <a href="https://energle.org/">Energle</a>.
+  </footer>
+</div>
+
+<div class="overlay" id="ov-help" role="dialog" aria-modal="true" aria-labelledby="help-title">
+  <div class="dialog">
+    <button class="btn close" type="button" data-close>Close</button>
+    <h2 id="help-title">How to play</h2>
+    <ul>
+      <li>Each day you get <b>one delivery day</b> and <b>five bidding zones</b> from the SDAC day-ahead market.</li>
+      <li>Rank them by <b>daily baseload price</b>, the time-weighted average of every hour or quarter-hour of the delivery day. The cheapest goes at the top.</li>
+      <li>You have <b>4 attempts</b>. After each one, <span class="k g">✓</span> green means right place (it locks in) and <span class="k x">✕</span> grey means wrong place.</li>
+      <li>Every miss unlocks a clue: first the price range of the five, then the actual price of two zones.</li>
+      <li>Move zones by dragging the grip, tapping two zones to swap them, or using the arrow buttons. With a zone focused, ↑/↓ moves it and Enter selects it for a swap.</li>
+      <li>The daily puzzle is the same for everyone and counts toward your streak. Practice rounds don't count.</li>
+    </ul>
+    <button class="btn primary" type="button" data-close>Got it</button>
+  </div>
+</div>
+
+<div class="overlay" id="ov-stats" role="dialog" aria-modal="true" aria-labelledby="stats-title">
+  <div class="dialog">
+    <button class="btn close" type="button" data-close>Close</button>
+    <h2 id="stats-title">Your stats</h2>
+    <div id="stats-body"></div>
+  </div>
+</div>
+
+<div class="visually-hidden" aria-live="polite" id="live"></div>
+
+<script>
+const BUILTIN = null;
+const HOSTED = BUILTIN === null;          // hosted build: prices come from data/spotrank_data.json
+const DATA_URL = 'data/spotrank_data.json';
+
+/* ---------- constants & zone metadata ---------- */
+const EPOCH = '2026-11-15';
+const N = 5, MAX_ATTEMPTS = 4;
+// Minimum distance between any two of the five prices: max(absolute €, share of the higher price). Tiers relax only if a day can't satisfy the stricter one.
+const GAPS = [{abs: 3, rel: 0.05}, {abs: 2, rel: 0.03}, {abs: 1, rel: 0}, {abs: 0.25, rel: 0}];
+function farEnough(a, b, g) { return Math.abs(a - b) >= Math.max(g.abs, g.rel * Math.max(Math.abs(a), Math.abs(b))); }
+const LSK = 'spotrank:v1:';
+const ZONE_META = {
+  NO1:{c:'Norway',a:'Southeast · Oslo',r:'Nordics',f:'NO'}, NO2:{c:'Norway',a:'Southwest · Kristiansand',r:'Nordics',f:'NO'},
+  NO3:{c:'Norway',a:'Central · Trondheim',r:'Nordics',f:'NO'}, NO4:{c:'Norway',a:'North · Tromsø',r:'Nordics',f:'NO'},
+  NO5:{c:'Norway',a:'West · Bergen',r:'Nordics',f:'NO'}, SE1:{c:'Sweden',a:'North · Luleå',r:'Nordics',f:'SE'},
+  SE2:{c:'Sweden',a:'North-central · Sundsvall',r:'Nordics',f:'SE'}, SE3:{c:'Sweden',a:'South-central · Stockholm',r:'Nordics',f:'SE'},
+  SE4:{c:'Sweden',a:'South · Malmö',r:'Nordics',f:'SE'}, FI:{c:'Finland',a:'',r:'Nordics'},
+  DK1:{c:'Denmark',a:'West · Jutland & Funen',r:'Nordics',f:'DK'}, DK2:{c:'Denmark',a:'East · Zealand',r:'Nordics',f:'DK'},
+  EE:{c:'Estonia',r:'Baltics'}, LV:{c:'Latvia',r:'Baltics'}, LT:{c:'Lithuania',r:'Baltics'},
+  PL:{c:'Poland',r:'Central East'}, 'DE-LU':{c:'Germany–Luxembourg',r:'Central West'},
+  NL:{c:'Netherlands',r:'Central West'}, BE:{c:'Belgium',r:'Central West'}, FR:{c:'France',r:'Central West'},
+  AT:{c:'Austria',r:'Central West'}, CZ:{c:'Czechia',r:'Central East'}, SK:{c:'Slovakia',r:'Central East'},
+  HU:{c:'Hungary',r:'Central East'}, SI:{c:'Slovenia',r:'Central East'}, HR:{c:'Croatia',r:'South East'},
+  RO:{c:'Romania',r:'South East'}, BG:{c:'Bulgaria',r:'South East'}, GR:{c:'Greece',r:'South East'},
+  IT:{c:'Italy',a:'Single zone',r:'Italy'}, ES:{c:'Spain',r:'Iberia'}, PT:{c:'Portugal',r:'Iberia'}
+};
+function zm(z) {
+  const m = ZONE_META[z] || {c: z, r: 'Other'};
+  let a = m.a || '';
+  if (z === 'IT' && DS && DS.meta && DS.meta.italy_label) a = DS.meta.italy_label;
+  return {c: m.c, a, r: m.r, f: m.f || z};
+}
+
+/* ---------- small utilities ---------- */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+function lsGet(k, d) { try { const v = localStorage.getItem(LSK + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }
+function lsSet(k, v) { try { localStorage.setItem(LSK + k, JSON.stringify(v)); return true; } catch (e) { return false; } }
+function lsDel(k) { try { localStorage.removeItem(LSK + k); } catch (e) {} }
+function hashStr(s) { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function mulberry32(a) { return function () { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function shuffle(arr, rng) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function isoLocal(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
+function parseISO(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
+function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+function daysBetween(a, b) { return Math.round((parseISO(b) - parseISO(a)) / 86400000); }
+function fmtDay(s) { return parseISO(s).toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'}); }
+function fmtP(v, dp = 2) { return (v < 0 ? '−' : '') + '€' + Math.abs(v).toFixed(dp); }
+
+/* ---------- data ---------- */
+function normZone(s) {
+  const u = String(s).trim().toUpperCase().replace(/\s+/g, '');
+  if (/^DE[-_]?LU$/.test(u) || u === 'DE') return 'DE-LU';
+  if (/^IT([-_].*)?$/.test(u)) return 'IT';
+  return u.replace(/[-_]/g, '');
+}
+function parseCSV(text) {
+  const lines = text.replace(/\r/g, '').split('\n').filter(l => l.trim());
+  if (lines.length < 2) throw new Error('The CSV has no data rows.');
+  const sep = lines[0].split(';').length > lines[0].split(',').length ? ';' : ',';
+  const clean = s => s.trim().replace(/^"|"$/g, '');
+  const head = lines[0].split(sep).map(clean);
+  if (!/^date$/i.test(head[0])) throw new Error('The first CSV column must be called "date".');
+  const zones = head.slice(1).map(normZone);
+  const days = lines.slice(1).map(l => {
+    const c = l.split(sep).map(clean);
+    return [c[0].slice(0, 10), zones.map((_, i) => {
+      const v = c[i + 1];
+      if (v === undefined || v === '') return null;
+      const num = Number(sep === ';' ? v.replace(',', '.') : v);
+      return Number.isFinite(num) ? num : null;
+    })];
+  });
+  return {meta: {source: 'CSV file'}, zones, days};
+}
+function normalizeRaw(raw) {
+  if (!raw || !Array.isArray(raw.zones) || !Array.isArray(raw.days)) throw new Error('Expected a JSON object with "zones" and "days".');
+  const zones = raw.zones.map(normZone);
+  const days = [];
+  for (const row of raw.days) {
+    const d = Array.isArray(row) ? row[0] : row && row.d;
+    const vals = Array.isArray(row) ? row[1] : row && row.p;
+    if (typeof d !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d) || !Array.isArray(vals) || vals.length !== zones.length) continue;
+    days.push([d, vals.map(v => (v === null || v === '' || !Number.isFinite(Number(v))) ? null : Number(v))]);
+  }
+  if (!days.length) throw new Error('No valid days found in the file.');
+  days.sort((a, b) => a[0] < b[0] ? -1 : 1);
+  return {meta: raw.meta || {}, zones, days};
+}
+function buildDataset(raw) {
+  const n = normalizeRaw(raw);
+  const byDate = new Map(n.days);
+  const eligible = n.days.filter(([, v]) => v.filter(x => x !== null).length >= 12).map(r => r[0]);
+  if (!eligible.length) throw new Error('No day in the file has prices for at least 12 zones.');
+  const first = n.days[0], last = n.days[n.days.length - 1];
+  const id = hashStr(n.zones.join(',') + '|' + n.days.length + '|' + first[0] + '|' + last[0] + '|' + first[1].join(',') + '|' + last[1].join(',')).toString(36);
+  return {...n, byDate, eligible, id, placeholder: !!n.meta.placeholder};
+}
+
+/* ---------- puzzle generation ---------- */
+function pickPuzzle(ds, rng, date) {
+  const vals = ds.byDate.get(date);
+  if (!vals) return null;
+  const avail = ds.zones.map((z, i) => ({z, p: vals[i]})).filter(o => o.p !== null);
+  if (avail.length < N) return null;
+  for (const gap of GAPS) {
+    for (let t = 0; t < 250; t++) {
+      const chosen = [], fam = {}, reg = {};
+      for (const o of shuffle(avail, rng)) {
+        const m = zm(o.z);
+        if ((fam[m.f] || 0) >= 2 || (reg[m.r] || 0) >= 3) continue;
+        if (chosen.some(c => !farEnough(c.p, o.p, gap))) continue;
+        chosen.push(o); fam[m.f] = (fam[m.f] || 0) + 1; reg[m.r] = (reg[m.r] || 0) + 1;
+        if (chosen.length === N) break;
+      }
+      if (chosen.length === N) {
+        const answer = chosen.slice().sort((a, b) => a.p - b.p).map(o => o.z);
+        let start, k = 0;
+        do { start = shuffle(answer, rng); k++; } while (k < 60 && start.filter((z, i) => z === answer[i]).length > 1);
+        return {date, answer, start, prices: Object.fromEntries(chosen.map(o => [o.z, o.p]))};
+      }
+    }
+  }
+  return null;
+}
+// The daily puzzle depends only on the puzzle number and the delivery day, so it stays the same
+// when the data file gains new days during the day.
+function dailyDate(ds, puzzleNo, todayISO) {
+  const yest = isoLocal(addDays(parseISO(todayISO), -1));
+  if (ds.eligible.includes(yest)) return {date: yest, live: true};
+  const rng = mulberry32(hashStr('spotrank-archive|' + puzzleNo + '|' + ds.id));
+  return {date: ds.eligible[Math.floor(rng() * ds.eligible.length)], live: false};
+}
+function dailyPuzzle(ds, puzzleNo, todayISO) {
+  let {date, live} = dailyDate(ds, puzzleNo, todayISO);
+  let pz = pickPuzzle(ds, mulberry32(hashStr('spotrank-daily|' + puzzleNo + '|' + date)), date), guard = 0;
+  while (!pz && guard++ < 30) {
+    live = false;
+    date = ds.eligible[Math.floor(mulberry32(hashStr('spotrank-retry|' + puzzleNo + '|' + guard))() * ds.eligible.length)];
+    pz = pickPuzzle(ds, mulberry32(hashStr('spotrank-daily|' + puzzleNo + '|' + date)), date);
+  }
+  return pz ? {...pz, live} : null;
+}
+function practicePuzzle(ds) {
+  const rng = mulberry32((Math.random() * 4294967296) >>> 0);
+  let pz = null, guard = 0;
+  while (!pz && guard++ < 30) pz = pickPuzzle(ds, rng, ds.eligible[Math.floor(rng() * ds.eligible.length)]);
+  return pz ? {...pz, live: false} : null;
+}
+function score(order, answer) {
+  return order.map((z, i) => answer.indexOf(z) === i ? 'g' : 'x');
+}
+
+/* ---------- state ---------- */
+let DS = null, G = null, DAILY = null, TODAY = null, PUZZLE_NO = 1;
+let selected = null, focusIdx = null, animateNext = false;
+
+function newGame(mode, pz, puzzleNo) {
+  return {v: 2, mode, puzzleNo, dsId: DS.id, date: pz.date, live: pz.live, answer: pz.answer, prices: pz.prices,
+    order: pz.start.slice(), attempts: [], locked: Array(N).fill(false), status: 'playing', clueZones: [], counted: false};
+}
+function dailyKey(puzzleNo, date) { return 'daily:' + puzzleNo + ':' + date; }
+function persist() { if (G && G.mode === 'daily') lsSet(dailyKey(G.puzzleNo, G.date), G); }
+function loadDaily() {
+  const {date} = dailyDate(DS, PUZZLE_NO, TODAY);
+  const saved = lsGet(dailyKey(PUZZLE_NO, date), null);
+  if (saved && saved.v === 2 && saved.date === date && Array.isArray(saved.answer)) return saved;
+  const pz = dailyPuzzle(DS, PUZZLE_NO, TODAY);
+  return pz ? newGame('daily', pz, PUZZLE_NO) : null;
+}
+let BUILTIN_DS = null;
+function lastDate(ds) { return ds.days[ds.days.length - 1][0]; }
+async function loadDataset() {
+  let raw = BUILTIN;
+  if (HOSTED) {
+    const res = await fetch(DATA_URL + '?v=' + isoLocal(new Date()), {cache: 'no-cache'});
+    if (!res.ok) throw new Error('the price file returned HTTP ' + res.status);
+    raw = await res.json();
+  }
+  BUILTIN_DS = buildDataset(raw);
+  DS = BUILTIN_DS;
+  if (HOSTED) return;
+  const stored = lsGet('data', null);
+  if (!stored) return;
+  try {
+    const up = buildDataset(stored);
+    if (lastDate(up) > lastDate(BUILTIN_DS)) DS = up; else lsDel('data');
+  } catch (e) { lsDel('data'); }
+}
+
+/* ---------- moves ---------- */
+function canMove(i) { return G.status === 'playing' && !G.locked[i]; }
+function swap(i, j) {
+  if (i === j || !canMove(i) || !canMove(j)) return false;
+  [G.order[i], G.order[j]] = [G.order[j], G.order[i]];
+  persist(); return true;
+}
+function neighbour(i, dir) { for (let k = i + dir; k >= 0 && k < N; k += dir) if (!G.locked[k]) return k; return -1; }
+function move(i, dir) {
+  const j = neighbour(i, dir);
+  if (j < 0 || !swap(i, j)) return;
+  focusIdx = j; selected = null;
+  say(G.order[j] + ' moved to place ' + (j + 1));
+  render();
+}
+function tap(i) {
+  if (!canMove(i)) return;
+  if (selected === null) { selected = i; say(G.order[i] + ' selected. Choose another zone to swap with.'); }
+  else if (selected === i) selected = null;
+  else { const a = G.order[selected], b = G.order[i]; swap(selected, i); selected = null; say(a + ' and ' + b + ' swapped'); }
+  focusIdx = i; render();
+}
+
+function submit() {
+  if (G.status !== 'playing') return;
+  const res = score(G.order, G.answer);
+  G.attempts.push(G.order.map((z, i) => ({z, r: res[i]})));
+  G.locked = res.map(r => r === 'g');
+  const nG = res.filter(r => r === 'g').length;
+  if (nG === N) G.status = 'won';
+  else if (G.attempts.length >= MAX_ATTEMPTS) G.status = 'lost';
+  else if (G.attempts.length >= 2) {
+    const rng = mulberry32(hashStr(G.date + G.answer.join() + G.attempts.length));
+    const pool = G.answer.filter(z => !G.clueZones.includes(z) && !G.locked[G.order.indexOf(z)]);
+    const fallback = G.answer.filter(z => !G.clueZones.includes(z));
+    const from = pool.length ? pool : fallback;
+    if (from.length) G.clueZones.push(from[Math.floor(rng() * from.length)]);
+  }
+  selected = null; animateNext = true;
+  if (G.status !== 'playing' && G.mode === 'daily' && !G.counted) { recordStats(); G.counted = true; }
+  persist();
+  say('Attempt ' + G.attempts.length + ': ' + nG + ' of ' + N + ' in the right place.' + (G.status === 'won' ? ' Solved.' : G.status === 'lost' ? ' Out of attempts.' : ''));
+  render();
+}
+
+/* ---------- stats ---------- */
+function getStats() { return lsGet('stats', {played: 0, wins: 0, streak: 0, best: 0, lastWin: null, dist: {1: 0, 2: 0, 3: 0, 4: 0, X: 0}}); }
+function recordStats() {
+  const s = getStats();
+  s.played++;
+  if (G.status === 'won') {
+    s.wins++; s.streak = s.lastWin === G.puzzleNo - 1 ? s.streak + 1 : 1; s.lastWin = G.puzzleNo;
+    s.best = Math.max(s.best, s.streak); s.dist[G.attempts.length]++;
+  } else { s.streak = 0; s.dist.X++; }
+  lsSet('stats', s);
+}
+
+/* ---------- share ---------- */
+function shareText() {
+  const em = {g: '🟩', x: '⬜'};
+  const head = (G.mode === 'daily' ? 'Spotrank #' + G.puzzleNo : 'Spotrank practice') + ' · ' + (G.status === 'won' ? G.attempts.length : 'X') + '/' + MAX_ATTEMPTS;
+  return [head, 'Delivery day ' + fmtDay(G.date)].concat(G.attempts.map(a => a.map(t => em[t.r]).join(''))).join('\n');
+}
+
+/* ---------- rendering ---------- */
+const GRIP = '<svg width="12" height="18" viewBox="0 0 12 18" aria-hidden="true"><g fill="currentColor"><circle cx="3" cy="3" r="1.6"/><circle cx="9" cy="3" r="1.6"/><circle cx="3" cy="9" r="1.6"/><circle cx="9" cy="9" r="1.6"/><circle cx="3" cy="15" r="1.6"/><circle cx="9" cy="15" r="1.6"/></g></svg>';
+const UP = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 8l4-4 4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const DN = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const LOCK = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.5" fill="currentColor"/><path d="M5 7V5a3 3 0 016 0v2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
+const BADGE = {g: ['g', '✓ Right'], x: ['x', '✕ Wrong']};
+
+function say(msg) { const el = $('#live'); el.textContent = ''; setTimeout(() => { el.textContent = msg; }, 30); }
+
+function renderMeta() {
+  const m = [];
+  m.push('<span class="chip day">Delivery day <b>' + esc(fmtDay(G.date)) + '</b></span>');
+  if (G.mode === 'daily') {
+    m.push('<span class="chip">Puzzle <b>#' + G.puzzleNo + '</b></span>');
+    m.push('<span class="chip">' + (G.live ? "Yesterday's prices" : 'From the archive') + '</span>');
+  } else m.push('<span class="chip practice">Practice round · <b>not counted</b></span>');
+  if (DS.placeholder) m.push('<span class="chip warn">⚠ <span><b>Placeholder prices</b>, not real market data</span></span>');
+  else m.push('<span class="chip">Source <b>' + esc(DS.meta.source_short || DS.meta.source || 'Loaded file') + '</b></span>');
+  $('#meta').innerHTML = m.join('');
+  $('#btn-mode').textContent = G.mode === 'daily' ? 'Practice round' : "Back to today's puzzle";
+}
+
+function renderBoard() {
+  const done = G.status !== 'playing';
+  const last = G.attempts[G.attempts.length - 1];
+  const order = done ? G.answer : G.order;
+  const html = order.map((z, i) => {
+    const m = zm(z);
+    let r = null;
+    if (done) r = G.status === 'won' ? 'g' : null;
+    else if (last && last[i].z === z) r = last[i].r;
+    const locked = !done && G.locked[i];
+    const cls = ['plate', r ? 'r-' + r : '', locked || done ? 'locked' : '', selected === i ? 'sel' : '', animateNext ? 'flip' : ''].filter(Boolean).join(' ');
+    const where = '<span class="where"><b>' + esc(m.c) + '</b>' + esc(m.a || m.r) + '</span>';
+    let right = '';
+    if (done) right = '<span class="price">' + fmtP(G.prices[z]) + ' <small>/MWh</small></span>';
+    else {
+      if (r) right += '<span class="badge ' + BADGE[r][0] + '">' + BADGE[r][1] + '</span>';
+      right += locked ? '<span class="lock" title="Locked in">' + LOCK + '</span>'
+        : '<span class="moves"><button class="mv" type="button" data-mv="-1" data-i="' + i + '" aria-label="Move ' + z + ' up"' + (neighbour(i, -1) < 0 ? ' disabled' : '') + '>' + UP + '</button>' +
+          '<button class="mv" type="button" data-mv="1" data-i="' + i + '" aria-label="Move ' + z + ' down"' + (neighbour(i, 1) < 0 ? ' disabled' : '') + '>' + DN + '</button></span>';
+    }
+    const label = 'Place ' + (i + 1) + ': ' + z + ', ' + m.c + (m.a ? ' ' + m.a : '') + (locked ? ', locked' : '') + (done ? ', ' + fmtP(G.prices[z]) + ' per MWh' : '');
+    return '<li class="slot" data-i="' + i + '"><span class="rank" aria-hidden="true">' + (i + 1) + '</span>' +
+      '<div class="' + cls + '" data-i="' + i + '" tabindex="0" role="group" aria-roledescription="zone" aria-label="' + esc(label) + '" style="animation-delay:' + (i * 110) + 'ms">' +
+      '<span class="grip" data-grip="' + i + '" aria-hidden="true">' + GRIP + '</span>' +
+      '<span class="id"><span class="code">' + esc(z) + '</span>' + where + '</span>' +
+      '<span class="right">' + right + '</span></div></li>';
+  }).join('');
+  $('#ladder').innerHTML = html;
+  $('#pips').innerHTML = Array.from({length: MAX_ATTEMPTS}, (_, k) => '<span class="pip' + (k < G.attempts.length ? ' used' : '') + '"></span>').join('') +
+    '<span>' + (done ? (G.status === 'won' ? 'Solved' : 'No attempts left') : 'Attempt ' + (G.attempts.length + 1) + ' of ' + MAX_ATTEMPTS) + '</span>';
+  const sb = $('#btn-submit');
+  sb.disabled = done;
+  sb.textContent = done ? (G.status === 'won' ? 'Solved' : 'Round over') : 'Check ranking';
+  $('#hint').textContent = done
+    ? (G.status === 'won' ? 'The final order with each zone\'s daily baseload price.' : 'The correct order, with each zone\'s daily baseload price.')
+    : 'Drag a zone by its grip, tap two zones to swap them, or use the arrows. With a zone focused, ↑ and ↓ move it.';
+  animateNext = false;
+  if (focusIdx !== null) { const el = $('.plate[data-i="' + focusIdx + '"]'); if (el) el.focus({preventScroll: true}); focusIdx = null; }
+}
+
+function renderLog() {
+  const rows = [];
+  for (let k = 0; k < MAX_ATTEMPTS; k++) {
+    const a = G.attempts[k];
+    const tiles = a ? a.map(t => '<span class="tile ' + t.r + '" title="' + esc(t.z + ': ' + BADGE[t.r][1]) + '">' + esc(t.z) + '<span class="gl">' + BADGE[t.r][1].split(' ')[0] + '</span></span>').join('')
+      : Array(N).fill('<span class="tile empty"></span>').join('');
+    rows.push('<div class="row"><span class="n">' + (k + 1) + '</span>' + tiles + '</div>');
+  }
+  $('#log').innerHTML = rows.join('');
+}
+
+function renderClues() {
+  const misses = G.attempts.filter(a => !a.every(t => t.r === 'g')).length;
+  const ps = G.answer.map(z => G.prices[z]);
+  const items = [];
+  const c1 = misses >= 1 || G.status !== 'playing';
+  items.push(c1 ? '<li class="clue"><span class="no">01</span><span>These five cleared between <span class="v">' + fmtP(Math.min(...ps)) + '</span> and <span class="v">' + fmtP(Math.max(...ps)) + '</span> per MWh.</span></li>'
+    : '<li class="clue locked"><span class="no">01</span><span>Price range of the five. Unlocks after your first miss.</span></li>');
+  for (let k = 0; k < 2; k++) {
+    const z = G.clueZones[k];
+    const no = '0' + (k + 2);
+    items.push(z ? '<li class="clue"><span class="no">' + no + '</span><span><b>' + esc(z) + '</b> (' + esc(zm(z).c) + ') cleared at <span class="v">' + fmtP(G.prices[z]) + '</span> per MWh.</span></li>'
+      : '<li class="clue locked"><span class="no">' + no + '</span><span>' + (G.status === 'playing' ? 'One zone\'s actual price. Unlocks after miss ' + (k + 2) + '.' : 'Not needed this round.') + '</span></li>');
+  }
+  $('#clues').innerHTML = items.join('');
+}
+
+let countdownTimer = null;
+function renderResult() {
+  const el = $('#result');
+  if (G.status === 'playing') { el.hidden = true; el.innerHTML = ''; return; }
+  el.hidden = false;
+  const won = G.status === 'won';
+  const cheap = G.answer[0], dear = G.answer[N - 1];
+  el.innerHTML = '<h3>' + (won ? 'Solved in ' + G.attempts.length + ' of ' + MAX_ATTEMPTS : 'Not this time') + '</h3>' +
+    '<p>' + esc(cheap) + ' was cheapest at ' + fmtP(G.prices[cheap]) + ' and ' + esc(dear) + ' most expensive at ' + fmtP(G.prices[dear]) + ' per MWh, a spread of ' + fmtP(G.prices[dear] - G.prices[cheap]) + '.</p>' +
+    '<div class="row-btns"><button class="btn primary" type="button" id="btn-share">Copy result</button>' +
+    '<button class="btn" type="button" id="btn-practice2">' + (G.mode === 'daily' ? 'Play a practice round' : 'Another practice round') + '</button></div>' +
+    '<div class="status-line" id="share-msg" role="status"></div>' +
+    (G.mode === 'daily' ? '<p style="margin:8px 0 0">Next daily puzzle in <span class="countdown" id="countdown"></span></p>' : '');
+  $('#btn-share').addEventListener('click', copyShare);
+  $('#btn-practice2').addEventListener('click', startPractice);
+  clearInterval(countdownTimer);
+  if (G.mode === 'daily') { tick(); countdownTimer = setInterval(tick, 1000); }
+}
+function tick() {
+  const el = $('#countdown'); if (!el) return;
+  const now = new Date(), mid = addDays(new Date(now.getFullYear(), now.getMonth(), now.getDate()), 1);
+  const s = Math.max(0, Math.floor((mid - now) / 1000));
+  el.textContent = [Math.floor(s / 3600), Math.floor(s % 3600 / 60), s % 60].map(n => String(n).padStart(2, '0')).join(':');
+  if (s === 0) { clearInterval(countdownTimer); boot({}); }
+}
+function copyShare() {
+  const text = shareText(), msg = $('#share-msg');
+  const fallback = () => {
+    msg.innerHTML = 'Copy this text:';
+    let ta = $('#share-ta');
+    if (!ta) { ta = document.createElement('textarea'); ta.id = 'share-ta'; ta.className = 'sharebox'; ta.rows = 7; ta.readOnly = true; msg.after(ta); }
+    ta.value = text; ta.focus(); ta.select();
+  };
+  try {
+    navigator.clipboard.writeText(text).then(() => { msg.innerHTML = '<span class="ok">Copied.</span> Paste it anywhere.'; }, fallback);
+  } catch (e) { fallback(); }
+}
+
+/* ---------- all-zones chart ---------- */
+function niceStep(range, target) { const raw = range / target, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p; }
+function barPath(x0, x1, y, h, r) {
+  const w = Math.abs(x1 - x0); r = Math.min(r, w, h / 2);
+  if (w < 0.5) return '';
+  if (x1 >= x0) return 'M' + x0 + ',' + y + 'H' + (x1 - r) + 'A' + r + ',' + r + ' 0 0 1 ' + x1 + ',' + (y + r) + 'V' + (y + h - r) + 'A' + r + ',' + r + ' 0 0 1 ' + (x1 - r) + ',' + (y + h) + 'H' + x0 + 'Z';
+  return 'M' + x0 + ',' + y + 'H' + (x1 + r) + 'A' + r + ',' + r + ' 0 0 0 ' + x1 + ',' + (y + r) + 'V' + (y + h - r) + 'A' + r + ',' + r + ' 0 0 0 ' + (x1 + r) + ',' + (y + h) + 'H' + x0 + 'Z';
+}
+function renderAllZones() {
+  const sec = $('#all-zones');
+  if (G.status === 'playing') { sec.hidden = true; return; }
+  sec.hidden = false;
+  const vals = DS.byDate.get(G.date) || [];
+  const rows = DS.zones.map((z, i) => ({z, p: vals[i]})).filter(o => o.p !== null && o.p !== undefined).sort((a, b) => a.p - b.p);
+  const mine = new Set(G.answer);
+  $('#all-title').textContent = 'All ' + rows.length + ' zones on ' + fmtDay(G.date);
+  $('#all-sub').textContent = 'Daily baseload average, €/MWh, cheapest at the top.' + (DS.placeholder ? ' Placeholder prices.' : '');
+  const box = $('#chart');
+  const W = Math.max(300, box.clientWidth || 600);
+  const labelW = 58, padR = 74, top = 6, rowH = 20, barH = 10, axisH = 24;
+  const H = top + rows.length * rowH + axisH;
+  const lo = Math.min(0, rows[0].p), hi = Math.max(0, rows[rows.length - 1].p);
+  const step = niceStep((hi - lo) || 1, W < 480 ? 4 : 6);
+  const d0 = Math.floor(lo / step) * step, d1 = Math.ceil(hi / step) * step || step;
+  const x = v => labelW + (v - d0) / (d1 - d0) * (W - labelW - padR);
+  let s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Horizontal bar chart of daily baseload prices for all zones">';
+  for (let t = d0; t <= d1 + 1e-9; t += step) {
+    const xx = x(t).toFixed(1);
+    s += '<line x1="' + xx + '" x2="' + xx + '" y1="' + top + '" y2="' + (H - axisH + 2) + '" stroke="var(--line)" stroke-width="1"/>';
+    s += '<text x="' + xx + '" y="' + (H - 6) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + (Math.abs(t) < 1e-9 ? '0' : (t < 0 ? '−' : '') + Math.abs(Math.round(t))) + '</text>';
+  }
+  const zx = x(0).toFixed(1);
+  s += '<line x1="' + zx + '" x2="' + zx + '" y1="' + top + '" y2="' + (H - axisH + 2) + '" stroke="var(--line-strong)" stroke-width="1"/>';
+  rows.forEach((o, k) => {
+    const y = top + k * rowH, by = y + (rowH - barH) / 2, isMine = mine.has(o.z);
+    s += '<text x="' + (labelW - 8) + '" y="' + (y + rowH / 2 + 4) + '" text-anchor="end" font-size="11.5" font-weight="' + (isMine ? 700 : 500) + '" fill="' + (isMine ? 'var(--ink)' : 'var(--ink-2)') + '">' + esc(o.z) + '</text>';
+    s += '<path d="' + barPath(x(0), x(o.p), by, barH, 4) + '" fill="' + (isMine ? 'var(--accent)' : 'var(--bar-muted)') + '"/>';
+    if (isMine) s += '<text x="' + (Math.max(x(o.p), x(0)) + 6) + '" y="' + (y + rowH / 2 + 4) + '" font-size="11.5" font-weight="700" fill="var(--ink)">' + fmtP(o.p, 1) + '</text>';
+    s += '<rect class="hit" data-k="' + k + '" x="0" y="' + y + '" width="' + W + '" height="' + rowH + '" fill="transparent"/>';
+  });
+  s += '</svg><div class="tip" id="tip"></div>';
+  box.innerHTML = s;
+  const tip = $('#tip');
+  box.querySelectorAll('.hit').forEach(r => {
+    r.addEventListener('mouseenter', () => {
+      const o = rows[+r.dataset.k], m = zm(o.z);
+      tip.innerHTML = '<b>' + esc(o.z) + '</b> ' + esc(m.c) + (m.a ? ' · ' + esc(m.a) : '') + '<br><b>' + fmtP(o.p) + '</b> /MWh · rank ' + (+r.dataset.k + 1) + ' of ' + rows.length;
+      tip.style.display = 'block';
+      const ty = top + (+r.dataset.k) * rowH;
+      tip.style.left = Math.min(Math.max(x(o.p), 140), W - 140) + 'px';
+      tip.style.top = (ty - 4) + 'px';
+      r.setAttribute('fill', 'rgba(127,140,160,.10)');
+    });
+    r.addEventListener('mouseleave', () => { tip.style.display = 'none'; r.setAttribute('fill', 'transparent'); });
+  });
+  $('#table').innerHTML = '<table><thead><tr><th>#</th><th>Zone</th><th>Name</th><th class="num">€/MWh</th></tr></thead><tbody>' +
+    rows.map((o, k) => { const m = zm(o.z); return '<tr' + (mine.has(o.z) ? ' class="mine"' : '') + '><td>' + (k + 1) + '</td><td>' + esc(o.z) + '</td><td>' + esc(m.c + (m.a ? ' · ' + m.a : '')) + '</td><td class="num">' + o.p.toFixed(2) + '</td></tr>'; }).join('') +
+    '</tbody></table>';
+}
+
+function renderData() {
+  const d0 = DS.days[0][0], d1 = DS.days[DS.days.length - 1][0];
+  $('#data-status').innerHTML = (DS.placeholder ? '<span class="chip warn">⚠ <b>Placeholder prices</b></span>' : '<span class="chip"><b>' + esc(DS.meta.source_short || 'Loaded file') + '</b></span>') +
+    '<span class="chip">' + esc(d0) + ' → ' + esc(d1) + '</span><span class="chip"><b>' + DS.zones.length + '</b> zones</span><span class="chip"><b>' + DS.days.length + '</b> days</span>';
+  $('#btn-reset-data').disabled = DS === BUILTIN_DS;
+  if (HOSTED) {
+    $('#data-tools').hidden = true;
+    $('#data-desc').textContent = 'Prices come from the ENTSO-E Transparency Platform and are refreshed every day. Daily baseload is the time-weighted average over the CET delivery day. Italy uses its North zone (IT-NORD). Latest delivery day in the data: ' + fmtDay(d1) + '.';
+  }
+}
+
+function renderStats() {
+  const s = getStats();
+  const maxD = Math.max(1, ...Object.values(s.dist));
+  const cur = G && G.mode === 'daily' && G.status !== 'playing' ? (G.status === 'won' ? String(G.attempts.length) : 'X') : null;
+  $('#stats-body').innerHTML = '<div class="stats">' +
+    [['Played', s.played], ['Win %', s.played ? Math.round(100 * s.wins / s.played) : 0], ['Streak', s.streak], ['Best', s.best]].map(([l, v]) => '<div class="stat"><div class="v">' + v + '</div><div class="l">' + l + '</div></div>').join('') +
+    '</div><div class="dist">' + ['1', '2', '3', '4', 'X'].map(k => '<div class="d"><span>' + k + '</span><span class="bar' + (k === cur ? ' cur' : '') + '" style="width:' + Math.max(8, 100 * s.dist[k] / maxD) + '%">' + s.dist[k] + '</span></div>').join('') + '</div>' +
+    '<p style="font-size:13px;color:var(--ink-2);margin:14px 0 0">Daily puzzles only. Stats are kept in this browser.</p>';
+}
+
+function render() {
+  if (!G) {
+    $('#ladder').innerHTML = '<li class="clue locked">No puzzle could be built from this data. Load a file with at least 12 zones per day.</li>';
+    return;
+  }
+  renderMeta(); renderBoard(); renderLog(); renderClues(); renderResult(); renderAllZones(); renderData();
+}
+
+/* ---------- drag (grip) ---------- */
+let drag = null;
+function slotAt(y) {
+  const slots = [...document.querySelectorAll('#ladder .slot')];
+  for (const sl of slots) { const r = sl.getBoundingClientRect(); if (y >= r.top - 5 && y <= r.bottom + 5) return +sl.dataset.i; }
+  return null;
+}
+document.addEventListener('pointerdown', e => {
+  const g = e.target.closest('[data-grip]');
+  if (!g || !G || G.status !== 'playing') return;
+  const i = +g.dataset.grip;
+  if (!canMove(i)) return;
+  e.preventDefault();
+  const plate = g.closest('.plate');
+  drag = {i, y0: e.clientY, plate, target: null, id: e.pointerId};
+  try { g.setPointerCapture(e.pointerId); } catch (_) {}
+  plate.classList.add('dragging');
+});
+document.addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  drag.plate.style.transform = 'translateY(' + (e.clientY - drag.y0) + 'px) scale(1.02)';
+  const t = slotAt(e.clientY);
+  document.querySelectorAll('#ladder .slot.target').forEach(s => s.classList.remove('target'));
+  drag.target = (t !== null && t !== drag.i && canMove(t)) ? t : null;
+  if (drag.target !== null) document.querySelector('#ladder .slot[data-i="' + drag.target + '"]').classList.add('target');
+});
+function endDrag(e) {
+  if (!drag || (e && e.pointerId !== drag.id)) return;
+  const {i, target} = drag; drag = null;
+  if (target !== null) { const a = G.order[i], b = G.order[target]; swap(i, target); say(a + ' and ' + b + ' swapped'); focusIdx = target; }
+  selected = null; render();
+}
+document.addEventListener('pointerup', endDrag);
+document.addEventListener('pointercancel', endDrag);
+
+/* ---------- events ---------- */
+$('#ladder').addEventListener('click', e => {
+  const mv = e.target.closest('[data-mv]');
+  if (mv) { move(+mv.dataset.i, +mv.dataset.mv); return; }
+  if (e.target.closest('[data-grip]')) return;
+  const p = e.target.closest('.plate');
+  if (p) tap(+p.dataset.i);
+});
+$('#ladder').addEventListener('keydown', e => {
+  const p = e.target.closest('.plate');
+  if (!p || e.target !== p) return;
+  const i = +p.dataset.i;
+  if (e.key === 'ArrowUp') { e.preventDefault(); move(i, -1); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); move(i, 1); }
+  else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tap(i); }
+});
+$('#btn-submit').addEventListener('click', submit);
+function startPractice() { const pz = practicePuzzle(DS); if (pz) { if (G && G.mode === 'daily') DAILY = G; G = newGame('practice', pz, null); selected = null; render(); window.scrollTo({top: 0, behavior: 'smooth'}); } }
+$('#btn-mode').addEventListener('click', () => { if (G.mode === 'daily') startPractice(); else { G = (DAILY && DAILY.dsId === DS.id) ? DAILY : loadDaily(); selected = null; render(); } });
+function openOv(id) { $(id).classList.add('open'); const b = $(id + ' [data-close]'); if (b) b.focus(); }
+document.querySelectorAll('.overlay').forEach(ov => {
+  ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-close]')) ov.classList.remove('open'); });
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.overlay.open').forEach(o => o.classList.remove('open')); });
+$('#btn-help').addEventListener('click', () => openOv('#ov-help'));
+$('#btn-stats').addEventListener('click', () => { renderStats(); openOv('#ov-stats'); });
+
+$('#file-in').addEventListener('change', async e => {
+  const f = e.target.files && e.target.files[0]; const msg = $('#data-msg');
+  if (!f) return;
+  try {
+    const text = await f.text();
+    const raw = /\.csv$/i.test(f.name) || !/^\s*[{[]/.test(text) ? parseCSV(text) : JSON.parse(text);
+    if (!raw.meta || !raw.meta.source_short) raw.meta = Object.assign({}, raw.meta, {source_short: f.name});
+    DS = buildDataset(raw);
+    const saved = lsSet('data', raw);
+    TODAY = isoLocal(new Date());
+    G = loadDaily(); selected = null; render();
+    msg.innerHTML = '<span class="ok">Loaded ' + esc(f.name) + '.</span>' + (saved ? '' : ' It is too large to keep in this browser, so reload it next visit.');
+  } catch (err) {
+    msg.innerHTML = '<span class="err">Could not read ' + esc(f.name) + ':</span> ' + esc(err.message);
+  }
+  e.target.value = '';
+});
+$('#btn-reset-data').addEventListener('click', () => { lsDel('data'); DS = BUILTIN_DS; G = loadDaily(); render(); $('#data-msg').textContent = 'Back on the built-in data.'; });
+
+let rz = null;
+window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (G && G.status !== 'playing') renderAllZones(); }, 150); });
+
+/* ---------- boot ---------- */
+async function boot(snap) {
+  try { await loadDataset(); }
+  catch (e) {
+    $('#ladder').innerHTML = '<li class="clue locked">Couldn\'t load the prices (' + esc(e.message) + '). Reload the page to try again.</li>';
+    return;
+  }
+  TODAY = isoLocal(new Date());
+  PUZZLE_NO = Math.max(1, daysBetween(EPOCH, TODAY) + 1);
+  if (snap && snap.G && snap.G.dsId === DS.id) G = snap.G;
+  else G = loadDaily();
+  render();
+}
+window.claude?.hot?.snapshot?.(() => ({G}));
+window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
+</script>
+</body>
+</html>
