@@ -8,6 +8,9 @@ on:
       drivers_minutes:
         description: "Minutes to spend on wind/solar/load data (the first backfill needs about 80)"
         default: "15"
+      gen_minutes:
+        description: "Minutes to spend on generation by technology (merit-order chart)"
+        default: "10"
   push:
     branches: [main]        # redeploy when you change the site
 
@@ -65,6 +68,19 @@ jobs:
           if [ -z "$ENTSOE_API_KEY" ]; then exit 0; fi
           python scripts/build_spotrank_data.py --skip-prices --end tomorrow --workers 16 \
             --drivers-out site/data/spotrank_drivers.json --drivers-budget $((MINUTES * 60))
+
+      - name: Fetch generation by technology and installed capacity
+        if: github.event_name != 'push'
+        continue-on-error: true   # never blocks the price update
+        timeout-minutes: 100
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+          PYTHONUNBUFFERED: "1"
+          MINUTES: ${{ github.event.inputs.gen_minutes || '10' }}
+        run: |
+          if [ -z "$ENTSOE_API_KEY" ]; then exit 0; fi
+          python scripts/build_spotrank_data.py --skip-prices --end today --workers 16 \
+            --gen-out site/data/gen --gen-budget $((MINUTES * 60))
 
       - name: Commit updated prices
         run: |

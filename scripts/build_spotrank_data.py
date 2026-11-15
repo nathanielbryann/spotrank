@@ -164,6 +164,10 @@ def main():
                     help="also fetch day-ahead load, wind and solar forecasts into this JSON file")
     ap.add_argument("--drivers-budget", type=int, default=900,
                     help="seconds to spend on drivers, including backfilling older months (default 900)")
+    ap.add_argument("--gen-out", default=None,
+                    help="also fetch actual generation by technology and installed capacity into this folder (one JSON per zone)")
+    ap.add_argument("--gen-budget", type=int, default=600,
+                    help="seconds to spend on generation, including backfilling older months (default 600)")
     ap.add_argument("--key", default=None, help="ENTSO-E API key (default: ENTSOE_API_KEY env var)")
     args = ap.parse_args()
 
@@ -190,6 +194,8 @@ def main():
             unfinished |= run_prices(args, make_client, zones, first_day, end_day)
         if args.drivers_out:
             unfinished |= run_drivers(args, make_client, zones, first_day, end_day, today)
+        if args.gen_out:
+            unfinished |= run_generation(args, make_client, zones, first_day, end_day, today)
     except KeyRejected as e:
         sys.exit(f"{e}\nCheck the key in api_key.txt (or create a new one on the ENTSO-E Transparency Platform) and run again.")
     if unfinished:  # don't wait for requests still running past a time budget
@@ -467,6 +473,231 @@ def write_drivers(path, frames, fetched, zones, first_day):
         json.dump(out, f, separators=(",", ":"))
     print(f"  wrote {path}: {len(idx)} days")
 
+
+
+# ---------------------------------------------------------------------------
+# Generation: actual generation per production type (daily average MW) and
+# installed capacity per year, for the merit-order chart. Like the drivers,
+# ENTSO-E serves generation one month per request, so the history is backfilled
+# newest month first over several runs. One file per zone keeps the page light:
+# it loads only the zone you click.
+# ---------------------------------------------------------------------------
+GEN_GROUPS = {   # Spotrank technology group -> ENTSO-E production types (entsoe-py names)
+    "solar": ["Solar"],
+    "wind": ["Wind Onshore", "Wind Offshore"],
+    "hydro_ror": ["Hydro Run-of-river and pondage", "Marine"],
+    "nuclear": ["Nuclear"],
+    "biomass": ["Biomass", "Waste", "Geothermal", "Other renewable"],
+    "hydro_storage": ["Hydro Water Reservoir", "Hydro Pumped Storage"],
+    "lignite": ["Fossil Brown coal/Lignite", "Fossil Oil shale", "Fossil Peat"],
+    "coal": ["Fossil Hard coal", "Fossil Coal-derived gas"],
+    "gas": ["Fossil Gas"],
+    "oil": ["Fossil Oil"],
+    "other": ["Other", "Energy storage"],
+}
+TYPE_GROUP = {t: g for g, ts in GEN_GROUPS.items() for t in ts}
+GEN_RECENT_DAYS = 10   # refetched every run, from the start of that month: late publications and revisions
+
+
+def _query(fn, *a, **kw):
+    """One ENTSO-E call with a retry; None when there is no data."""
+    for k in range(2):
+        try:
+            return fn(*a, **kw)
+        except Exception as e:  # noqa: BLE001
+            if type(e).__name__ == "NoMatchingDataError":
+                return None
+            status = getattr(getattr(e, "response", None), "status_code", None)
+            if status in (401, 403):
+                raise KeyRejected(f"ENTSO-E rejected the API key (HTTP {status}).") from e
+            if k == 1:
+                raise
+            time.sleep(5)
+
+
+def gen_columns(df):
+    """{production type: series of actual generation, MW} from query_generation output."""
+    if df is None or len(df) == 0:
+        return {}
+    if isinstance(df, pd.Series):
+        return {str(df.name): df}
+    out = {}
+    if isinstance(df.columns, pd.MultiIndex):
+        for col in df.columns:
+            if str(col[-1]) == "Actual Aggregated":   # skip "Actual Consumption" (pumping, storage charging)
+                out[str(col[0])] = df[col]
+    else:
+        for c in df.columns:
+            out[str(c)] = df[c]
+    return out
+
+
+def gen_daily(df):
+    """Daily average MW per technology group. Each production type is averaged on its own
+    resolution first, so 15-minute and hourly types in one zone add up correctly."""
+    per_group = {}
+    for t, s in gen_columns(df).items():
+        d = daily_baseload(s)
+        if not d.empty:
+            per_group.setdefault(TYPE_GROUP.get(t, "other"), []).append(d)
+    return {g: pd.concat(ds, axis=1).sum(axis=1, min_count=1) for g, ds in per_group.items()}
+
+
+def capacity_groups(df):
+    """Installed capacity (MW) per technology group from query_installed_generation_capacity."""
+    if df is None or len(df) == 0:
+        return {}
+    row = df.iloc[-1] if isinstance(df, pd.DataFrame) else df
+    if isinstance(row, pd.Series) and not isinstance(df, pd.DataFrame):
+        row = pd.Series({str(df.name): float(df.iloc[-1])})
+    out, seen = {}, set()
+    for col, v in row.items():
+        t = str(col[0]) if isinstance(col, tuple) else str(col)
+        if isinstance(col, tuple) and str(col[-1]) == "Actual Consumption":
+            continue
+        if t in seen or pd.isna(v):
+            continue
+        seen.add(t)
+        g = TYPE_GROUP.get(t, "other")
+        out[g] = out.get(g, 0.0) + float(v)
+    return {g: int(round(v)) for g, v in out.items() if v > 0}
+
+
+def fetch_gen_month(make_client, z, start, end):
+    client = make_client()
+    return gen_daily(_query(client.query_generation, DRIVER_AREA[z], start=start, end=end))
+
+
+def fetch_capacity(make_client, z, year):
+    client = make_client()
+    df = _query(client.query_installed_generation_capacity, DRIVER_AREA[z],
+                start=pd.Timestamp(f"{year}-01-01", tz=TZ), end=pd.Timestamp(f"{year}-12-31", tz=TZ))
+    return capacity_groups(df)
+
+
+def load_gen_zone(path):
+    if not os.path.exists(path):
+        return {}, [], {}
+    with open(path, encoding="utf-8") as f:
+        d = json.load(f)
+    series = {}
+    if d.get("start") and d.get("days"):
+        idx = pd.date_range(d["start"], periods=d["days"], freq="D").strftime("%Y-%m-%d")
+        series = {g: pd.Series(v, index=idx, dtype=float) for g, v in d.get("gen", {}).items()}
+    return series, d.get("fetched_months", []), d.get("cap", {})
+
+
+def write_gen_zone(path, z, series, fetched, caps, first_day):
+    idx = sorted(set().union(*[set(s.dropna().index) for s in series.values()])) if series else []
+    idx = [d for d in idx if d >= first_day.strftime("%Y-%m-%d")]
+    if idx:
+        full = pd.date_range(idx[0], idx[-1], freq="D").strftime("%Y-%m-%d")
+    else:
+        full = pd.Index([])
+    gen = {}
+    for g in GEN_GROUPS:
+        if g in series and series[g].reindex(full).notna().any():
+            gen[g] = [None if pd.isna(v) else int(round(v)) for v in series[g].reindex(full)]
+    out = {
+        "zone": z, "area": DRIVER_AREA[z],
+        "source": "ENTSO-E Transparency Platform: actual generation per production type (16.1.B&C) and installed capacity per production type (14.1.A)",
+        "unit": "MW; generation is the daily average over the CET delivery day",
+        "groups": {g: GEN_GROUPS[g] for g in GEN_GROUPS},
+        "start": full[0] if len(full) else None, "days": len(full),
+        "gen": gen, "cap": dict(sorted(caps.items())),
+        "fetched_months": sorted(set(fetched)),
+        "generated": pd.Timestamp.now(tz="UTC").isoformat(timespec="seconds"),
+    }
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(out, f, separators=(",", ":"))
+
+
+def run_generation(args, make_client, zones, first_day, end_day, today):
+    from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+    t0 = time.time()
+    os.makedirs(args.gen_out, exist_ok=True)
+    state = {z: load_gen_zone(os.path.join(args.gen_out, z + ".json")) for z in zones}
+    last = min(end_day, today)   # actual generation exists up to now
+    cutoff = (today - pd.Timedelta(days=GEN_RECENT_DAYS)).to_period("M")
+    recent_from = max(first_day, cutoff.start_time)
+    tasks = []
+    for z in zones:   # installed capacity: each year once (a missing year is retried next run)
+        for y in range(first_day.year, today.year + 1):
+            if str(y) not in state[z][2]:
+                tasks.append(("cap", z, y, None))
+    tasks += [("gen", z, (recent_from, last), None) for z in zones]
+    for m in reversed(pd.period_range(first_day.to_period("M"), cutoff, freq="M")):
+        if m >= cutoff:
+            continue
+        for z in zones:
+            if str(m) not in state[z][1]:
+                tasks.append(("gen", z, (max(first_day, m.start_time), m.end_time.normalize()), str(m)))
+    n_back = sum(1 for t in tasks if t[0] == "gen" and t[3])
+    print(f"\nGeneration: {len(zones)} zones from {recent_from.date()}, {n_back} zone-months left to backfill, "
+          f"{sum(1 for t in tasks if t[0] == 'cap')} capacity years")
+
+    pool = ThreadPoolExecutor(max_workers=args.workers)
+    it = iter(tasks)
+    running, failed, done = {}, 0, 0
+    timed_out = False
+
+    def submit_next():
+        for kind, z, arg, label in it:
+            if kind == "cap":
+                fut = pool.submit(fetch_capacity, make_client, z, arg)
+            else:
+                a, b = arg
+                fut = pool.submit(fetch_gen_month, make_client, z, pd.Timestamp(a, tz=TZ), pd.Timestamp(b, tz=TZ) + pd.Timedelta(days=1))
+            running[fut] = (kind, z, arg, label)
+            return True
+        return False
+
+    for _ in range(args.workers):
+        submit_next()
+    last_save = time.time()
+    while running:
+        left = args.gen_budget - (time.time() - t0)
+        if left <= 0:
+            timed_out = True
+            break
+        fin, _ = wait(list(running), timeout=left, return_when=FIRST_COMPLETED)
+        for f in fin:
+            kind, z, arg, label = running.pop(f)
+            exc = f.exception()
+            if isinstance(exc, KeyRejected):
+                pool.shutdown(wait=False, cancel_futures=True)
+                raise exc
+            if exc is not None:
+                failed += 1
+                print(f"    {z} {kind} {label or arg}: {type(exc).__name__}: {str(exc)[:120]}")
+            else:
+                done += 1
+                series, fetched, caps = state[z]
+                if kind == "cap":
+                    if f.result():
+                        caps[str(arg)] = f.result()
+                else:
+                    for g, s in f.result().items():
+                        cur = series.get(g, pd.Series(dtype=float))
+                        cur = cur.reindex(cur.index.union(s.index))
+                        cur.loc[s.index] = s.values
+                        series[g] = cur
+                    if label:
+                        fetched.append(label)
+            if time.time() - t0 < args.gen_budget:
+                submit_next()
+        if time.time() - last_save > 300:   # save progress every 5 minutes, so a cancelled run keeps it
+            for z in zones:
+                write_gen_zone(os.path.join(args.gen_out, z + ".json"), z, *state[z], first_day)
+            last_save = time.time()
+    pool.shutdown(wait=False, cancel_futures=True)
+    for z in zones:
+        write_gen_zone(os.path.join(args.gen_out, z + ".json"), z, *state[z], first_day)
+    left_months = sum(1 for z in zones for m in pd.period_range(first_day.to_period("M"), cutoff, freq="M")
+                      if m < cutoff and str(m) not in state[z][1])
+    print(f"Generation: {done} requests done, {failed} failed, {left_months} zone-months still to backfill "
+          f"({time.time() - t0:.0f} s{', time budget used up' if timed_out else ''})")
+    return timed_out
 
 
 if __name__ == "__main__":

@@ -1,0 +1,2 @@
+zones: DE-LU,FR,NO2,PL,ES
+minutes: 6
