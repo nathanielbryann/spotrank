@@ -19,10 +19,13 @@ which handles both hourly and 15-minute prices. Italy uses its North zone (IT-NO
   from its usual rank (median of the previous 90 days), a pair of neighbouring zones split by
   congestion, a long-time high or low, or a negative price. The rest are filled at random, with rules
   for minimum price gaps and regional variety.
-- **Clues:** each miss unlocks a hint from the same analysis as the explanation panel, ordered from
-  subtle to strong (hydro, demand, wind and solar, bottleneck, unusual rank, record, negative price).
-  No prices are revealed unless a calm day has fewer than three story hints; then the price range or
-  one zone's price fills the gap.
+- **Market briefing:** shown before the first attempt, one card per zone with no prices: wind and
+  solar against demand (vs the previous 30 days), demand vs a usual weekday or weekend day, the main
+  power source and gas share (ENTSO-E actual generation), net imports or exports, hydro zones, and
+  any congested border between neighbouring zones (named without saying which side was dearer).
+- **Clues:** each miss unlocks a clue with numbers, weakest first: the price range of the five; then
+  a record ("highest price since March 2025"), an unusual European rank, a negative price, or the two
+  closest zones; then one zone's actual price.
 - **Why these prices:** shown after each round. It uses the price archive (ranks, gaps between
   neighbouring zones, records) and `site/data/spotrank_drivers.json`, which holds daily averages of
   ENTSO-E's day-ahead forecasts of total load, wind and solar per zone. "Normal" means the average of

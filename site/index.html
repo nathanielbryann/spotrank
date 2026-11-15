@@ -335,6 +335,21 @@ table.lb tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .vs-row .v { font-family: var(--f-mono); font-size: 12px; color: var(--ink-2); text-align: right; white-space: nowrap; }
 .vs-row .v b { color: var(--ink); }
 
+/* Market briefing */
+.brief { margin-bottom: 18px; }
+.brief-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 16px; }
+.brief-head .sub { font-size: 13px; color: var(--muted); }
+.brief-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 8px; }
+.bz { padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-2); }
+.bz h4 { margin: 0 0 6px; font-family: var(--f-body); font-size: 14px; font-weight: 700; text-transform: none; letter-spacing: 0; line-height: 1.3; }
+.bz h4 .bzc { font-family: var(--f-mono); font-size: 15px; margin-right: 6px; }
+.bz h4 .nm { font-weight: 500; color: var(--ink-2); font-size: 13px; }
+.bz ul { margin: 0; padding-left: 16px; font-size: 13.5px; color: var(--ink-2); display: grid; gap: 2px; }
+.bz ul b { color: var(--ink); font-family: var(--f-mono); }
+.bz .none { color: var(--muted); list-style: none; margin-left: -16px; }
+.brief-watch { margin: 10px 0 0; font-size: 14px; color: var(--ink-2); }
+.brief-watch b { color: var(--ink); }
+
 /* Views */
 .view { display: grid; gap: 20px; }
 .view[hidden] { display: none; }
@@ -449,6 +464,13 @@ footer a, .data a { color: var(--accent); }
   <div class="view" id="game-view">
   <div class="meta" id="meta"></div>
   <p class="rule">Order the five zones from cheapest to most expensive <b>daily baseload price</b>. You get 4 attempts. After each one, zones in the right place turn <span class="k g">✓</span>green and lock; the rest turn <span class="k x">✕</span>grey.</p>
+
+  <section class="panel brief" id="brief" aria-labelledby="brief-title">
+    <div class="brief-head"><h2 id="brief-title" style="margin:0">Market briefing</h2><span class="sub" id="brief-sub"></span></div>
+    <div class="brief-grid" id="brief-grid"></div>
+    <p class="brief-watch" id="brief-watch" hidden></p>
+    <p class="ins-foot" id="brief-foot"></p>
+  </section>
 
   <div class="main">
     <section class="panel" aria-labelledby="board-title">
@@ -644,7 +666,8 @@ footer a, .data a { color: var(--accent); }
       <li>Each day you get <b>one delivery day</b> and <b>five bidding zones</b> from the SDAC day-ahead market.</li>
       <li>Rank them by <b>daily baseload price</b>, the time-weighted average of every hour or quarter-hour of the delivery day. The cheapest goes at the top.</li>
       <li>You have <b>4 attempts</b>. After each one, <span class="k g">✓</span> green means right place (it locks in) and <span class="k x">✕</span> grey means wrong place.</li>
-      <li>Every miss unlocks a clue: first the price range of the five, then the actual price of two zones.</li>
+      <li>Before you rank, the <b>market briefing</b> shows what drove each zone that day: wind and solar, demand, the main power source, imports or exports, and any congested border. No prices.</li>
+      <li>Every miss unlocks a clue with numbers: first the price range of the five, then a record or an unusual rank, then one zone's actual price.</li>
       <li>Move zones by dragging the grip, tapping two zones to swap them, or using the arrow buttons. With a zone focused, ↑/↓ moves it and Enter selects it for a swap.</li>
       <li>The daily puzzle is the same for everyone and counts toward your streak. Practice rounds don't count.</li>
     </ul>
@@ -1149,6 +1172,7 @@ async function loadDriversNow() {
     DRV = {dates: j.dates, di: new Map(j.dates.map((d, i) => [d, i])), s: j.series};
     DRV_STATE = 'ok';
   } catch (e) { DRV_STATE = 'none'; }
+  if (G) renderBrief();
   if (G && G.status !== 'playing') { renderClues(); renderInsights(); }
 }
 function drvAt(z, i) {
@@ -1253,7 +1277,8 @@ function buildInsights(g) {
       p: 'Over the previous 90 days ' + zoneLabel(sur.z) + ' usually ranked around ' + N$(ordinal(Math.round(sur.ur))) + '. ' +
         (sur.dev < 0 ? 'This day it was unusually cheap compared with the rest of Europe.' : 'This day it was unusually expensive compared with the rest of Europe.'),
       score: 20 + Math.abs(sur.dev) * 3, key: 'sur-' + sur.z, strength: 4,
-      clue: sur.z + ' was unusually ' + (sur.dev < 0 ? 'cheap' : 'expensive') + ' compared with the rest of Europe.'});
+      clue: sur.z + ' was unusually ' + (sur.dev < 0 ? 'cheap' : 'expensive') + ' compared with the rest of Europe.',
+      numClue: sur.z + ' ranked ' + N$(ordinal(sur.r)) + ' cheapest of ' + H.n[idx] + ' zones that day, where it usually ranks around ' + N$(ordinal(Math.round(sur.ur))) + '.', z: sur.z});
   }
   // 4. Record: highest or lowest price in a long time
   let rec = null;
@@ -1270,7 +1295,8 @@ function buildInsights(g) {
       p: rec.z + ' cleared at ' + N$(fmtP(p)) + '. ' + (rec.k < 0 ? 'No day since ' + fmtShortDay(H.dates[0]) + ' was ' + (rec.dir > 0 ? 'more expensive' : 'cheaper') + '.'
         : 'The last time it was ' + (rec.dir > 0 ? 'this expensive' : 'this cheap') + ' was ' + N$(fmtShortDay(H.dates[rec.k])) + ', ' + Math.round(rec.gap / 30.4) + ' months earlier.'),
       score: 30 + Math.min(45, rec.gap / 12), key: 'rec-' + rec.z, strength: 5,
-      clue: rec.z + ' had its ' + word + ' price ' + (rec.k < 0 ? 'in the whole archive' : 'in ' + Math.round(rec.gap / 30.4) + ' months') + '.'});
+      clue: rec.z + ' had its ' + word + ' price ' + (rec.k < 0 ? 'in the whole archive' : 'in ' + Math.round(rec.gap / 30.4) + ' months') + '.',
+      numClue: rec.z + ' had its ' + word + ' price ' + (rec.k < 0 ? 'since the archive began in ' + N$(MONTHS[parseISO(H.dates[0]).getMonth()] + ' ' + parseISO(H.dates[0]).getFullYear()) : 'since ' + N$(MONTHS[parseISO(H.dates[rec.k]).getMonth()] + ' ' + parseISO(H.dates[rec.k]).getFullYear())) + '.', z: rec.z});
   }
   // 5. Below zero
   const neg = five.filter(z => row[H.zi[z]] < 0);
@@ -1279,7 +1305,7 @@ function buildInsights(g) {
     items.push({tag: 'Below zero', h: zoneLabel(z) + ' averaged below zero',
       p: 'Over the whole day the price averaged ' + N$(fmtP(row[H.zi[z]])) + '. Negative prices mean producers paid to keep generating. It happens when wind and solar output is more than the market can absorb.' +
         (d && d.hasRes ? ' Wind and solar were forecast to cover ' + N$(pct0(d.res)) + ' of demand that day.' : ''),
-      score: 70, key: 'neg-' + z, strength: 6, clue: z + ' averaged below zero over the day.'});
+      score: 70, key: 'neg-' + z, strength: 6, clue: z + ' averaged below zero over the day.', numClue: z + ' averaged ' + N$(fmtP(row[H.zi[z]])) + ' over the day: below zero.', z});
   }
   // keep the strongest, at most one per tag except Wind & sun (cheapest and dearest)
   items.sort((a, b) => b.score - a.score);
@@ -1290,17 +1316,92 @@ function buildInsights(g) {
     seen[it.tag] = (seen[it.tag] || 0) + 1; out.push(it);
     if (out.length >= 4) break;
   }
-  return {context, items: out};
+  return {context, items: out, all: items};
 }
 
+/* clues with numbers, weakest first: the price range, then a record or an unusual rank, then one zone's price */
 function buildClues(g) {
-  const out = buildInsights(g).items.filter(it => it.clue).slice(0, 3)
-    .sort((a, b) => a.strength - b.strength).map(it => ({key: it.key, tag: it.tag, text: it.clue}));
-  const ps = g.answer.map(z => g.prices[z]);
-  const fill = [{key: 'price-range', tag: 'Prices', text: 'These five cleared between ' + N$(fmtP(Math.min(...ps))) + ' and ' + N$(fmtP(Math.max(...ps))) + ' per MWh.'}]
-    .concat([g.answer[2], g.answer[3]].map(z => ({key: 'price-' + z, tag: 'Prices', text: z + ' (' + esc(zm(z).c) + ') cleared at ' + N$(fmtP(g.prices[z])) + ' per MWh.'})));
-  while (out.length < 3 && fill.length) out.push(fill.shift());
+  const ps = g.answer.map(z => g.prices[z]), lo = Math.min(...ps), hi = Math.max(...ps);
+  const out = [{key: 'price-range', tag: 'Price range', text: 'The five prices span ' + N$(fmtP(hi - lo, 0)) + ', from about ' + N$(fmtP(lo, 0)) + ' to ' + N$(fmtP(hi, 0)) + ' per MWh.'}];
+  const H = hx(), idx = H.di.get(g.date);
+  let mid = null;
+  if (idx !== undefined) {
+    const items = buildInsights(g).all;   // every candidate, not only the four shown after the round
+    const pick = ['Record', 'Surprise', 'Below zero'].map(t => items.find(it => it.tag === t)).find(Boolean);
+    if (pick) { out.push({key: pick.key, tag: pick.tag === 'Surprise' ? 'Unusual rank' : pick.tag, text: pick.numClue || pick.clue}); mid = pick.z || null; }
+  }
+  if (out.length < 2) {   // fallback: the two closest of the five
+    let best = null;
+    for (let i = 1; i < N; i++) { const d = ps[i] - ps[i - 1]; if (!best || d < best.d) best = {a: g.answer[i - 1], b: g.answer[i], d}; }
+    const [a, b] = [best.a, best.b].sort();
+    out.push({key: 'pair-' + a + '-' + b, tag: 'Close call', text: 'The two closest of the five, ' + a + ' and ' + b + ', were only ' + N$(fmtP(best.d)) + ' apart.'});
+  }
+  const z3 = g.answer[2] !== mid ? g.answer[2] : g.answer[1];
+  out.push({key: 'price-' + z3, tag: 'One price', text: z3 + ' (' + esc(zm(z3).c) + ') cleared at ' + N$(fmtP(g.prices[z3])) + ' per MWh.'});
   return out;
+}
+
+/* market briefing: the day's drivers for each of the five, with no prices */
+const GEN_SHORT = {gas: 'Gas', coal: 'Hard coal', lignite: 'Lignite', nuclear: 'Nuclear', hydro_storage: 'Reservoir hydro', hydro_ror: 'Run-of-river hydro', biomass: 'Biomass and waste', oil: 'Oil', other: 'Other sources'};
+function genDay(z, date) {
+  const gs = GEN.get(z); if (!gs || gs.state !== 'ok' || !gs.d.start) return gs && gs.state === 'loading' ? 'loading' : null;
+  const gd = gs.d, i = daysBetween(gd.start, date), out = {}; let total = 0;
+  for (const [g, a] of Object.entries(gd.gen || {})) { const v = i >= 0 && i < a.length ? a[i] : null; if (v !== null && v > 0) { out[g] = v; total += v; } }
+  return total > 0 ? {total, g: out} : null;
+}
+function buildBriefing(g) {
+  const H = hx(), idx = H.di.get(g.date), zones = g.answer.slice().sort();
+  const di = DRV ? DRV.di.get(g.date) : undefined, dayType = isWeekend(g.date) ? 'weekend day' : 'weekday';
+  const cards = zones.map(z => {
+    const f = [], d = di !== undefined ? drvAt(z, di) : null, nrm = d ? drvNormal(z, g.date) : null, gen = HOSTED ? genDay(z, g.date) : null;
+    if (HYDRO.has(z)) {
+      const sh = gen && gen !== 'loading' && gen.g.hydro_storage ? gen.g.hydro_storage / gen.total : null;
+      f.push(sh !== null && sh >= 0.3 ? 'Reservoir hydro made ' + N$(pct0(sh)) + ' of its power; it is priced by water value' : 'Mostly hydropower, priced by water value');
+    } else if (d && d.hasRes) {
+      f.push('Wind and solar ' + (d.res > 1 ? 'equal to ' : 'covered ') + N$(pct0(d.res)) + ' of demand' + (nrm && nrm.res !== null ? ' (usually ' + N$(pct0(nrm.res)) + ')' : ''));
+    }
+    if (d && nrm && nrm.loadSame) {
+      const ld = d.load / nrm.loadSame - 1;
+      f.push(Math.abs(ld) < 0.03 ? 'Demand about normal for a ' + dayType : 'Demand ' + N$(pct0(Math.abs(ld))) + (ld > 0 ? ' above' : ' below') + ' a usual ' + dayType);
+    }
+    if (gen && gen !== 'loading') {
+      const top = Object.entries(gen.g).filter(([k]) => k !== 'wind' && k !== 'solar' && !(HYDRO.has(z) && k === 'hydro_storage')).sort((a, b) => b[1] - a[1])[0];
+      if (top && top[1] / gen.total >= 0.1) f.push(GEN_SHORT[top[0]] + ' made ' + N$(pct0(top[1] / gen.total)) + ' of its power');
+      if (top && top[0] !== 'gas' && gen.g.gas && gen.g.gas / gen.total >= 0.1) f.push('Gas made ' + N$(pct0(gen.g.gas / gen.total)));
+      if (d && d.load) {
+        const net = (gen.total - d.load) / d.load;
+        if (net <= -0.1) f.push('Imported about ' + N$(pct0(-net)) + ' of what it used');
+        else if (net >= 0.1) f.push('Produced ' + N$(pct0(net)) + ' more than it used, so it exported');
+      }
+    }
+    return {z, f, loading: gen === 'loading'};
+  });
+  // congested borders: neighbours whose prices split far more than usual (no direction given)
+  const borders = [];
+  if (idx !== undefined) {
+    for (const [a, b] of NEIGHBOURS) {
+      if (!g.answer.includes(a) && !g.answer.includes(b)) continue;
+      const si = spreadInfo(a, b, idx);
+      if (isSplit(si)) borders.push({a, b, x: si.s - si.m});
+    }
+    borders.sort((p, q) => q.x - p.x);
+  }
+  return {cards, borders: borders.slice(0, 2)};
+}
+function renderBrief() {
+  const sec = $('#brief');
+  if (!G || !DS) { sec.hidden = true; return; }
+  sec.hidden = false;
+  if (DRV_STATE === 'idle') loadDrivers();
+  if (HOSTED) for (const z of G.answer) if (!GEN.has(z)) loadGen(z);
+  const B = buildBriefing(G);
+  $('#brief-sub').textContent = fmtDay(G.date) + ' · no prices';
+  $('#brief-grid').innerHTML = B.cards.map(c => '<div class="bz"><h4><span class="bzc">' + esc(c.z) + '</span><span class="nm">' + esc(zm(c.z).c + (zm(c.z).a ? ' · ' + zm(c.z).a : '')) + '</span></h4><ul>' +
+    (c.f.length ? c.f.map(t => '<li>' + t + '</li>').join('') : '<li class="none">' + (DRV_STATE === 'loading' || c.loading ? 'Loading…' : 'No driver data for this day.') + '</li>') + '</ul></div>').join('');
+  const w = $('#brief-watch');
+  w.hidden = !B.borders.length;
+  w.innerHTML = B.borders.length ? 'Congested border' + (B.borders.length > 1 ? 's' : '') + ': ' + B.borders.map(o => '<b>' + esc(o.a) + '–' + esc(o.b) + '</b>').join(' and ') + '. Prices on the two sides split far more than usual.' : '';
+  $('#brief-foot').textContent = 'Wind, solar and demand: ENTSO-E day-ahead forecasts; "usual" is the average of the previous 30 days (same day type for demand). Power sources and imports: ENTSO-E actual generation.';
 }
 
 function renderInsights() {
@@ -1981,6 +2082,7 @@ async function loadGen(z) {
     GEN.set(z, {state: 'ok', d: await r.json()});
   } catch (e) { GEN.set(z, {state: 'none'}); }
   if (z === MO_Z || z === PMO.z) rerenderMerits();
+  if (G && G.answer.includes(z)) renderBrief();
 }
 /* latest fuel and CO2 prices on or before the day (markets don't trade on weekends and holidays) */
 function fuelAt(date) {
@@ -2285,7 +2387,7 @@ function render() {
     $('#ladder').innerHTML = '<li class="clue locked">No puzzle could be built from this data. Load a file with at least 12 zones per day.</li>';
     return;
   }
-  renderMeta(); renderBoard(); renderLog(); renderClues(); renderResult(); renderCrowd(); renderInsights(); renderAllZones(); renderData();
+  renderMeta(); renderBrief(); renderBoard(); renderLog(); renderClues(); renderResult(); renderCrowd(); renderInsights(); renderAllZones(); renderData();
 }
 
 /* ---------- drag (grip) ---------- */
