@@ -1,0 +1,44 @@
+name: Check the leaderboard database
+
+# Calls the Supabase functions once and saves the answers in diagnostics/,
+# to confirm that supabase/setup.sql ran. Starts when .github/supabase-check.txt changes.
+on:
+  push:
+    branches: [main]
+    paths: [".github/supabase-check.txt"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Call the functions
+        env:
+          SB_URL: https://ywzvupcjyuvftnpchrtr.supabase.co
+          SB_KEY: sb_publishable_uRr_kiMcy3RxNQk2_52AIg_h5QsoYLF
+        run: |
+          call() { echo "== $1 $2"; curl -sS -m 30 -X POST "$SB_URL/rest/v1/rpc/$1" -H "apikey: $SB_KEY" -H "Content-Type: application/json" -d "$2" -w "\nHTTP %{http_code}\n"; }
+          {
+            date -u
+            call ping '{}'
+            call day_results '{"p_puzzle": 1}'
+            call leaderboard '{"p_from": "2026-11-01", "p_to": "2026-12-31"}'
+            call register_player '{"p_name": "x"}'
+            echo "== direct table read (must be refused)"
+            curl -sS -m 30 "$SB_URL/rest/v1/players?select=*" -H "apikey: $SB_KEY" -w "\nHTTP %{http_code}\n"
+          } > diagnostics/supabase_check.txt 2>&1
+          cat diagnostics/supabase_check.txt
+      - name: Save
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add diagnostics/supabase_check.txt
+          git commit -m "Leaderboard database check $(date -u +%FT%H%MZ)" || exit 0
+          for i in 1 2 3; do git pull --rebase && git push && break; sleep 10; done
