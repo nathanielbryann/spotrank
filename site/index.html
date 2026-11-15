@@ -135,8 +135,9 @@ button { font: inherit; color: inherit; }
 }
 .plate:hover { border-color: var(--line-strong); }
 .plate.sel { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); background: var(--accent-soft); }
-.plate.dragging { z-index: 5; box-shadow: 0 12px 30px rgba(0,0,0,.22); transition: none; cursor: grabbing; }
-.slot.target .plate { border-style: dashed; border-color: var(--accent); }
+.plate.dragging { z-index: 5; box-shadow: 0 12px 30px rgba(0,0,0,.22); transition: none; cursor: grabbing; border-color: var(--accent); }
+.plate:not(.locked) { cursor: grab; -webkit-touch-callout: none; }
+body.is-dragging, body.is-dragging * { cursor: grabbing !important; }
 .plate::before { content: ""; position: absolute; left: -1px; top: -1px; bottom: -1px; width: 6px; border-radius: 12px 0 0 12px; background: transparent; }
 .plate.r-g::before { background: var(--good); }
 .plate.r-y::before { background: var(--near); }
@@ -158,8 +159,8 @@ button { font: inherit; color: inherit; }
 .price small { font-weight: 500; font-size: 11px; color: var(--muted); }
 .moves { display: grid; gap: 4px; }
 .mv {
-  appearance: none; width: 34px; height: 26px; border-radius: 7px; border: 1px solid var(--line-strong);
-  background: var(--surface); cursor: pointer; display: grid; place-items: center; padding: 0; color: var(--ink-2);
+  appearance: none; width: 30px; height: 24px; border-radius: 7px; border: 1px solid var(--line);
+  background: transparent; cursor: pointer; display: grid; place-items: center; padding: 0; color: var(--muted);
 }
 .mv:hover:not([disabled]) { color: var(--ink); border-color: var(--ink-2); }
 .mv[disabled] { opacity: .3; cursor: default; }
@@ -482,7 +483,7 @@ footer a, .data a { color: var(--accent); }
         <div class="pips" id="pips"></div>
         <button class="btn primary big" id="btn-submit" type="button">Check ranking</button>
       </div>
-      <p class="hint" id="hint">Drag a zone by its grip, tap two zones to swap them, or use the arrows. With a zone focused, ↑ and ↓ move it.</p>
+      <p class="hint" id="hint">Drag a zone to where it belongs (on a phone, press and hold it first), tap two zones to swap them, or use the arrows. With a zone focused, ↑ and ↓ move it.</p>
     </section>
 
     <div class="side">
@@ -668,7 +669,7 @@ footer a, .data a { color: var(--accent); }
       <li>You have <b>4 attempts</b>. After each one, <span class="k g">✓</span> green means right place (it locks in) and <span class="k x">✕</span> grey means wrong place.</li>
       <li>Before you rank, the <b>market briefing</b> shows what drove each zone that day: wind and solar, demand, the main power source, imports or exports, and any congested border. No prices.</li>
       <li>Every miss unlocks a clue with numbers: first the price range of the five, then a record or an unusual rank, then one zone's actual price.</li>
-      <li>Move zones by dragging the grip, tapping two zones to swap them, or using the arrow buttons. With a zone focused, ↑/↓ moves it and Enter selects it for a swap.</li>
+      <li>Drag a zone to where it belongs and the others slide out of the way (on a phone, press and hold it first). You can also tap two zones to swap them, or use the arrow buttons. With a zone focused, ↑/↓ moves it and Enter selects it for a swap.</li>
       <li>The daily puzzle is the same for everyone and counts toward your streak. Practice rounds don't count.</li>
     </ul>
     <button class="btn primary" type="button" data-close>Got it</button>
@@ -1006,7 +1007,7 @@ function renderBoard() {
   sb.textContent = done ? (G.status === 'won' ? 'Solved' : 'Round over') : 'Check ranking';
   $('#hint').textContent = done
     ? (G.status === 'won' ? 'The final order with each zone\'s daily baseload price.' : 'The correct order, with each zone\'s daily baseload price.')
-    : 'Drag a zone by its grip, tap two zones to swap them, or use the arrows. With a zone focused, ↑ and ↓ move it.';
+    : 'Drag a zone to where it belongs (on a phone, press and hold it first), tap two zones to swap them, or use the arrows. With a zone focused, ↑ and ↓ move it.';
   animateNext = false;
   if (focusIdx !== null) { const el = $('.plate[data-i="' + focusIdx + '"]'); if (el) el.focus({preventScroll: true}); focusIdx = null; }
 }
@@ -2390,46 +2391,94 @@ function render() {
   renderMeta(); renderBrief(); renderBoard(); renderLog(); renderClues(); renderResult(); renderCrowd(); renderInsights(); renderAllZones(); renderData();
 }
 
-/* ---------- drag (grip) ---------- */
-let drag = null;
-function slotAt(y) {
-  const slots = [...document.querySelectorAll('#ladder .slot')];
-  for (const sl of slots) { const r = sl.getBoundingClientRect(); if (y >= r.top - 5 && y <= r.bottom + 5) return +sl.dataset.i; }
-  return null;
+/* ---------- drag: grab a zone anywhere and move it; the others slide out of the way ---------- */
+// Mouse and pen: drag starts after a few pixels of movement. Touch: press and hold (or use the grip),
+// so a swipe over the ladder still scrolls the page. Locked zones stay put; the rest reorder around them.
+let drag = null, pend = null, hold = null, dragJust = 0;
+function slotRects() { return [...document.querySelectorAll('#ladder .slot')].map(sl => sl.getBoundingClientRect()); }
+function dragBegin(plate, i, y, touch) {
+  const unl = []; for (let k = 0; k < N; k++) if (!G.locked[k]) unl.push(k);
+  const plates = [...document.querySelectorAll('#ladder .slot .plate')];
+  drag = {i, y0: y, touch, plate, plates, unl, to: i};
+  selected = null; plates.forEach(p => p.classList.remove('sel'));
+  plate.classList.add('dragging'); document.body.classList.add('is-dragging');
+  if (touch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* not supported */ } }
 }
-document.addEventListener('pointerdown', e => {
-  const g = e.target.closest('[data-grip]');
-  if (!g || !G || G.status !== 'playing') return;
-  const i = +g.dataset.grip;
-  if (!canMove(i)) return;
-  e.preventDefault();
-  const plate = g.closest('.plate');
-  drag = {i, y0: e.clientY, plate, target: null, id: e.pointerId};
-  try { g.setPointerCapture(e.pointerId); } catch (_) {}
-  plate.classList.add('dragging');
-});
-document.addEventListener('pointermove', e => {
-  if (!drag || e.pointerId !== drag.id) return;
-  drag.plate.style.transform = 'translateY(' + (e.clientY - drag.y0) + 'px) scale(1.02)';
-  const t = slotAt(e.clientY);
-  document.querySelectorAll('#ladder .slot.target').forEach(s => s.classList.remove('target'));
-  drag.target = (t !== null && t !== drag.i && canMove(t)) ? t : null;
-  if (drag.target !== null) document.querySelector('#ladder .slot[data-i="' + drag.target + '"]').classList.add('target');
-});
-function endDrag(e) {
-  if (!drag || (e && e.pointerId !== drag.id)) return;
-  const {i, target} = drag; drag = null;
-  if (target !== null) { const a = G.order[i], b = G.order[target]; swap(i, target); say(a + ' and ' + b + ' swapped'); focusIdx = target; }
+function dragMove(y) {
+  const d = drag; if (!d) return;
+  const R = slotRects(), h = R[d.i].height;
+  const dy = Math.max(R[0].top - R[d.i].top - 12, Math.min(R[N - 1].top - R[d.i].top + 12, y - d.y0));
+  d.plate.style.transform = 'translateY(' + dy + 'px) scale(1.02)';
+  const mid = R[d.i].top + dy + h / 2;
+  let to = d.i, best = Infinity;
+  for (const k of d.unl) { const c = R[k].top + R[k].height / 2, dd = Math.abs(c - mid); if (dd < best) { best = dd; to = k; } }
+  d.to = to;
+  // where every other unlocked zone goes if the dragged one lands on `to`
+  const seq = d.unl.filter(k => k !== d.i);
+  seq.splice(d.unl.indexOf(to), 0, d.i);
+  seq.forEach((from, j) => { const at = d.unl[j]; if (from !== d.i) d.plates[from].style.transform = at === from ? '' : 'translateY(' + (R[at].top - R[from].top) + 'px)'; });
+}
+function dragEnd(cancel) {
+  const d = drag; if (!d) return;
+  drag = null; dragJust = Date.now();
+  document.body.classList.remove('is-dragging');
+  if (!cancel && d.to !== d.i) {
+    const zs = d.unl.map(k => G.order[k]), a = d.unl.indexOf(d.i), b = d.unl.indexOf(d.to);
+    const [z] = zs.splice(a, 1); zs.splice(b, 0, z);
+    d.unl.forEach((k, j) => { G.order[k] = zs[j]; });
+    persist(); say(z + ' moved to place ' + (d.to + 1));
+    if (!d.touch) focusIdx = d.to;
+  }
   selected = null; render();
 }
-document.addEventListener('pointerup', endDrag);
-document.addEventListener('pointercancel', endDrag);
+// mouse and pen
+document.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'touch' || e.button !== 0 || !G || G.status !== 'playing') return;
+  const plate = e.target.closest('#ladder .plate');
+  if (!plate || e.target.closest('.mv')) return;
+  const i = +plate.dataset.i;
+  if (canMove(i)) pend = {i, x: e.clientX, y: e.clientY, plate, id: e.pointerId};
+});
+document.addEventListener('pointermove', e => {
+  if (e.pointerType === 'touch') return;
+  if (pend && !drag && Math.hypot(e.clientX - pend.x, e.clientY - pend.y) > 4) {
+    dragBegin(pend.plate, pend.i, pend.y, false);
+    try { pend.plate.setPointerCapture(pend.id); } catch (_) {}
+    pend = null;
+  }
+  if (drag && !drag.touch) dragMove(e.clientY);
+});
+const mouseUp = e => { if (e.pointerType === 'touch') return; pend = null; if (drag && !drag.touch) dragEnd(e.type === 'pointercancel'); };
+document.addEventListener('pointerup', mouseUp);
+document.addEventListener('pointercancel', mouseUp);
+// touch: press and hold, or start from the grip
+$('#ladder').addEventListener('touchstart', e => {
+  if (e.touches.length !== 1 || !G || G.status !== 'playing' || drag) return;
+  const t = e.touches[0], plate = e.target.closest('.plate');
+  if (!plate || e.target.closest('.mv')) return;
+  const i = +plate.dataset.i;
+  if (!canMove(i)) return;
+  if (e.target.closest('[data-grip]')) { e.preventDefault(); dragBegin(plate, i, t.clientY, true); return; }
+  hold = {i, x: t.clientX, y: t.clientY, plate};
+  hold.timer = setTimeout(() => { if (hold) { const h = hold; hold = null; dragBegin(h.plate, h.i, h.y, true); } }, 260);
+}, {passive: false});
+document.addEventListener('touchmove', e => {
+  const t = e.touches[0];
+  if (drag && drag.touch) { e.preventDefault(); dragMove(t.clientY); return; }
+  if (hold && Math.hypot(t.clientX - hold.x, t.clientY - hold.y) > 8) { clearTimeout(hold.timer); hold = null; }   // a scroll, not a hold
+}, {passive: false});
+const touchEnd = e => {
+  if (hold) { clearTimeout(hold.timer); hold = null; }
+  if (drag && drag.touch) { e.preventDefault(); dragEnd(e.type === 'touchcancel'); }
+};
+document.addEventListener('touchend', touchEnd, {passive: false});
+document.addEventListener('touchcancel', touchEnd, {passive: false});
 
 /* ---------- events ---------- */
 $('#ladder').addEventListener('click', e => {
   const mv = e.target.closest('[data-mv]');
   if (mv) { move(+mv.dataset.i, +mv.dataset.mv); return; }
-  if (e.target.closest('[data-grip]')) return;
+  if (e.target.closest('[data-grip]') || Date.now() - dragJust < 300) return;   // the end of a drag isn't a tap
   const p = e.target.closest('.plate');
   if (p) tap(+p.dataset.i);
 });
