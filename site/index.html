@@ -440,12 +440,13 @@ footer a, .data a { color: var(--accent); }
     <div id="mapview">
       <div class="map-wrap" id="map"></div>
       <div class="legend-scale" id="map-legend" aria-label="Colour scale, €/MWh"></div>
-      <p class="map-note">Your five zones are outlined. Grey areas aren't part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.</p>
+      <p class="map-note">Your five zones are outlined. Their second line shows the month so far, with the two previous months in brackets. Hover any zone for its figures. Grey areas aren't part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.</p>
     </div>
     <div id="rankview" hidden>
-      <div class="key" style="margin-bottom:8px"><span><i style="background:var(--accent)"></i>Today's five</span><span><i style="background:var(--bar-muted)"></i>Other zones</span></div>
+      <div class="key" style="margin-bottom:8px"><span><i style="background:var(--accent)"></i>Today's five</span><span><i style="background:var(--bar-muted)"></i>Other zones</span><span><i style="width:2px;height:14px;border-radius:1px;background:var(--ink);opacity:.75"></i>Month-to-date average</span></div>
       <div class="chart-wrap" id="chart"></div>
     </div>
+    <div id="five-table"></div>
     <details class="tableview"><summary>Table view</summary><div class="tbl-scroll" id="table"></div></details>
   </section>
   </div>
@@ -1438,6 +1439,44 @@ function barPath(x0, x1, y, h, r) {
   if (x1 >= x0) return 'M' + x0 + ',' + y + 'H' + (x1 - r) + 'A' + r + ',' + r + ' 0 0 1 ' + x1 + ',' + (y + r) + 'V' + (y + h - r) + 'A' + r + ',' + r + ' 0 0 1 ' + (x1 - r) + ',' + (y + h) + 'H' + x0 + 'Z';
   return 'M' + x0 + ',' + y + 'H' + (x1 + r) + 'A' + r + ',' + r + ' 0 0 0 ' + x1 + ',' + (y + r) + 'V' + (y + h - r) + 'A' + r + ',' + r + ' 0 0 0 ' + (x1 + r) + ',' + (y + h) + 'H' + x0 + 'Z';
 }
+/* month context: month-to-date up to the delivery day, and each of the two months before it */
+const MS_CACHE = new Map();
+function monthStats(z, date) {
+  const key = DS.id + '|' + z + '|' + date;
+  if (MS_CACHE.has(key)) return MS_CACHE.get(key);
+  const i = DS.zones.indexOf(z), d = parseISO(date), y = d.getFullYear(), m = d.getMonth();
+  const avg = (a, b) => { let s = 0, n = 0; for (const [dd, v] of DS.days) { if (dd >= a && dd <= b && v[i] !== null) { s += v[i]; n++; } } return n ? {avg: s / n, n} : null; };
+  const mon = dt => ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][dt.getMonth()];
+  const out = {mtd: avg(isoLocal(new Date(y, m, 1)), date), label: mon(d), days: d.getDate(),
+    prev: [2, 1].map(k => { const s = new Date(y, m - k, 1), e = new Date(y, m - k + 1, 0), r = avg(isoLocal(s), isoLocal(e)); return r ? {label: mon(s), ...r} : null; }).filter(Boolean)};
+  MS_CACHE.set(key, out);
+  return out;
+}
+function monthLine(ms, euro) {   // "Nov €272 (Sep 107 · Oct 141)"
+  if (!ms.mtd) return '';
+  const prev = ms.prev.map(p => p.label + ' ' + (euro ? fmtP(p.avg, 0) : Math.round(p.avg))).join(' · ');
+  return ms.label + ' ' + fmtP(ms.mtd.avg, 0) + (prev ? ' (' + prev + ')' : '');
+}
+function monthTip(z, date) {
+  const ms = monthStats(z, date); if (!ms.mtd) return '';
+  return '<br>' + esc(ms.label) + ' 1–' + ms.days + ' avg <b>' + fmtP(ms.mtd.avg) + '</b>' + ms.prev.map(p => ' · ' + esc(p.label) + ' ' + fmtP(p.avg)).join('');
+}
+function renderFiveTable() {
+  const el = $('#five-table');
+  if (!G || G.status === 'playing') { el.innerHTML = ''; return; }
+  const ms0 = monthStats(G.answer[0], G.date);
+  const prevLabels = ms0.prev.map(p => p.label);
+  el.innerHTML = '<h3 class="ph-h3" style="margin-top:16px">Your five in context</h3><div class="tbl-scroll"><table><thead><tr><th>Zone</th><th class="num">' + esc(fmtShortDay(G.date)) + '</th><th class="num">' + esc(ms0.label) + ' 1–' + ms0.days + '</th>' +
+    prevLabels.map(l => '<th class="num">' + esc(l) + '</th>').join('') + '<th class="num">Day vs month</th></tr></thead><tbody>' +
+    G.answer.map(z => {
+      const ms = monthStats(z, G.date), p = G.prices[z];
+      const dv = ms.mtd && ms.mtd.avg ? (p - ms.mtd.avg) / Math.abs(ms.mtd.avg) : null;
+      return '<tr><td><b>' + esc(z) + '</b> <span style="color:var(--ink-2)">' + esc(zm(z).c) + '</span></td><td class="num"><b>' + p.toFixed(2) + '</b></td><td class="num">' + (ms.mtd ? ms.mtd.avg.toFixed(2) : '–') + '</td>' +
+        prevLabels.map(l => { const q = ms.prev.find(x => x.label === l); return '<td class="num">' + (q ? q.avg.toFixed(2) : '–') + '</td>'; }).join('') +
+        '<td class="num">' + (dv === null ? '–' : pctS(dv)) + '</td></tr>';
+    }).join('') + '</tbody></table></div><p class="map-note" style="margin:6px 0 0">€/MWh. Month figures are means of daily baseload prices; the current month runs up to the delivery day.</p>';
+}
+
 let VIEW = lsGet('view', 'map') === 'rank' ? 'rank' : 'map';
 function renderAllZones() {
   const sec = $('#all-zones');
@@ -1448,6 +1487,7 @@ function renderAllZones() {
   $('#mapview').hidden = VIEW !== 'map';
   $('#rankview').hidden = VIEW !== 'rank';
   renderBars();
+  renderFiveTable();
   if (VIEW === 'map') { $('#all-sub').textContent = 'Daily baseload average, €/MWh. Hover a zone for its price and rank.'; renderMap(); }
 }
 function setView(v) { VIEW = v; lsSet('view', v); renderAllZones(); }
@@ -1503,10 +1543,10 @@ function renderMap() {
   for (const [z, g] of Object.entries(MAPDATA.zones)) {
     const v = price[z]; if (v === undefined) continue;
     if (mine.has(z)) {
-      const fs = (small ? 11 : 13) * u;
-      s += '<g pointer-events="none" font-family="var(--f-mono)" font-weight="700" text-anchor="middle" paint-order="stroke" stroke="var(--surface)" stroke-width="' + (3.2 * u) + '" stroke-linejoin="round" fill="var(--ink)">' +
-        '<text x="' + g.x + '" y="' + (g.y - fs * 0.15) + '" font-size="' + fs + '">' + esc(z) + '</text>' +
-        '<text x="' + g.x + '" y="' + (g.y + fs * 1.05) + '" font-size="' + (fs * 0.92) + '">' + fmtP(v, 0) + '</text></g>';
+      const fs = (small ? 11 : 13) * u, ml = small ? '' : monthLine(monthStats(z, G.date), false);
+      s += '<g pointer-events="none" font-family="var(--f-mono)" text-anchor="middle" paint-order="stroke" stroke="var(--surface)" stroke-width="' + (3.2 * u) + '" stroke-linejoin="round" fill="var(--ink)">' +
+        '<text x="' + g.x + '" y="' + (g.y + fs * 0.1) + '" font-size="' + fs + '" font-weight="700">' + esc(z) + ' ' + fmtP(v, 0) + '</text>' +
+        (ml ? '<text x="' + g.x + '" y="' + (g.y + fs * 1.15) + '" font-size="' + (fs * 0.74) + '" font-weight="600">' + esc(ml) + '</text>' : '') + '</g>';
     } else if (!small) {
       s += '<text x="' + g.x + '" y="' + (g.y + 3.5 * u) + '" font-size="' + (10 * u) + '" font-family="var(--f-mono)" text-anchor="middle" fill="' + inkFor(ramp[bucket(v)]) + '" pointer-events="none" opacity=".85">' + esc(z) + '</text>';
     }
@@ -1518,7 +1558,7 @@ function renderMap() {
     el.addEventListener('pointermove', e => {
       const z = el.dataset.z, v = price[z], m = zm(z), r = box.getBoundingClientRect();
       if (v === undefined) return;
-      tip.innerHTML = '<b>' + esc(z) + '</b> ' + esc(m.c) + (m.a ? ' · ' + esc(m.a) : '') + '<br><b>' + fmtP(v) + '</b> /MWh · rank ' + rank[z] + ' of ' + sorted.length;
+      tip.innerHTML = '<b>' + esc(z) + '</b> ' + esc(m.c) + (m.a ? ' · ' + esc(m.a) : '') + '<br><b>' + fmtP(v) + '</b> /MWh · rank ' + rank[z] + ' of ' + sorted.length + monthTip(z, G.date);
       tip.style.display = 'block';
       tip.style.left = Math.min(Math.max(e.clientX - r.left, 120), r.width - 120) + 'px';
       tip.style.top = (e.clientY - r.top - 12) + 'px';
@@ -1537,7 +1577,9 @@ function renderBars() {
   const W = Math.max(300, box.clientWidth || 600);
   const labelW = 58, padR = 74, top = 6, rowH = 20, barH = 10, axisH = 24;
   const H = top + rows.length * rowH + axisH;
-  const lo = Math.min(0, rows[0].p), hi = Math.max(0, rows[rows.length - 1].p);
+  const mtd = Object.fromEntries(rows.map(o => { const ms = monthStats(o.z, G.date); return [o.z, ms.mtd ? ms.mtd.avg : null]; }));
+  const mv = Object.values(mtd).filter(v => v !== null);
+  const lo = Math.min(0, rows[0].p, ...mv), hi = Math.max(0, rows[rows.length - 1].p, ...mv);
   const step = niceStep((hi - lo) || 1, W < 480 ? 4 : 6);
   const d0 = Math.floor(lo / step) * step, d1 = Math.ceil(hi / step) * step || step;
   const x = v => labelW + (v - d0) / (d1 - d0) * (W - labelW - padR);
@@ -1553,6 +1595,7 @@ function renderBars() {
     const y = top + k * rowH, by = y + (rowH - barH) / 2, isMine = mine.has(o.z);
     s += '<text x="' + (labelW - 8) + '" y="' + (y + rowH / 2 + 4) + '" text-anchor="end" font-size="11.5" font-weight="' + (isMine ? 700 : 500) + '" fill="' + (isMine ? 'var(--ink)' : 'var(--ink-2)') + '">' + esc(o.z) + '</text>';
     s += '<path d="' + barPath(x(0), x(o.p), by, barH, 4) + '" fill="' + (isMine ? 'var(--accent)' : 'var(--bar-muted)') + '"/>';
+    if (mtd[o.z] !== null) s += '<rect x="' + (x(mtd[o.z]) - 1).toFixed(1) + '" y="' + (by - 3) + '" width="2" height="' + (barH + 6) + '" rx="1" fill="var(--ink)" opacity=".75"/>';
     if (isMine) s += '<text x="' + (Math.max(x(o.p), x(0)) + 6) + '" y="' + (y + rowH / 2 + 4) + '" font-size="11.5" font-weight="700" fill="var(--ink)">' + fmtP(o.p, 1) + '</text>';
     s += '<rect class="hit" data-k="' + k + '" x="0" y="' + y + '" width="' + W + '" height="' + rowH + '" fill="transparent"/>';
   });
@@ -1562,7 +1605,7 @@ function renderBars() {
   box.querySelectorAll('.hit').forEach(r => {
     r.addEventListener('mouseenter', () => {
       const o = rows[+r.dataset.k], m = zm(o.z);
-      tip.innerHTML = '<b>' + esc(o.z) + '</b> ' + esc(m.c) + (m.a ? ' · ' + esc(m.a) : '') + '<br><b>' + fmtP(o.p) + '</b> /MWh · rank ' + (+r.dataset.k + 1) + ' of ' + rows.length;
+      tip.innerHTML = '<b>' + esc(o.z) + '</b> ' + esc(m.c) + (m.a ? ' · ' + esc(m.a) : '') + '<br><b>' + fmtP(o.p) + '</b> /MWh · rank ' + (+r.dataset.k + 1) + ' of ' + rows.length + monthTip(o.z, G.date);
       tip.style.display = 'block';
       const ty = top + (+r.dataset.k) * rowH;
       tip.style.left = Math.min(Math.max(x(o.p), 140), W - 140) + 'px';
