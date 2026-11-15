@@ -157,7 +157,8 @@ def main():
     ap.add_argument("--zones", default=None, help="comma-separated subset, e.g. SE3,FI,DE-LU")
     ap.add_argument("--out", default=os.path.join(HERE, "spotrank_data.json"))
     ap.add_argument("--no-csv", action="store_true", help="don't write the CSV copy")
-    ap.add_argument("--time-budget", type=int, default=None, help="stop fetching new zones after this many seconds")
+    ap.add_argument("--time-budget", type=int, default=None, help="stop waiting for zones after this many seconds")
+    ap.add_argument("--workers", type=int, default=8, help="zones fetched in parallel (default 8)")
     ap.add_argument("--key", default=None, help="ENTSO-E API key (default: ENTSOE_API_KEY env var)")
     args = ap.parse_args()
 
@@ -183,14 +184,16 @@ def main():
     if not key:
         sys.exit("No API key. Paste it into api_key.txt, set ENTSOE_API_KEY, or pass --key.")
     from entsoe import EntsoePandasClient
-    # 60 s per request so a stalled connection fails instead of hanging the run
-    client = EntsoePandasClient(api_key=key, timeout=60, retry_count=2, retry_delay=5)
+
+    def make_client():
+        # 90 s per request so a stalled connection fails instead of hanging the run
+        return EntsoePandasClient(api_key=key, timeout=90, retry_count=2, retry_delay=5)
 
     start = pd.Timestamp(fetch_from, tz=TZ)
     end = pd.Timestamp(end_day, tz=TZ) + pd.Timedelta(days=1)  # exclusive end
     print(f"Fetching {len(zones)} zones, {fetch_from.date()} to {end_day.date()} (CET delivery days)")
     try:
-        cols = fetch_all(client, zones, start, end, args.italy, budget_s=args.time_budget)
+        cols, unfinished = fetch_all(make_client, zones, start, end, args.italy, budget_s=args.time_budget, workers=args.workers)
     except KeyRejected as e:
         sys.exit(f"{e}\nCheck the key in api_key.txt (or create a new one on the ENTSO-E Transparency Platform) and run again.")
 
@@ -207,29 +210,51 @@ def main():
     while len(df) and df.iloc[-1].isna().all():  # e.g. tomorrow, before the auction results are out
         df = df.iloc[:-1]
     write_outputs(args, df, cols)
+    if unfinished:  # don't wait for requests still running past the time budget
+        sys.stdout.flush()
+        os._exit(0)
 
 
-def fetch_all(client, zones, start, end, italy, budget_s=None):
-    cols = {}
+def fetch_zone(make_client, z, start, end, italy):
+    client = make_client()
+    if z == "IT" and italy == "MEAN":
+        parts = []
+        for a in ITALY_ZONES:
+            s = fetch(client, a, start, end)
+            if s is not None:
+                parts.append(daily_baseload(s).rename(a))
+        return pd.concat(parts, axis=1).mean(axis=1) if parts else pd.Series(dtype=float)
+    s = fetch(client, ZONES[z], start, end)
+    return daily_baseload(s) if s is not None else pd.Series(dtype=float)
+
+
+def fetch_all(make_client, zones, start, end, italy, budget_s=None, workers=8):
+    """Fetch zones in parallel. ENTSO-E can take 10-40 s per request, so one-by-one is slow."""
+    from concurrent.futures import ThreadPoolExecutor, wait, FIRST_EXCEPTION
     t0 = time.time()
-    for z in zones:
-        if budget_s and time.time() - t0 > budget_s:
-            print(f"  {z:6s} skipped: time budget of {budget_s} s used up (existing data kept)")
-            cols[z] = pd.Series(dtype=float)
-            continue
-        tz0 = time.time()
-        if z == "IT" and italy == "MEAN":
-            parts = []
-            for a in ITALY_ZONES:
-                s = fetch(client, a, start, end)
-                if s is not None:
-                    parts.append(daily_baseload(s).rename(a))
-            cols[z] = pd.concat(parts, axis=1).mean(axis=1) if parts else pd.Series(dtype=float)
+    pool = ThreadPoolExecutor(max_workers=workers)
+    futs = {pool.submit(fetch_zone, make_client, z, start, end, italy): z for z in zones}
+    done, pending = wait(futs, timeout=budget_s, return_when=FIRST_EXCEPTION)
+    for f in done:
+        if isinstance(f.exception(), KeyRejected):
+            pool.shutdown(wait=False, cancel_futures=True)
+            raise f.exception()
+    if pending:  # wait for the rest only if no exception stopped us early
+        more, pending = wait(pending, timeout=None if budget_s is None else max(0, budget_s - (time.time() - t0)))
+        done |= more
+    cols = {}
+    for f, z in futs.items():
+        if f in done and f.exception() is None:
+            cols[z] = f.result()
         else:
-            s = fetch(client, ZONES[z], start, end)
-            cols[z] = daily_baseload(s) if s is not None else pd.Series(dtype=float)
-        print(f"  {z:6s} {len(cols[z]):5d} days  ({time.time() - tz0:.0f} s)", flush=True)
-    return cols
+            if f in done:
+                print(f"  {z:6s} failed: {f.exception()}")
+            cols[z] = pd.Series(dtype=float)
+    for z in zones:
+        print(f"  {z:6s} {len(cols[z]):5d} days" + ("" if not any(futs[f] == z for f in pending) else "  (skipped: time budget used up, existing data kept)"))
+    print(f"Fetched in {time.time() - t0:.0f} s")
+    pool.shutdown(wait=False, cancel_futures=True)
+    return cols, bool(pending)
 
 
 def write_outputs(args, df, cols):
