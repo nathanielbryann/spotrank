@@ -298,6 +298,11 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .mo-key i.hatch { background: repeating-linear-gradient(45deg, var(--muted) 0 2px, transparent 2px 5px); border: 1px solid var(--muted); }
 #mo-chart .blk { cursor: default; }
 
+.pmo-ctrl { justify-content: flex-start; gap: 10px 24px; }
+.pmo-ctrl .step { appearance: none; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); border-radius: 8px; width: 32px; height: 30px; font-size: 18px; line-height: 1; cursor: pointer; }
+.pmo-ctrl .step:disabled { opacity: .4; cursor: default; }
+.pmo-day { font-size: 17px; font-weight: 600; margin: 6px 0 0; }
+
 /* Views */
 .view { display: grid; gap: 20px; }
 .view[hidden] { display: none; }
@@ -513,6 +518,25 @@ footer a, .data a { color: var(--accent); }
       <h3 class="ph-h3">Zones <span id="ph-count"></span></h3>
       <div class="zone-picker" id="ph-zones"></div>
       <p class="status-line" id="ph-msg" role="status"></p>
+    </section>
+    <section class="panel" aria-labelledby="pmo-h">
+      <h2 id="pmo-h" style="margin-bottom:4px">Merit order</h2>
+      <p class="ph-sub">What ran on a day, ordered by estimated running cost, with demand and the day's price. Pick a zone and a date.</p>
+      <div class="ph-controls pmo-ctrl">
+        <label class="mo-pick">Zone <select id="pmo-zone" aria-label="Zone for the merit order"></select></label>
+        <div class="dates">
+          <label for="pmo-date">Date</label>
+          <button type="button" class="step" id="pmo-prev" aria-label="Previous day">‹</button>
+          <input type="date" id="pmo-date">
+          <button type="button" class="step" id="pmo-next" aria-label="Next day">›</button>
+        </div>
+      </div>
+      <h3 class="pmo-day" id="pmo-title"></h3>
+      <p class="mo-sum" id="pmo-sum"></p>
+      <div class="chart-wrap" id="pmo-chart"></div>
+      <div class="key mo-key" id="pmo-key"></div>
+      <details class="tableview"><summary>Merit order as a table</summary><div class="tbl-scroll" id="pmo-table"></div></details>
+      <p class="map-note" id="pmo-note" style="max-width:none;margin-left:0"></p>
     </section>
     <section class="panel" aria-labelledby="pt-title">
       <h2 id="pt-title" style="margin-bottom:4px">Period average, all zones</h2>
@@ -1341,7 +1365,7 @@ function renderPrices() {
     return '<span class="lg"><i style="background:' + phColor(slot) + '"></i><b>' + esc(z) + '</b><span class="nm">' + esc(zm(z).c) + '</span><span class="avg">' + (a ? fmtP(a.avg) : 'no data') + '</span><button type="button" data-remove="' + esc(z) + '" aria-label="Remove ' + esc(z) + '">×</button></span>';
   }).join('') : '<span class="ph-sub">Pick up to ' + PH_MAX + ' zones below.</span>';
   $('#ph-count').textContent = PH.sel.length + ' of ' + PH_MAX + ' selected';
-  renderPhChart(); renderPhOverview(); renderPhPicker(); renderPhTable();
+  renderPhChart(); renderPhOverview(); renderPhPicker(); renderPhTable(); renderPMO();
 }
 function renderPhChart() {
   const box = $('#ph-chart');
@@ -1632,7 +1656,7 @@ async function loadFuel() {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     FUEL = await r.json(); FUEL_STATE = 'ok';
   } catch (e) { FUEL_STATE = 'none'; }
-  renderMerit();
+  rerenderMerits();
 }
 async function loadGen(z) {
   if (GEN.has(z)) return;
@@ -1642,7 +1666,7 @@ async function loadGen(z) {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     GEN.set(z, {state: 'ok', d: await r.json()});
   } catch (e) { GEN.set(z, {state: 'none'}); }
-  if (z === MO_Z) renderMerit();
+  if (z === MO_Z || z === PMO.z) rerenderMerits();
 }
 /* latest fuel and CO2 prices on or before the day (markets don't trade on weekends and holidays) */
 function fuelAt(date) {
@@ -1736,26 +1760,36 @@ function moSummary(z, date, M) {
   return parts.join(' ');
 }
 function renderMerit() {
-  const box = $('#mo-chart'), sum = $('#mo-sum'), key = $('#mo-key'), tbl = $('#mo-table'), note = $('#mo-note');
-  if (!G || G.status === 'playing' || !box) return;
+  if (!G || G.status === 'playing' || !$('#mo-chart')) return;
   const forKey = G.mode + '|' + G.date + '|' + G.answer.join(',');
   if (MO_FOR !== forKey) { MO_FOR = forKey; MO_Z = moDefaultZone(); }
-  const sel = $('#mo-zone');
+  moZoneOptions($('#mo-zone'));
+  $('#mo-zone').value = MO_Z;
+  drawMerit('mo', MO_Z, G.date, 'Merit order: ' + zoneLabel(MO_Z) + ', ' + fmtShortDay(G.date));
+}
+function moZoneOptions(sel) {
   if (sel.options.length !== DS.zones.length) sel.innerHTML = DS.zones.slice().sort().map(z => '<option value="' + esc(z) + '">' + esc(z) + ' · ' + esc(zm(z).c) + '</option>').join('');
-  sel.value = MO_Z;
-  $('#mo-title').textContent = 'Merit order: ' + zoneLabel(MO_Z) + ', ' + fmtShortDay(G.date);
-  const msg = t => { box.innerHTML = '<p class="map-msg" style="padding:36px 0">' + t + '</p>'; sum.innerHTML = ''; key.innerHTML = ''; tbl.innerHTML = ''; };
-  if (!HOSTED) { msg('The merit order needs the hosted data files.'); note.textContent = ''; return; }
+}
+function rerenderMerits() {
+  if (!$('#game-view').hidden) renderMerit();
+  if (!$('#prices-view').hidden) renderPMO();
+}
+function drawMerit(p, z, date, title) {
+  const q = id => $('#' + p + '-' + id);
+  const box = q('chart'), sum = q('sum'), key = q('key'), tbl = q('table'), note = q('note');
+  q('title').textContent = title;
+  const msg = t => { box.innerHTML = '<p class="map-msg" style="padding:36px 0">' + t + '</p>'; sum.innerHTML = ''; key.innerHTML = ''; tbl.innerHTML = ''; note.textContent = ''; };
+  if (!HOSTED) { msg('The merit order needs the hosted data files.'); return; }
   if (FUEL_STATE === 'idle') loadFuel();
-  if (!GEN.has(MO_Z)) loadGen(MO_Z);
-  if (DRV_STATE === 'idle') loadDrivers().then(() => renderMerit());
-  const gs = GEN.get(MO_Z);
+  if (!GEN.has(z)) loadGen(z);
+  if (DRV_STATE === 'idle') loadDrivers().then(rerenderMerits);
+  const gs = GEN.get(z);
   if (FUEL_STATE === 'loading' || !gs || gs.state === 'loading') { msg('Loading…'); return; }
   if (FUEL_STATE === 'none') { msg('The fuel and CO2 prices couldn\'t be loaded.'); return; }
-  if (gs.state === 'none') { msg('No generation data for ' + esc(MO_Z) + ' yet.'); return; }
-  const M = moModel(MO_Z, G.date);
-  if (!M.ok) { msg(M.nofuel ? 'No fuel and CO2 prices for this day.' : 'ENTSO-E has no generation data for ' + esc(MO_Z) + ' on this day.'); return; }
-  sum.innerHTML = moSummary(MO_Z, G.date, M);
+  if (gs.state === 'none') { msg('No generation data for ' + esc(z) + ' yet.'); return; }
+  const M = moModel(z, date);
+  if (!M.ok) { msg(M.nofuel ? 'No fuel and CO2 prices for this day.' : 'ENTSO-E has no generation data for ' + esc(z) + ' on this day.'); return; }
+  sum.innerHTML = moSummary(z, date, M);
 
   const css = getComputedStyle(document.documentElement), col = g => css.getPropertyValue(MO_GROUPS[g].c).trim();
   const W = Math.max(300, box.clientWidth || 640), small = W < 520, H = small ? 260 : 320;
@@ -1767,8 +1801,8 @@ function renderMerit() {
   const ystep = niceStep((yHi - yLo) || 1, small ? 4 : 5);
   yLo = Math.floor(yLo / ystep) * ystep; yHi = Math.ceil(yHi * 1.08 / ystep) * ystep;
   const x = v => padL + v / xMax * (W - padL - padR), y = v => padT + (yHi - v) / (yHi - yLo) * (H - padT - padB);
-  let s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Merit order for ' + esc(MO_Z) + ': generation by technology, ordered by estimated running cost, with demand and the day\'s price">';
-  s += '<defs><pattern id="mo-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2" height="6" fill="var(--muted)"/></pattern></defs>';
+  let s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Merit order for ' + esc(z) + ': generation by technology, ordered by estimated running cost, with demand and the day\'s price">';
+  s += '<defs><pattern id="' + p + '-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2" height="6" fill="var(--muted)"/></pattern></defs>';
   for (let t = yLo; t <= yHi + 1e-9; t += ystep) {
     const yy = y(t).toFixed(1);
     s += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + yy + '" y2="' + yy + '" stroke="var(--line)" stroke-width="1"/>';
@@ -1793,7 +1827,7 @@ function renderMerit() {
   });
   if (imports) {
     const x0 = x(M.total) + 1, x1 = x(M.load), top = Math.min(y(M.price), y0 - 4);
-    s += '<rect x="' + x0.toFixed(1) + '" y="' + top.toFixed(1) + '" width="' + Math.max(1, x1 - x0).toFixed(1) + '" height="' + (y0 - top).toFixed(1) + '" fill="url(#mo-hatch)" opacity=".8"/>';
+    s += '<rect x="' + x0.toFixed(1) + '" y="' + top.toFixed(1) + '" width="' + Math.max(1, x1 - x0).toFixed(1) + '" height="' + (y0 - top).toFixed(1) + '" fill="url(#' + p + '-hatch)" opacity=".8"/>';
     if (x1 - x0 >= 46) s += '<text x="' + ((x0 + x1) / 2).toFixed(1) + '" y="' + (top - 5).toFixed(1) + '" text-anchor="middle" font-size="10.5" font-weight="600" fill="var(--ink-2)">Imports</text>';
     s += '<rect class="blk" data-k="imp" x="' + x0.toFixed(1) + '" y="' + padT + '" width="' + Math.max(4, x1 - x0).toFixed(1) + '" height="' + (y0 - padT).toFixed(1) + '" fill="transparent"/>';
   }
@@ -1806,9 +1840,9 @@ function renderMerit() {
     s += '<line x1="' + dx.toFixed(1) + '" x2="' + dx.toFixed(1) + '" y1="' + (padT - 8) + '" y2="' + y0.toFixed(1) + '" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="4 3" pointer-events="none"/>';
     s += '<text x="' + dx.toFixed(1) + '" y="' + (padT - 12) + '" text-anchor="' + (dx > W - 110 ? 'end' : 'middle') + '" font-size="11" font-weight="700" fill="var(--ink)" pointer-events="none">Demand ' + (M.load / 1000).toFixed(1) + ' GW</text>';
   }
-  s += '</svg><div class="tip" id="motip"></div>';
+  s += '</svg><div class="tip" id="' + p + 'tip"></div>';
   box.innerHTML = s;
-  const tip = $('#motip'), A = FUEL.meta.assumptions;
+  const tip = $('#' + p + 'tip'), A = FUEL.meta.assumptions;
   const costNote = g => g === 'hydro_storage' ? 'priced by water value (≈ the day\'s price)' : g === 'gas' ? 'combined-cycle plants; open-cycle peakers ≈ ' + fmtP(M.cost.gas_ocgt, 0) : ['nuclear', 'biomass', 'other'].includes(g) ? 'assumed' : ['solar', 'wind', 'hydro_ror'].includes(g) ? 'no fuel cost' : 'from fuel and CO2 prices';
   box.querySelectorAll('.blk').forEach(r => {
     r.addEventListener('pointermove', e => {
@@ -1835,10 +1869,32 @@ function renderMerit() {
   const f = M.f, asof = [f.ttf, f.eua, f.coal].filter(Boolean).map(o => o.date).sort()[0];
   note.innerHTML = 'Daily averages. Block width is what each technology produced (ENTSO-E actual generation); height is its estimated running cost: fuel ÷ efficiency + CO2 × emissions ÷ efficiency + operating cost. ' +
     'Fuel and CO2: TTF spot ' + fmtP(f.ttf.v, 1) + '/MWh, EUA spot ' + fmtP(f.eua.v, 1) + '/t' + (f.coal ? ', coal CIF ARA ' + fmtP(f.coal.v, 0) + '/t' : '') +
-    (asof && asof < G.date ? ' (latest before the day: ' + fmtShortDay(asof) + ')' : '') + '. ' +
+    (asof && asof < date ? ' (latest before the day: ' + fmtShortDay(asof) + ')' : '') + '. ' +
     'Efficiency: gas ' + pct0(A.gas_ccgt.eff) + ', coal ' + pct0(A.coal.eff) + ', lignite ' + pct0(A.lignite.eff) + '. Nuclear, biomass and "other" use fixed costs (' +
-    fmtP(A.fixed.nuclear, 0) + ', ' + fmtP(A.fixed.biomass, 0) + ', ' + fmtP(A.fixed.other, 0) + ').' + (MO_Z === 'IT' ? ' Italy is its North zone (IT-NORD).' : '');
+    fmtP(A.fixed.nuclear, 0) + ', ' + fmtP(A.fixed.biomass, 0) + ', ' + fmtP(A.fixed.other, 0) + ').' + (z === 'IT' ? ' Italy is its North zone (IT-NORD).' : '');
 }
+/* merit order on the Prices page: any zone, any past day */
+const PMO = {z: null, date: null};
+function pmoBounds() {
+  const first = DS.days[0][0], yest = isoLocal(addDays(new Date(), -1)), last = lastDate(DS) < yest ? lastDate(DS) : yest;
+  return {first, last};
+}
+function renderPMO() {
+  if (!$('#pmo-chart') || !DS) return;
+  const {first, last} = pmoBounds();
+  if (!PMO.z) {
+    const saved = lsGet('pmo', null);
+    PMO.z = saved && DS.zones.includes(saved.z) ? saved.z : PH.sel[0] ? PH.sel[0].z : DS.zones.includes('DE-LU') ? 'DE-LU' : DS.zones[0];
+  }
+  if (!PMO.date || PMO.date > last) PMO.date = last;
+  if (PMO.date < first) PMO.date = first;
+  const sel = $('#pmo-zone'); moZoneOptions(sel); sel.value = PMO.z;
+  const di = $('#pmo-date'); di.min = first; di.max = last; di.value = PMO.date;
+  $('#pmo-prev').disabled = PMO.date <= first;
+  $('#pmo-next').disabled = PMO.date >= last;
+  drawMerit('pmo', PMO.z, PMO.date, zoneLabel(PMO.z) + ' · ' + fmtDay(PMO.date));
+}
+function pmoSet(z, date) { if (z) PMO.z = z; if (date) PMO.date = date; lsSet('pmo', {z: PMO.z}); renderPMO(); }
 function renderBars() {
   const vals = DS.byDate.get(G.date) || [];
   const rows = DS.zones.map((z, i) => ({z, p: vals[i]})).filter(o => o.p !== null && o.p !== undefined).sort((a, b) => a.p - b.p);
@@ -1972,6 +2028,10 @@ $('#ladder').addEventListener('keydown', e => {
 $('#btn-submit').addEventListener('click', submit);
 $('#view-map').addEventListener('click', () => setView('map'));
 $('#mo-zone').addEventListener('change', e => selectMeritZone(e.target.value, false));
+$('#pmo-zone').addEventListener('change', e => pmoSet(e.target.value, null));
+$('#pmo-date').addEventListener('change', e => { if (e.target.value) pmoSet(null, e.target.value); });
+$('#pmo-prev').addEventListener('click', () => pmoSet(null, isoLocal(addDays(parseISO(PMO.date), -1))));
+$('#pmo-next').addEventListener('click', () => pmoSet(null, isoLocal(addDays(parseISO(PMO.date), 1))));
 $('#view-month').addEventListener('click', () => setView('month'));
 $('#btn-prices').addEventListener('click', () => { location.hash = location.hash === '#prices' ? 'game' : 'prices'; });
 window.addEventListener('hashchange', route);

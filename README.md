@@ -38,7 +38,8 @@ which handles both hourly and 15-minute prices. Italy uses its North zone (IT-NO
 - **Prices page** (`#prices`): daily baseload history for up to six zones, a period picker (presets,
   dates, or drag on the overview strip) and the period average per zone, for the chart's zones and
   for all 32 zones in a table. The average is the mean of the daily baseload prices in the period.
-- **Merit order:** below the map, for any zone you click (default: the dearest of the five). Blocks
+- **Merit order:** below the map, for any zone you click (default: the dearest of the five), and on
+  the Prices page for any zone and any past day (date picker with ‹ › day steps). Blocks
   are what each technology produced that day (ENTSO-E actual generation per production type, daily
   average), ordered by estimated running cost, with demand (day-ahead load forecast) and the day's
   price. Running cost = fuel ÷ efficiency + CO2 × emission factor ÷ efficiency + operating cost, using
