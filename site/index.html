@@ -267,12 +267,12 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .map-note { max-width: 820px; margin: 8px auto 0; font-size: 12px; color: var(--muted); }
 :root {
   --map-land: #e3e8ed;
-  --m1: #cde2fb; --m2: #b7d3f6; --m3: #9ec5f4; --m4: #6da7ec; --m5: #3987e5; --m6: #2a78d6; --m7: #1c5cab; --m8: #104281; --m9: #0d366b;
+  --m1: #1a9850; --m2: #66bd63; --m3: #a6d96a; --m4: #d9ef8b; --m5: #ffffbf; --m6: #fee08b; --m7: #fdae61; --m8: #f46d43; --m9: #d73027;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { --map-land: #222c37; --m1: #12304f; --m2: #173f6a; --m3: #1c4f88; --m4: #2563ad; --m5: #2f78d0; --m6: #4d93e6; --m7: #6da7ec; --m8: #9ec5f4; --m9: #cde2fb; }
+  :root:not([data-theme="light"]) { --map-land: #222c37; }
 }
-:root[data-theme="dark"] { --map-land: #222c37; --m1: #12304f; --m2: #173f6a; --m3: #1c4f88; --m4: #2563ad; --m5: #2f78d0; --m6: #4d93e6; --m7: #6da7ec; --m8: #9ec5f4; --m9: #cde2fb; }
+:root[data-theme="dark"] { --map-land: #222c37; }
 
 /* Data panel */
 .data { display: grid; gap: 10px; }
@@ -407,7 +407,7 @@ footer a, .data a { color: var(--accent); }
   </section>
 
   <footer>
-    Prices: SDAC day-ahead, €/MWh. Real data comes from the <a href="https://transparency.entsoe.eu/">ENTSO-E Transparency Platform</a>. Italy is shown as one zone. Ireland (SEM) and Switzerland are not in SDAC and are left out. Inspired by <a href="https://energle.org/">Energle</a>.
+    Prices: SDAC day-ahead, €/MWh. Real data comes from the <a href="https://transparency.entsoe.eu/">ENTSO-E Transparency Platform</a>. Italy is shown as one zone. Ireland (SEM) and Switzerland are not in SDAC and are left out.
   </footer>
 </div>
 
@@ -1147,7 +1147,7 @@ function renderMap() {
   const sorted = Object.entries(price).sort((a, b) => a[1] - b[1]);
   const rank = Object.fromEntries(sorted.map(([z], k) => [z, k + 1]));
   const lo = sorted[0][1], hi = sorted[sorted.length - 1][1];
-  // colour buckets with round breaks; 4 to 9 steps of one blue ramp
+  // colour buckets with round breaks; 4 to 9 steps from green (cheapest) to red (most expensive)
   let step = niceStep((hi - lo) || 1, 7), b0 = Math.floor(lo / step) * step, nb = Math.ceil((hi - b0) / step) || 1;
   if (nb > 9) { step = niceStep((hi - lo) || 1, 5); b0 = Math.floor(lo / step) * step; nb = Math.ceil((hi - b0) / step) || 1; }
   nb = Math.max(1, Math.min(9, nb));
