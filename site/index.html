@@ -228,6 +228,32 @@ td.num, th.num { text-align: right; font-family: var(--f-mono); font-variant-num
 tr.mine td { font-weight: 700; }
 tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 
+/* Insights */
+.why-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
+.ins-context { margin: 0 0 6px; font-size: 14.5px; color: var(--ink-2); max-width: 80ch; }
+.insights { display: grid; }
+.ins { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 16px; padding: 14px 0; border-top: 1px solid var(--line); }
+.ins:first-child { border-top: 0; }
+.ins .tag { font-family: var(--f-mono); font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--accent); padding-top: 4px; }
+.ins h4 { margin: 0 0 4px; font-size: 17px; font-weight: 600; line-height: 1.3; text-wrap: balance; }
+.ins p { margin: 0; color: var(--ink-2); font-size: 14.5px; max-width: 72ch; }
+.ins b.n { font-family: var(--f-mono); color: var(--ink); font-weight: 700; }
+.meters { display: grid; gap: 6px; margin-top: 10px; max-width: 440px; }
+.meter { display: grid; grid-template-columns: 62px minmax(0, 1fr) 46px; gap: 10px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
+.meter .track { height: 8px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
+.meter .fill { height: 100%; border-radius: 0 4px 4px 0; background: var(--accent); }
+.meter .fill.norm { background: var(--muted); }
+.meter .v { font-family: var(--f-mono); font-weight: 700; color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
+.ins-foot { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+.classic-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 60vh; overflow-y: auto; }
+.classic-list button { appearance: none; width: 100%; text-align: left; display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; }
+.classic-list button:hover { border-color: var(--accent); }
+.classic-list .d { font-family: var(--f-mono); font-size: 12px; color: var(--ink-2); }
+.classic-list .t { font-weight: 600; }
+.classic-list .s { display: block; font-size: 12.5px; color: var(--muted); font-weight: 400; }
+.chip.classic { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
+@media (max-width: 520px) { .ins { grid-template-columns: minmax(0, 1fr); gap: 4px; } .classic-list button { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+
 /* Data panel */
 .data { display: grid; gap: 10px; }
 .data .line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -281,6 +307,7 @@ footer a, .data a { color: var(--accent); }
     <div class="actions">
       <button class="btn" id="btn-help" type="button">How to play</button>
       <button class="btn" id="btn-stats" type="button">Stats</button>
+      <button class="btn" id="btn-classic" type="button">Classic days</button>
       <button class="btn" id="btn-mode" type="button">Practice round</button>
     </div>
   </header>
@@ -317,6 +344,13 @@ footer a, .data a { color: var(--accent); }
       </section>
     </div>
   </div>
+
+  <section class="panel" id="why" hidden aria-labelledby="why-title">
+    <div class="why-head"><h2 id="why-title">Why these prices</h2></div>
+    <p class="ins-context" id="why-context"></p>
+    <div class="insights" id="insights"></div>
+    <p class="ins-foot" id="why-foot"></p>
+  </section>
 
   <section class="panel" id="all-zones" hidden aria-labelledby="all-title">
     <div class="chart-head">
@@ -360,6 +394,15 @@ footer a, .data a { color: var(--accent); }
       <li>The daily puzzle is the same for everyone and counts toward your streak. Practice rounds don't count.</li>
     </ul>
     <button class="btn primary" type="button" data-close>Got it</button>
+  </div>
+</div>
+
+<div class="overlay" id="ov-classic" role="dialog" aria-modal="true" aria-labelledby="classic-title">
+  <div class="dialog">
+    <button class="btn close" type="button" data-close>Close</button>
+    <h2 id="classic-title">Classic days</h2>
+    <p style="margin:0 0 12px;color:var(--ink-2);font-size:14px">The most remarkable days in the archive: records, prices below zero, and zones that split apart. Picked automatically from the price data. Classic rounds don't count toward your stats.</p>
+    <ul class="classic-list" id="classic-list"></ul>
   </div>
 </div>
 
@@ -474,15 +517,18 @@ function buildDataset(raw) {
 }
 
 /* ---------- puzzle generation ---------- */
-function pickPuzzle(ds, rng, date) {
+// seeds: zones that tell the day's story (see storySeeds); they go in first if the rules allow.
+function pickPuzzle(ds, rng, date, seeds = []) {
   const vals = ds.byDate.get(date);
   if (!vals) return null;
   const avail = ds.zones.map((z, i) => ({z, p: vals[i]})).filter(o => o.p !== null);
   if (avail.length < N) return null;
+  const seedObjs = seeds.map(z => avail.find(o => o.z === z)).filter(Boolean);
   for (const gap of GAPS) {
     for (let t = 0; t < 250; t++) {
       const chosen = [], fam = {}, reg = {};
-      for (const o of shuffle(avail, rng)) {
+      const rest = shuffle(avail.filter(o => !seeds.includes(o.z)), rng);
+      for (const o of seedObjs.concat(rest)) {
         const m = zm(o.z);
         if ((fam[m.f] || 0) >= 2 || (reg[m.r] || 0) >= 3) continue;
         if (chosen.some(c => !farEnough(c.p, o.p, gap))) continue;
@@ -509,7 +555,7 @@ function dailyDate(ds, puzzleNo, todayISO) {
 }
 function dailyPuzzle(ds, puzzleNo, todayISO) {
   let {date, live} = dailyDate(ds, puzzleNo, todayISO);
-  let pz = pickPuzzle(ds, mulberry32(hashStr('spotrank-daily|' + puzzleNo + '|' + date)), date), guard = 0;
+  let pz = pickPuzzle(ds, mulberry32(hashStr('spotrank-daily|' + puzzleNo + '|' + date)), date, storySeeds(date)), guard = 0;
   while (!pz && guard++ < 30) {
     live = false;
     date = ds.eligible[Math.floor(mulberry32(hashStr('spotrank-retry|' + puzzleNo + '|' + guard))() * ds.eligible.length)];
@@ -520,7 +566,7 @@ function dailyPuzzle(ds, puzzleNo, todayISO) {
 function practicePuzzle(ds) {
   const rng = mulberry32((Math.random() * 4294967296) >>> 0);
   let pz = null, guard = 0;
-  while (!pz && guard++ < 30) pz = pickPuzzle(ds, rng, ds.eligible[Math.floor(rng() * ds.eligible.length)]);
+  while (!pz && guard++ < 30) { const d = ds.eligible[Math.floor(rng() * ds.eligible.length)]; pz = pickPuzzle(ds, rng, d, storySeeds(d)); }
   return pz ? {...pz, live: false} : null;
 }
 function score(order, answer) {
@@ -643,7 +689,8 @@ function renderMeta() {
   if (G.mode === 'daily') {
     m.push('<span class="chip">Puzzle <b>#' + G.puzzleNo + '</b></span>');
     m.push('<span class="chip">' + (G.live ? "Yesterday's prices" : 'From the archive') + '</span>');
-  } else m.push('<span class="chip practice">Practice round · <b>not counted</b></span>');
+  } else if (G.mode === 'classic') m.push('<span class="chip classic">Classic day · <b>not counted</b></span>');
+  else m.push('<span class="chip practice">Practice round · <b>not counted</b></span>');
   if (DS.placeholder) m.push('<span class="chip warn">⚠ <span><b>Placeholder prices</b>, not real market data</span></span>');
   else m.push('<span class="chip">Source <b>' + esc(DS.meta.source_short || DS.meta.source || 'Loaded file') + '</b></span>');
   $('#meta').innerHTML = m.join('');
@@ -755,6 +802,322 @@ function copyShare() {
   } catch (e) { fallback(); }
 }
 
+/* ---------- history helpers (price archive) ---------- */
+// Interconnected neighbouring bidding zones (Italy here = its North zone).
+const NEIGHBOURS = [['NO1','NO2'],['NO1','NO3'],['NO1','NO5'],['NO2','NO5'],['NO3','NO4'],['NO3','NO5'],['NO1','SE3'],['NO3','SE2'],
+  ['NO4','SE1'],['NO4','SE2'],['NO2','DK1'],['NO2','NL'],['NO2','DE-LU'],['SE1','SE2'],['SE2','SE3'],['SE3','SE4'],['SE1','FI'],
+  ['SE3','FI'],['SE3','DK1'],['SE4','DK2'],['SE4','DE-LU'],['SE4','PL'],['SE4','LT'],['FI','EE'],['EE','LV'],['LV','LT'],['LT','PL'],
+  ['DK1','DK2'],['DK1','DE-LU'],['DK2','DE-LU'],['DK1','NL'],['DE-LU','NL'],['DE-LU','FR'],['DE-LU','BE'],['DE-LU','AT'],
+  ['DE-LU','CZ'],['DE-LU','PL'],['NL','BE'],['BE','FR'],['FR','ES'],['ES','PT'],['FR','IT'],['AT','IT'],['SI','IT'],['AT','CZ'],
+  ['AT','HU'],['AT','SI'],['CZ','SK'],['CZ','PL'],['SK','PL'],['SK','HU'],['HU','RO'],['HU','HR'],['HU','SI'],['SI','HR'],
+  ['RO','BG'],['BG','GR']];
+const HYDRO = new Set(['NO1', 'NO2', 'NO3', 'NO4', 'NO5', 'SE1', 'SE2']);
+let HX = null;
+function hx() {
+  if (HX && HX.id === DS.id) return HX;
+  const zi = Object.fromEntries(DS.zones.map((z, i) => [z, i]));
+  const dates = DS.days.map(r => r[0]);
+  const P = DS.days.map(r => r[1]);
+  const R = P.map(row => {
+    const r = Array(row.length).fill(null);
+    row.map((v, i) => [v, i]).filter(x => x[0] !== null).sort((a, b) => a[0] - b[0]).forEach(([, i], k) => { r[i] = k + 1; });
+    return r;
+  });
+  const n = P.map(row => row.filter(v => v !== null).length);
+  HX = {id: DS.id, zi, dates, di: new Map(dates.map((d, i) => [d, i])), P, R, n, pairCache: new Map()};
+  return HX;
+}
+function median(a) { const s = a.filter(x => x !== null && !Number.isNaN(x)).sort((x, y) => x - y); if (!s.length) return null; const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; }
+function mean(a) { const s = a.filter(x => x !== null && !Number.isNaN(x)); return s.length ? s.reduce((p, c) => p + c, 0) / s.length : null; }
+function priceOf(z, idx) { const H = hx(), i = H.zi[z]; return i === undefined ? null : H.P[idx][i]; }
+function usualRank(z, idx, n = 90) {
+  const H = hx(), i = H.zi[z], w = [];
+  for (let k = Math.max(0, idx - n); k < idx; k++) if (H.R[k][i] !== null) w.push(H.R[k][i]);
+  return w.length >= 20 ? median(w) : null;
+}
+function spreadInfo(a, b, idx, n = 90) {
+  const H = hx(), ia = H.zi[a], ib = H.zi[b];
+  if (ia === undefined || ib === undefined) return null;
+  const pa = H.P[idx][ia], pb = H.P[idx][ib];
+  if (pa === null || pb === null) return null;
+  const w = [];
+  for (let k = Math.max(0, idx - n); k < idx; k++) { const x = H.P[k][ia], y = H.P[k][ib]; if (x !== null && y !== null) w.push(Math.abs(x - y)); }
+  if (w.length < 20) return null;
+  return {a, b, pa, pb, s: Math.abs(pa - pb), m: median(w)};
+}
+function isSplit(si) { return si && si.s >= 25 && si.s >= 2.5 * si.m + 10; }
+// Last earlier day with a price at least as extreme (dir +1: as high, -1: as low).
+function lastAsExtreme(z, idx, dir) {
+  const H = hx(), i = H.zi[z], p = H.P[idx][i];
+  for (let k = idx - 1; k >= 0; k--) { const v = H.P[k][i]; if (v !== null && (dir > 0 ? v >= p : v <= p)) return k; }
+  return -1;
+}
+function zoneLabel(z) { const m = zm(z); return ZONE_META[z] && ZONE_META[z].f ? m.c + ' ' + z : m.c; }
+function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+function pctS(x) { const v = Math.round(x * 100); return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v) + '%'; }
+function pct0(x) { return Math.round(x * 100) + '%'; }
+function fmtPower(mw) { return mw >= 1000 ? (mw / 1000).toFixed(1) + ' GW' : Math.round(mw) + ' MW'; }
+function fmtShortDay(s) { return parseISO(s).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'}); }
+const N$ = v => '<b class="n">' + v + '</b>';
+
+/* ---------- story seeds: which zones tell this day's story ---------- */
+function storyInfo(date) {
+  const H = hx(), idx = H.di.get(date);
+  if (idx === undefined || idx < 20) return {scores: [], split: null};
+  const sc = new Map(), add = (z, s) => sc.set(z, Math.max(sc.get(z) || 0, s));
+  let split = null;
+  for (const [a, b] of NEIGHBOURS) {
+    const si = spreadInfo(a, b, idx);
+    if (isSplit(si)) { const s = 25 + (si.s - si.m) / 3; if (!split || s > split.score) split = {...si, score: s}; }
+  }
+  DS.zones.forEach((z, i) => {
+    const p = H.P[idx][i]; if (p === null) return;
+    const ur = usualRank(z, idx);
+    if (ur !== null) { const dev = Math.abs(H.R[idx][i] - ur); if (dev >= 6) add(z, dev * 3); }
+    if (p < 0) add(z, 60);
+    const hi = lastAsExtreme(z, idx, 1), lo = lastAsExtreme(z, idx, -1);
+    if (idx - hi >= 180 || idx - lo >= 180) add(z, 40);
+  });
+  if (split) { add(split.a, split.score); add(split.b, split.score); }
+  return {scores: [...sc.entries()].sort((x, y) => y[1] - x[1]), split};
+}
+function storySeeds(date) {
+  const {scores, split} = storyInfo(date);
+  const seeds = [];
+  if (split && scores.length && (scores[0][0] === split.a || scores[0][0] === split.b)) seeds.push(split.pa > split.pb ? split.a : split.b, split.pa > split.pb ? split.b : split.a);
+  for (const [z] of scores) { if (seeds.length >= 3) break; if (!seeds.includes(z)) seeds.push(z); }
+  return seeds.slice(0, 3);
+}
+
+/* ---------- drivers: day-ahead load, wind and solar forecasts ---------- */
+let DRV = null, DRV_STATE = 'idle';
+async function loadDrivers() {
+  if (DRV_STATE !== 'idle') return;
+  DRV_STATE = 'loading';
+  try {
+    if (!HOSTED) throw new Error('not hosted');
+    const r = await fetch('data/spotrank_drivers.json?v=' + isoLocal(new Date()), {cache: 'no-cache'});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    DRV = {dates: j.dates, di: new Map(j.dates.map((d, i) => [d, i])), s: j.series};
+    DRV_STATE = 'ok';
+  } catch (e) { DRV_STATE = 'none'; }
+  if (G && G.status !== 'playing') renderInsights();
+}
+function drvAt(z, i) {
+  const s = DRV && DRV.s[z]; if (!s || i === undefined || i < 0) return null;
+  const L = s.load[i], W = s.wind[i], S = s.solar[i];
+  if (L === null || L <= 0) return null;
+  return {load: L, wind: W, solar: S, hasRes: W !== null || S !== null, res: ((W || 0) + (S || 0)) / L};
+}
+function isWeekend(date) { const d = parseISO(date).getDay(); return d === 0 || d === 6; }
+function drvNormal(z, date, n = 30) {
+  if (!DRV) return null;
+  const i0 = DRV.di.get(date); if (i0 === undefined) return null;
+  const all = [], same = [], wk = isWeekend(date);
+  for (let k = Math.max(0, i0 - n); k < i0; k++) {
+    const d = drvAt(z, k); if (!d) continue;
+    all.push(d); if (isWeekend(DRV.dates[k]) === wk) same.push(d);
+  }
+  if (all.length < 10) return null;
+  return {res: mean(all.filter(d => d.hasRes).map(d => d.res)), wind: mean(all.map(d => d.wind)), solar: mean(all.map(d => d.solar)),
+    loadSame: same.length >= 3 ? mean(same.map(d => d.load)) : null};
+}
+
+/* ---------- insights for a finished round ---------- */
+function buildInsights(g) {
+  const H = hx(), idx = H.di.get(g.date);
+  if (idx === undefined) return {context: '', items: []};
+  const items = [], row = H.P[idx];
+  const eu = mean(row), prev = [];
+  for (let k = Math.max(0, idx - 30); k < idx; k++) prev.push(mean(H.P[k]));
+  const eu30 = mean(prev);
+  const context = 'Across all ' + H.n[idx] + ' zones, the day-ahead price averaged ' + N$(fmtP(eu, 0)) + ' per MWh' +
+    (eu30 ? ', ' + N$(pctS(eu / eu30 - 1)) + ' compared with the previous 30 days.' : '.');
+  const five = g.answer, cheap = five[0], dear = five[N - 1];
+
+  // 1. Wind & sun, demand, hydro: the "why" for the cheapest and the most expensive of the five
+  for (const [z, side] of [[dear, 'dear'], [cheap, 'cheap']]) {
+    const d = DRV ? drvAt(z, DRV.di.get(g.date)) : null, nrm = d ? drvNormal(z, g.date) : null;
+    const name = zoneLabel(z), p = row[H.zi[z]];
+    if (d && nrm && d.hasRes && nrm.res !== null) {
+      const diff = d.res - nrm.res;
+      const fits = side === 'dear' ? diff < -0.06 : diff > 0.06;
+      if (fits || Math.abs(diff) > 0.15) {
+        const dW = (d.wind || 0) - (nrm.wind || 0), dS = (d.solar || 0) - (nrm.solar || 0);
+        const driver = Math.abs(dW) >= Math.abs(dS) ? 'wind' : 'sun';
+        const h = diff < 0 ? 'Little ' + driver + ' in ' + name : (driver === 'wind' ? 'A windy day' : 'A sunny day') + ' in ' + name;
+        const txt = 'Wind and solar were forecast to cover ' + N$(pct0(d.res)) + ' of demand, against ' + N$(pct0(nrm.res)) +
+          ' on an average day over the past month. ' + (diff < 0
+            ? 'More of the demand had to be met by fuel-burning plants, which set a higher price: ' + N$(fmtP(p)) + '.'
+            : 'With more renewable output, fewer expensive plants were needed, which kept the price at ' + N$(fmtP(p)) + '.');
+        items.push({tag: 'Wind & sun', h, p: txt, score: 50 + Math.abs(diff) * 200 + (fits ? 15 : 0),
+          meters: [['Today', d.res], ['Normal', nrm.res]], z});
+      }
+    }
+    if (d && nrm && nrm.loadSame) {
+      const ld = d.load / nrm.loadSame - 1, fits = side === 'dear' ? ld > 0 : ld < 0;
+      if (Math.abs(ld) >= 0.07) {
+        items.push({tag: 'Demand', h: (ld > 0 ? 'Higher' : 'Lower') + ' demand in ' + name,
+          p: 'Demand was forecast at ' + N$(fmtPower(d.load)) + ' on average, ' + N$(pctS(ld)) + ' compared with a typical ' +
+            (isWeekend(g.date) ? 'weekend day' : 'weekday') + ' over the past month. ' +
+            (ld > 0 ? 'Higher demand pulls more expensive plants into the mix.' : 'Lower demand means fewer expensive plants are needed.'),
+          score: 25 + Math.abs(ld) * 200 + (fits ? 15 : -15), z});
+      }
+    }
+    if (side === 'cheap' && HYDRO.has(z)) {
+      items.push({tag: 'Hydro', h: name + ' runs on hydropower',
+        p: name + ' gets most of its electricity from hydropower and has limited transmission capacity to the rest of Europe, so its price often stays low when the continent is expensive. It cleared at ' + N$(fmtP(p)) + '.',
+        score: 30, z});
+    }
+  }
+  // 2. Bottleneck: the biggest unusual gap between neighbouring zones that involves one of the five
+  let best = null;
+  for (const [a, b] of NEIGHBOURS) {
+    if (!five.includes(a) && !five.includes(b)) continue;
+    const si = spreadInfo(a, b, idx);
+    if (isSplit(si) && (!best || si.s - si.m > best.s - best.m)) best = si;
+  }
+  if (best) {
+    const [hiZ, loZ] = best.pa >= best.pb ? [best.a, best.b] : [best.b, best.a];
+    const hiP = Math.max(best.pa, best.pb), loP = Math.min(best.pa, best.pb);
+    const same = zm(hiZ).c === zm(loZ).c;
+    items.push({tag: 'Bottleneck', h: same ? zm(hiZ).c + ' split in two' : hiZ + ' and ' + loZ + ' drifted apart',
+      p: hiZ + ' cleared at ' + N$(fmtP(hiP, 0)) + ' and ' + loZ + ' at ' + N$(fmtP(loP, 0)) + ', a gap of ' + N$(fmtP(best.s, 0)) +
+        ' where it is usually about ' + N$(fmtP(best.m, 0)) + '. When neighbouring zones end up this far apart, the power lines between them are full, so cheaper power can\'t flow to where it is needed.',
+      score: 45 + Math.min(60, (best.s - best.m) / 4)});
+  }
+  // 3. Surprise: the zone furthest from its usual place in the European ranking
+  let sur = null;
+  for (const z of five) {
+    const ur = usualRank(z, idx); if (ur === null) continue;
+    const r = H.R[idx][H.zi[z]], dev = r - ur;
+    if (Math.abs(dev) >= 6 && (!sur || Math.abs(dev) > Math.abs(sur.dev))) sur = {z, r, ur, dev};
+  }
+  if (sur) {
+    items.push({tag: 'Surprise', h: sur.z + ' was the ' + ordinal(sur.r) + ' cheapest of ' + H.n[idx] + ' zones',
+      p: 'Over the previous 90 days ' + zoneLabel(sur.z) + ' usually ranked around ' + N$(ordinal(Math.round(sur.ur))) + '. ' +
+        (sur.dev < 0 ? 'This day it was unusually cheap compared with the rest of Europe.' : 'This day it was unusually expensive compared with the rest of Europe.'),
+      score: 20 + Math.abs(sur.dev) * 3});
+  }
+  // 4. Record: highest or lowest price in a long time
+  let rec = null;
+  for (const z of five) {
+    for (const dir of [1, -1]) {
+      const k = lastAsExtreme(z, idx, dir), gap = k < 0 ? idx : idx - k;
+      if (gap >= 120 && (!rec || gap > rec.gap)) rec = {z, dir, k, gap};
+    }
+  }
+  if (rec) {
+    const p = row[H.zi[rec.z]], word = rec.dir > 0 ? 'highest' : 'lowest';
+    items.push({tag: 'Record', h: rec.k < 0 ? zoneLabel(rec.z) + ': ' + word + ' price in the archive' : zoneLabel(rec.z) + ': ' + word + ' price since ' + fmtShortDay(H.dates[rec.k]),
+      p: rec.z + ' cleared at ' + N$(fmtP(p)) + '. ' + (rec.k < 0 ? 'No day since ' + fmtShortDay(H.dates[0]) + ' was ' + (rec.dir > 0 ? 'more expensive' : 'cheaper') + '.'
+        : 'The last time it was ' + (rec.dir > 0 ? 'this expensive' : 'this cheap') + ' was ' + N$(fmtShortDay(H.dates[rec.k])) + ', ' + Math.round(rec.gap / 30.4) + ' months earlier.'),
+      score: 30 + Math.min(45, rec.gap / 12)});
+  }
+  // 5. Below zero
+  const neg = five.filter(z => row[H.zi[z]] < 0);
+  if (neg.length) {
+    const z = neg[0], d = DRV ? drvAt(z, DRV.di.get(g.date)) : null;
+    items.push({tag: 'Below zero', h: zoneLabel(z) + ' averaged below zero',
+      p: 'Over the whole day the price averaged ' + N$(fmtP(row[H.zi[z]])) + '. Negative prices mean producers paid to keep generating. It happens when wind and solar output is more than the market can absorb.' +
+        (d && d.hasRes ? ' Wind and solar were forecast to cover ' + N$(pct0(d.res)) + ' of demand that day.' : ''),
+      score: 70});
+  }
+  // keep the strongest, at most one per tag except Wind & sun (cheapest and dearest)
+  items.sort((a, b) => b.score - a.score);
+  const out = [], seen = {};
+  for (const it of items) {
+    const cap = it.tag === 'Wind & sun' ? 2 : 1;
+    if ((seen[it.tag] || 0) >= cap) continue;
+    seen[it.tag] = (seen[it.tag] || 0) + 1; out.push(it);
+    if (out.length >= 4) break;
+  }
+  return {context, items: out};
+}
+
+function renderInsights() {
+  const sec = $('#why');
+  if (!G || G.status === 'playing') { sec.hidden = true; return; }
+  sec.hidden = false;
+  if (DRV_STATE === 'idle') loadDrivers();
+  const {context, items} = buildInsights(G);
+  $('#why-context').innerHTML = context;
+  $('#insights').innerHTML = items.length ? items.map(it => '<div class="ins"><span class="tag">' + esc(it.tag) + '</span><div><h4>' + esc(it.h) + '</h4><p>' + it.p + '</p>' +
+    (it.meters ? '<div class="meters" aria-label="Share of demand covered by wind and solar">' + it.meters.map(([l, v], k) =>
+      '<div class="meter"><span>' + l + '</span><span class="track"><span class="fill' + (k ? ' norm' : '') + '" style="width:' + Math.min(100, Math.max(1, v * 100)).toFixed(1) + '%"></span></span><span class="v">' + pct0(v) + '</span></div>').join('') + '</div>' : '') +
+    '</div></div>').join('') : '<div class="ins"><span class="tag">Calm day</span><div><h4>Nothing out of the ordinary</h4><p>These five zones sat close to their usual places, with no unusual gaps between neighbours.</p></div></div>';
+  const foot = [];
+  if (DRV_STATE === 'loading') foot.push('Loading wind, solar and demand data…');
+  else if (DRV_STATE === 'none') foot.push('Wind, solar and demand data isn\'t available yet, so these insights use prices only.');
+  else if (DRV_STATE === 'ok' && !G.answer.some(z => drvAt(z, DRV.di.get(G.date)))) foot.push('Wind, solar and demand data isn\'t available for this day yet.');
+  foot.push('Wind, solar and demand: ENTSO-E day-ahead forecasts. "Normal" is the average of the previous 30 days.');
+  $('#why-foot').textContent = foot.join(' ');
+}
+
+/* ---------- classic days ---------- */
+let CLASSICS = null;
+function classicDays(limit = 24) {
+  if (CLASSICS && CLASSICS.id === DS.id) return CLASSICS.list;
+  const H = hx(), cand = [];
+  const top = {}, bottom = {};
+  DS.zones.forEach((z, i) => {
+    const v = H.P.map(r => r[i]).filter(x => x !== null).sort((a, b) => a - b);
+    top[z] = v[Math.floor(v.length * 0.997)]; bottom[z] = v[Math.floor(v.length * 0.003)];
+  });
+  for (let idx = 30; idx < H.dates.length; idx++) {
+    if (!DS.eligible.includes(H.dates[idx])) continue;
+    const row = H.P[idx]; let best = null;
+    const consider = (kind, score, title, sub) => { if (!best || score > best.score) best = {kind, score, title, sub}; };
+    DS.zones.forEach((z, i) => {
+      const p = row[i]; if (p === null) return;
+      if (p >= top[z]) consider('record', 90 + p / 8, zoneLabel(z) + ' hits ' + fmtP(p, 0), 'One of the most expensive days in the archive for ' + z);
+      if (p < -5) consider('negative', 60 + Math.abs(p), zoneLabel(z) + ' below zero: ' + fmtP(p, 0), 'A negative daily average');
+    });
+    for (const [a, b] of NEIGHBOURS) {
+      const si = spreadInfo(a, b, idx);
+      if (si && si.s >= 60 && si.s >= 3 * si.m + 20) {
+        const [hz, lz] = si.pa >= si.pb ? [a, b] : [b, a];
+        const same = zm(a).c === zm(b).c;
+        consider('split', 50 + Math.min(70, (si.s - si.m) / 3), same
+          ? zm(a).c + ' split: ' + hz + ' ' + fmtP(Math.max(si.pa, si.pb), 0) + ' vs ' + lz + ' ' + fmtP(Math.min(si.pa, si.pb), 0)
+          : zoneLabel(hz) + ' ' + fmtP(Math.max(si.pa, si.pb), 0) + ', ' + zoneLabel(lz) + ' ' + fmtP(Math.min(si.pa, si.pb), 0),
+          same ? 'One country, two very different prices' : 'Neighbours with a congested link between them');
+      }
+    }
+    const eu = mean(row), prev = [];
+    for (let k = idx - 14; k < idx; k++) prev.push(mean(H.P[k]));
+    const ratio = eu / mean(prev);
+    if (ratio > 1.5) consider('spike', 60 + (ratio - 1) * 60, 'Europe-wide spike: average ' + fmtP(eu, 0), Math.round((ratio - 1) * 100) + '% above the previous two weeks');
+    if (ratio < 0.5 && eu < 40) consider('slump', 40 + (1 - ratio) * 50, 'Europe-wide slump: average ' + fmtP(eu, 0), Math.round((1 - ratio) * 100) + '% below the previous two weeks');
+    if (best) cand.push({date: H.dates[idx], ...best});
+  }
+  cand.sort((a, b) => b.score - a.score);
+  const picked = [], perKind = {}, cap = Math.ceil(limit / 3);
+  for (const c of cand) {
+    if ((perKind[c.kind] || 0) >= cap) continue;
+    if (picked.some(p => Math.abs(daysBetween(p.date, c.date)) < 4)) continue;
+    picked.push(c); perKind[c.kind] = (perKind[c.kind] || 0) + 1;
+    if (picked.length >= limit) break;
+  }
+  picked.sort((a, b) => a.date < b.date ? 1 : -1);
+  CLASSICS = {id: DS.id, list: picked};
+  return picked;
+}
+function openClassics() {
+  const list = classicDays();
+  $('#classic-list').innerHTML = list.map(c => '<li><button type="button" data-classic="' + c.date + '"><span class="d">' + esc(fmtDay(c.date)) + '</span><span class="t">' + esc(c.title) + '<span class="s">' + esc(c.sub) + '</span></span></button></li>').join('');
+  openOv('#ov-classic');
+}
+function startClassic(date) {
+  const pz = pickPuzzle(DS, mulberry32(hashStr('spotrank-classic|' + date)), date, storySeeds(date));
+  if (!pz) return;
+  if (G && G.mode === 'daily') DAILY = G;
+  G = newGame('classic', {...pz, live: false}, null); selected = null;
+  $('#ov-classic').classList.remove('open');
+  render(); window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
 /* ---------- all-zones chart ---------- */
 function niceStep(range, target) { const raw = range / target, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p; }
 function barPath(x0, x1, y, h, r) {
@@ -841,7 +1204,7 @@ function render() {
     $('#ladder').innerHTML = '<li class="clue locked">No puzzle could be built from this data. Load a file with at least 12 zones per day.</li>';
     return;
   }
-  renderMeta(); renderBoard(); renderLog(); renderClues(); renderResult(); renderAllZones(); renderData();
+  renderMeta(); renderBoard(); renderLog(); renderClues(); renderResult(); renderInsights(); renderAllZones(); renderData();
 }
 
 /* ---------- drag (grip) ---------- */
@@ -905,6 +1268,8 @@ document.querySelectorAll('.overlay').forEach(ov => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.overlay.open').forEach(o => o.classList.remove('open')); });
 $('#btn-help').addEventListener('click', () => openOv('#ov-help'));
 $('#btn-stats').addEventListener('click', () => { renderStats(); openOv('#ov-stats'); });
+$('#btn-classic').addEventListener('click', openClassics);
+$('#classic-list').addEventListener('click', e => { const b = e.target.closest('[data-classic]'); if (b) startClassic(b.dataset.classic); });
 
 $('#file-in').addEventListener('change', async e => {
   const f = e.target.files && e.target.files[0]; const msg = $('#data-msg');

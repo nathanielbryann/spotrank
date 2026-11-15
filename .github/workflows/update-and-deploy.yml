@@ -29,6 +29,8 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main   # always build from the latest main, including data commits made by earlier runs
 
       - uses: actions/setup-python@v5
         with:
