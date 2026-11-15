@@ -4,6 +4,10 @@ on:
   schedule:
     - cron: "37 14 * * *"   # every day 14:37 UTC, after the SDAC day-ahead results are published
   workflow_dispatch:        # "Run workflow" button in the Actions tab
+    inputs:
+      drivers_minutes:
+        description: "Minutes to spend on wind/solar/load data (the first backfill needs about 80)"
+        default: "15"
   push:
     branches: [main]        # redeploy when you change the site
 
@@ -19,7 +23,7 @@ concurrency:
 jobs:
   update-and-deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 120
     environment:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
@@ -47,6 +51,19 @@ jobs:
           fi
           python scripts/build_spotrank_data.py --update --end tomorrow --no-csv --time-budget 540 --out site/data/spotrank_data.json
 
+      - name: Fetch wind, solar and load forecasts
+        if: github.event_name != 'push'
+        continue-on-error: true   # a slow ENTSO-E day never blocks the price update
+        timeout-minutes: 100
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+          PYTHONUNBUFFERED: "1"
+          MINUTES: ${{ github.event.inputs.drivers_minutes || '15' }}
+        run: |
+          if [ -z "$ENTSOE_API_KEY" ]; then exit 0; fi
+          python scripts/build_spotrank_data.py --skip-prices --end tomorrow --workers 16 \
+            --drivers-out site/data/spotrank_drivers.json --drivers-budget $((MINUTES * 60))
+
       - name: Commit updated prices
         run: |
           if [ -z "$(git status --porcelain site/data)" ]; then
@@ -55,7 +72,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add site/data
-            git commit -m "Prices updated $(date -u +%F)"
+            git commit -m "Data updated $(date -u +%F)"
             git pull --rebase
             git push
           fi

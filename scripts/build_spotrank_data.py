@@ -157,8 +157,13 @@ def main():
     ap.add_argument("--zones", default=None, help="comma-separated subset, e.g. SE3,FI,DE-LU")
     ap.add_argument("--out", default=os.path.join(HERE, "spotrank_data.json"))
     ap.add_argument("--no-csv", action="store_true", help="don't write the CSV copy")
-    ap.add_argument("--time-budget", type=int, default=None, help="stop waiting for zones after this many seconds")
-    ap.add_argument("--workers", type=int, default=8, help="zones fetched in parallel (default 8)")
+    ap.add_argument("--time-budget", type=int, default=None, help="stop waiting for price zones after this many seconds")
+    ap.add_argument("--workers", type=int, default=8, help="requests run in parallel (default 8)")
+    ap.add_argument("--skip-prices", action="store_true", help="don't fetch prices (drivers only)")
+    ap.add_argument("--drivers-out", default=None,
+                    help="also fetch day-ahead load, wind and solar forecasts into this JSON file")
+    ap.add_argument("--drivers-budget", type=int, default=900,
+                    help="seconds to spend on drivers, including backfilling older months (default 900)")
     ap.add_argument("--key", default=None, help="ENTSO-E API key (default: ENTSOE_API_KEY env var)")
     args = ap.parse_args()
 
@@ -170,16 +175,6 @@ def main():
     if unknown:
         sys.exit(f"Unknown zone(s): {unknown}. Valid: {list(ZONES)}")
 
-    existing = load_existing(args.out) if args.update else None
-    fetch_from = first_day
-    if existing is not None and len(existing):
-        last = pd.Timestamp(existing.dropna(how="all").index.max())
-        fetch_from = max(first_day, last - pd.Timedelta(days=7))  # re-fetch a week to pick up any revisions
-        print(f"Updating {os.path.basename(args.out)}: it ends {last.date()}, fetching from {fetch_from.date()}")
-    if fetch_from > end_day:
-        print("Nothing to fetch.")
-        return
-
     key = resolve_key(args.key)
     if not key:
         sys.exit("No API key. Paste it into api_key.txt, set ENTSOE_API_KEY, or pass --key.")
@@ -189,13 +184,33 @@ def main():
         # 90 s per request so a stalled connection fails instead of hanging the run
         return EntsoePandasClient(api_key=key, timeout=90, retry_count=2, retry_delay=5)
 
-    start = pd.Timestamp(fetch_from, tz=TZ)
-    end = pd.Timestamp(end_day, tz=TZ) + pd.Timedelta(days=1)  # exclusive end
-    print(f"Fetching {len(zones)} zones, {fetch_from.date()} to {end_day.date()} (CET delivery days)")
+    unfinished = False
     try:
-        cols, unfinished = fetch_all(make_client, zones, start, end, args.italy, budget_s=args.time_budget, workers=args.workers)
+        if not args.skip_prices:
+            unfinished |= run_prices(args, make_client, zones, first_day, end_day)
+        if args.drivers_out:
+            unfinished |= run_drivers(args, make_client, zones, first_day, end_day, today)
     except KeyRejected as e:
         sys.exit(f"{e}\nCheck the key in api_key.txt (or create a new one on the ENTSO-E Transparency Platform) and run again.")
+    if unfinished:  # don't wait for requests still running past a time budget
+        sys.stdout.flush()
+        os._exit(0)
+
+
+def run_prices(args, make_client, zones, first_day, end_day):
+    existing = load_existing(args.out) if args.update else None
+    fetch_from = first_day
+    if existing is not None and len(existing):
+        last = pd.Timestamp(existing.dropna(how="all").index.max())
+        fetch_from = max(first_day, last - pd.Timedelta(days=7))  # re-fetch a week to pick up any revisions
+        print(f"Updating {os.path.basename(args.out)}: it ends {last.date()}, fetching from {fetch_from.date()}")
+    if fetch_from > end_day:
+        print("Nothing to fetch.")
+        return False
+    start = pd.Timestamp(fetch_from, tz=TZ)
+    end = pd.Timestamp(end_day, tz=TZ) + pd.Timedelta(days=1)  # exclusive end
+    print(f"Fetching prices for {len(zones)} zones, {fetch_from.date()} to {end_day.date()} (CET delivery days)")
+    cols, unfinished = fetch_all(make_client, zones, start, end, args.italy, budget_s=args.time_budget, workers=args.workers)
 
     days = pd.date_range(fetch_from, end_day, freq="D").strftime("%Y-%m-%d")
     new = pd.DataFrame({z: cols[z] for z in zones}).reindex(days)
@@ -210,9 +225,7 @@ def main():
     while len(df) and df.iloc[-1].isna().all():  # e.g. tomorrow, before the auction results are out
         df = df.iloc[:-1]
     write_outputs(args, df, cols)
-    if unfinished:  # don't wait for requests still running past the time budget
-        sys.stdout.flush()
-        os._exit(0)
+    return unfinished
 
 
 def fetch_zone(make_client, z, start, end, italy):
@@ -286,6 +299,174 @@ def write_outputs(args, df, cols):
     empty = [z for z, s in cols.items() if s.empty]
     if empty:
         print(f"No new data returned for: {', '.join(empty)}")
+
+
+# ---------------------------------------------------------------------------
+# Drivers: day-ahead forecasts of load, wind and solar per bidding zone.
+# These are what the day-ahead auction "sees", so they explain prices better
+# than actuals. ENTSO-E serves them one month per request, so the history is
+# backfilled a few months per run, newest first, until complete.
+# ---------------------------------------------------------------------------
+METRICS = ["load", "wind", "solar"]
+DRIVER_AREA = dict(ZONES)  # Italy: North zone for drivers in both --italy modes
+RECENT_DAYS = 35           # refetched every run (from the start of that month): the 30-day "normal" behind yesterday
+
+
+def daily_frame(z, s_load, df_ws):
+    out = {}
+    if s_load is not None and len(s_load):
+        col = "Forecasted Load" if "Forecasted Load" in getattr(s_load, "columns", []) else None
+        series = s_load[col] if col else (s_load.iloc[:, 0] if hasattr(s_load, "columns") else s_load)
+        out["load"] = daily_baseload(series)
+    if df_ws is not None and len(df_ws):
+        if isinstance(df_ws.columns, pd.MultiIndex):
+            df_ws = df_ws.copy(); df_ws.columns = [" ".join(map(str, c)) for c in df_ws.columns]
+        wind_cols = [c for c in df_ws.columns if "Wind" in str(c)]
+        solar_cols = [c for c in df_ws.columns if "Solar" in str(c)]
+        if wind_cols:
+            out["wind"] = daily_baseload(df_ws[wind_cols].sum(axis=1, min_count=1))
+        if solar_cols:
+            out["solar"] = daily_baseload(df_ws[solar_cols].sum(axis=1, min_count=1))
+    return out
+
+
+def fetch_driver_range(make_client, z, start, end):
+    client = make_client()
+    area = DRIVER_AREA[z]
+    res = {}
+    for name, fn in (("load", client.query_load_forecast), ("ws", client.query_wind_and_solar_forecast)):
+        for k in range(2):
+            try:
+                res[name] = fn(area, start=start, end=end)
+                break
+            except Exception as e:  # noqa: BLE001
+                if type(e).__name__ == "NoMatchingDataError":
+                    res[name] = None
+                    break
+                status = getattr(getattr(e, "response", None), "status_code", None)
+                if status in (401, 403):
+                    raise KeyRejected(f"ENTSO-E rejected the API key (HTTP {status}).") from e
+                if k == 1:
+                    raise
+                time.sleep(5)
+    return daily_frame(z, res.get("load"), res.get("ws"))
+
+
+def load_drivers(path):
+    if not path or not os.path.exists(path):
+        return {m: pd.DataFrame(dtype=float) for m in METRICS}, {}
+    with open(path, encoding="utf-8") as f:
+        d = json.load(f)
+    frames = {m: pd.DataFrame({z: d["series"][z][m] for z in d["series"]}, index=d["dates"], dtype=float) for m in METRICS}
+    return frames, d.get("meta", {}).get("fetched_months", {})
+
+
+def run_drivers(args, make_client, zones, first_day, end_day, today):
+    from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+    t0 = time.time()
+    frames, fetched = load_drivers(args.drivers_out)
+    cutoff = (today - pd.Timedelta(days=RECENT_DAYS)).to_period("M")
+    recent_from = max(first_day, cutoff.start_time)                   # whole months, so nothing falls between
+    tasks = [(z, recent_from, end_day, None) for z in zones]          # recent window, every run
+    months = pd.period_range(first_day.to_period("M"), cutoff, freq="M")
+    for m in reversed(months):                                        # backfill, newest month first
+        if m >= cutoff:
+            continue
+        for z in zones:
+            if str(m) not in fetched.get(z, []):
+                tasks.append((z, max(first_day, m.start_time), m.end_time.normalize(), str(m)))
+    n_backfill = sum(1 for t in tasks if t[3])
+    print(f"\nDrivers: {len(zones)} zones recent window from {recent_from.date()}, {n_backfill} zone-months left to backfill")
+
+    results, done_months, failed = [], {}, 0
+    pool = ThreadPoolExecutor(max_workers=args.workers)
+    it = iter(tasks)
+    running = {}
+
+    def submit_next():
+        for z, a, b, label in it:
+            fut = pool.submit(fetch_driver_range, make_client, z, pd.Timestamp(a, tz=TZ),
+                              pd.Timestamp(b, tz=TZ) + pd.Timedelta(days=1), )
+            running[fut] = (z, label)
+            return True
+        return False
+
+    for _ in range(args.workers):
+        submit_next()
+    timed_out = False
+    while running:
+        left = args.drivers_budget - (time.time() - t0)
+        if left <= 0:
+            timed_out = True
+            break
+        done, _ = wait(list(running), timeout=left, return_when=FIRST_COMPLETED)
+        for f in done:
+            z, label = running.pop(f)
+            exc = f.exception()
+            if isinstance(exc, KeyRejected):
+                pool.shutdown(wait=False, cancel_futures=True)
+                raise exc
+            if exc is not None:
+                failed += 1
+            else:
+                results.append((z, f.result()))
+                if label:
+                    done_months.setdefault(z, []).append(label)
+            if time.time() - t0 < args.drivers_budget:
+                submit_next()
+    pool.shutdown(wait=False, cancel_futures=True)
+
+    for z, daily in results:
+        for m in METRICS:
+            s = daily.get(m)
+            if s is None or s.empty:
+                continue
+            fr = frames[m]
+            if z not in fr.columns:
+                fr[z] = float("nan")
+            new_idx = fr.index.union(s.index)
+            fr = fr.reindex(new_idx)
+            fr.loc[s.index, z] = s.values
+            frames[m] = fr
+    for z, ms in done_months.items():
+        fetched[z] = sorted(set(fetched.get(z, [])) | set(ms))
+    remaining = n_backfill - sum(len(v) for v in done_months.values())
+    write_drivers(args.drivers_out, frames, fetched, zones, first_day)
+    print(f"Drivers: {len(results)} requests done, {failed} failed, {remaining} zone-months still to backfill "
+          f"({time.time() - t0:.0f} s{', time budget used up' if timed_out else ''})")
+    return timed_out
+
+
+def write_drivers(path, frames, fetched, zones, first_day):
+    idx = sorted(set().union(*[set(f.index) for f in frames.values()]))
+    idx = [d for d in idx if d >= first_day.strftime("%Y-%m-%d")]
+    all_zones = [z for z in zones] + [z for f in frames.values() for z in f.columns if z not in zones]
+    all_zones = list(dict.fromkeys(all_zones))
+    series = {}
+    for z in all_zones:
+        series[z] = {}
+        for m in METRICS:
+            col = frames[m][z] if z in frames[m].columns else pd.Series(dtype=float)
+            vals = col.reindex(idx)
+            series[z][m] = [None if pd.isna(v) else int(round(v)) for v in vals]
+    out = {
+        "meta": {
+            "source": "ENTSO-E Transparency Platform: day-ahead total load forecast and day-ahead wind & solar generation forecast",
+            "unit": "MW, daily average of the day-ahead forecast (CET delivery day)",
+            "italy": "IT-NORD",
+            "metrics": METRICS,
+            "generated": pd.Timestamp.now(tz="UTC").isoformat(timespec="seconds"),
+            "fetched_months": fetched,
+        },
+        "dates": idx,
+        "zones": all_zones,
+        "series": series,
+    }
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(out, f, separators=(",", ":"))
+    print(f"  wrote {path}: {len(idx)} days")
+
 
 
 if __name__ == "__main__":
