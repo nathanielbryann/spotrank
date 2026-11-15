@@ -241,7 +241,7 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .meters { display: grid; gap: 6px; margin-top: 10px; max-width: 440px; }
 .meter { display: grid; grid-template-columns: 62px minmax(0, 1fr) 46px; gap: 10px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
 .meter .track { height: 8px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
-.meter .fill { height: 100%; border-radius: 0 4px 4px 0; background: var(--accent); }
+.meter .fill { display: block; height: 100%; border-radius: 0 4px 4px 0; background: var(--accent); }
 .meter .fill.norm { background: var(--muted); }
 .meter .v { font-family: var(--f-mono); font-weight: 700; color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
 .ins-foot { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
@@ -940,14 +940,15 @@ function buildInsights(g) {
   for (const [z, side] of [[dear, 'dear'], [cheap, 'cheap']]) {
     const d = DRV ? drvAt(z, DRV.di.get(g.date)) : null, nrm = d ? drvNormal(z, g.date) : null;
     const name = zoneLabel(z), p = row[H.zi[z]];
-    if (d && nrm && d.hasRes && nrm.res !== null) {
+    if (d && nrm && d.hasRes && nrm.res !== null && !HYDRO.has(z)) {
       const diff = d.res - nrm.res;
-      const fits = side === 'dear' ? diff < -0.06 : diff > 0.06;
-      if (fits || Math.abs(diff) > 0.15) {
+      const fits = side === 'dear' ? diff < -0.06 : diff > 0.06;   // only when it explains this zone's place
+      if (fits) {
         const dW = (d.wind || 0) - (nrm.wind || 0), dS = (d.solar || 0) - (nrm.solar || 0);
         const driver = Math.abs(dW) >= Math.abs(dS) ? 'wind' : 'sun';
         const h = diff < 0 ? 'Little ' + driver + ' in ' + name : (driver === 'wind' ? 'A windy day' : 'A sunny day') + ' in ' + name;
-        const txt = 'Wind and solar were forecast to cover ' + N$(pct0(d.res)) + ' of demand, against ' + N$(pct0(nrm.res)) +
+        const txt = (d.res > 1 ? 'Wind and solar were forecast to produce the equivalent of ' + N$(pct0(d.res)) + ' of local demand, against '
+            : 'Wind and solar were forecast to cover ' + N$(pct0(d.res)) + ' of demand, against ') + N$(pct0(nrm.res)) +
           ' on an average day over the past month. ' + (diff < 0
             ? 'More of the demand had to be met by fuel-burning plants, which set a higher price: ' + N$(fmtP(p)) + '.'
             : 'With more renewable output, fewer expensive plants were needed, which kept the price at ' + N$(fmtP(p)) + '.');
@@ -967,7 +968,9 @@ function buildInsights(g) {
     }
     if (side === 'cheap' && HYDRO.has(z)) {
       items.push({tag: 'Hydro', h: name + ' runs on hydropower',
-        p: name + ' gets most of its electricity from hydropower and has limited transmission capacity to the rest of Europe, so its price often stays low when the continent is expensive. It cleared at ' + N$(fmtP(p)) + '.',
+        p: name + ' gets most of its electricity from hydropower, so its price follows the water in its reservoirs more than the day\'s wind and sun. ' +
+          (['NO3', 'NO4', 'SE1', 'SE2'].includes(z) ? 'Limited transmission to the south keeps that cheap power from reaching the rest of Europe. ' : '') +
+          'It cleared at ' + N$(fmtP(p)) + '.',
         score: 30, z});
     }
   }
@@ -1005,6 +1008,7 @@ function buildInsights(g) {
   for (const z of five) {
     for (const dir of [1, -1]) {
       const k = lastAsExtreme(z, idx, dir), gap = k < 0 ? idx : idx - k;
+      if (k < 0 && idx < 180) continue;   // the archive is too young to call it a record
       if (gap >= 120 && (!rec || gap > rec.gap)) rec = {z, dir, k, gap};
     }
   }

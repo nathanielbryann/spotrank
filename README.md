@@ -13,6 +13,22 @@ A daily game: rank five European bidding zones by their day-ahead baseload price
 Daily baseload is the time-weighted average of all market time units in the CET delivery day,
 which handles both hourly and 15-minute prices. Italy uses its North zone (IT-NORD).
 
+## How the game picks puzzles and explains prices
+
+- **Daily puzzle:** yesterday's prices. The five zones are chosen to tell the day's story: a zone far
+  from its usual rank (median of the previous 90 days), a pair of neighbouring zones split by
+  congestion, a long-time high or low, or a negative price. The rest are filled at random, with rules
+  for minimum price gaps and regional variety.
+- **Why these prices:** shown after each round. It uses the price archive (ranks, gaps between
+  neighbouring zones, records) and `site/data/spotrank_drivers.json`, which holds daily averages of
+  ENTSO-E's day-ahead forecasts of total load, wind and solar per zone. "Normal" means the average of
+  the previous 30 days; demand is compared with the same day type (weekday or weekend).
+- **Classic days:** the most remarkable days in the archive, picked automatically (records, negative
+  prices, splits between neighbours, Europe-wide spikes).
+
+The drivers history is backfilled a few months per run, newest first. A run can be given more time
+with **Run workflow**, using the "Minutes to spend on wind/solar/load data" field.
+
 ## One-time setup
 
 1. **Create the repository.** On GitHub, click **New repository**, name it `spotrank`, set it to
