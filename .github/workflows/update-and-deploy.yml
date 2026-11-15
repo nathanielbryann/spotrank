@@ -35,14 +35,16 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Fetch latest ENTSO-E prices
+        timeout-minutes: 12
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+          PYTHONUNBUFFERED: "1"
         run: |
           if [ -z "$ENTSOE_API_KEY" ]; then
             echo "::warning::The ENTSOE_API_KEY secret is not set, so the existing prices are deployed unchanged."
             exit 0
           fi
-          python scripts/build_spotrank_data.py --update --end tomorrow --no-csv --out site/data/spotrank_data.json
+          python scripts/build_spotrank_data.py --update --end tomorrow --no-csv --time-budget 540 --out site/data/spotrank_data.json
 
       - name: Commit updated prices
         run: |

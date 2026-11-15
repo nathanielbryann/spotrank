@@ -110,7 +110,7 @@ class KeyRejected(Exception):
     pass
 
 
-def fetch(client, area, start, end, retries=3):
+def fetch(client, area, start, end, retries=2):
     for k in range(retries):
         try:
             return client.query_day_ahead_prices(area, start=start, end=end)
@@ -157,6 +157,7 @@ def main():
     ap.add_argument("--zones", default=None, help="comma-separated subset, e.g. SE3,FI,DE-LU")
     ap.add_argument("--out", default=os.path.join(HERE, "spotrank_data.json"))
     ap.add_argument("--no-csv", action="store_true", help="don't write the CSV copy")
+    ap.add_argument("--time-budget", type=int, default=None, help="stop fetching new zones after this many seconds")
     ap.add_argument("--key", default=None, help="ENTSO-E API key (default: ENTSOE_API_KEY env var)")
     args = ap.parse_args()
 
@@ -182,13 +183,14 @@ def main():
     if not key:
         sys.exit("No API key. Paste it into api_key.txt, set ENTSOE_API_KEY, or pass --key.")
     from entsoe import EntsoePandasClient
-    client = EntsoePandasClient(api_key=key)
+    # 60 s per request so a stalled connection fails instead of hanging the run
+    client = EntsoePandasClient(api_key=key, timeout=60, retry_count=2, retry_delay=5)
 
     start = pd.Timestamp(fetch_from, tz=TZ)
     end = pd.Timestamp(end_day, tz=TZ) + pd.Timedelta(days=1)  # exclusive end
     print(f"Fetching {len(zones)} zones, {fetch_from.date()} to {end_day.date()} (CET delivery days)")
     try:
-        cols = fetch_all(client, zones, start, end, args.italy)
+        cols = fetch_all(client, zones, start, end, args.italy, budget_s=args.time_budget)
     except KeyRejected as e:
         sys.exit(f"{e}\nCheck the key in api_key.txt (or create a new one on the ENTSO-E Transparency Platform) and run again.")
 
@@ -207,9 +209,15 @@ def main():
     write_outputs(args, df, cols)
 
 
-def fetch_all(client, zones, start, end, italy):
+def fetch_all(client, zones, start, end, italy, budget_s=None):
     cols = {}
+    t0 = time.time()
     for z in zones:
+        if budget_s and time.time() - t0 > budget_s:
+            print(f"  {z:6s} skipped: time budget of {budget_s} s used up (existing data kept)")
+            cols[z] = pd.Series(dtype=float)
+            continue
+        tz0 = time.time()
         if z == "IT" and italy == "MEAN":
             parts = []
             for a in ITALY_ZONES:
@@ -220,7 +228,7 @@ def fetch_all(client, zones, start, end, italy):
         else:
             s = fetch(client, ZONES[z], start, end)
             cols[z] = daily_baseload(s) if s is not None else pd.Series(dtype=float)
-        print(f"  {z:6s} {len(cols[z]):5d} days")
+        print(f"  {z:6s} {len(cols[z]):5d} days  ({time.time() - tz0:.0f} s)", flush=True)
     return cols
 
 
