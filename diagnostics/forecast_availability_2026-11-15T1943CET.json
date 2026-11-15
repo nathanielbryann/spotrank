@@ -1,0 +1,365 @@
+{
+ "run_cet": "2026-11-15T19:43+01:00",
+ "delivery_day": "2026-11-16",
+ "summary": {
+  "load": 32,
+  "wind": 30,
+  "solar": 32,
+  "price": 32,
+  "errors": 0
+ },
+ "zones": {
+  "NO1": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 0.4,
+    "ws": 0.2,
+    "price": 6.9
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "NO2": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 0.4,
+    "ws": 0.2,
+    "price": 6.6
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "NO3": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 6.4,
+    "ws": 6.4,
+    "price": 3.3
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "NO4": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 0.4,
+    "ws": 0.2,
+    "price": 6.9
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "NO5": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 0.4,
+    "ws": 6.3,
+    "price": 7.0
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "SE1": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 6.4,
+    "ws": 6.4,
+    "price": 3.2
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "SE2": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 0.4,
+    "ws": 0.2,
+    "price": 6.6
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "SE3": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 6.4,
+    "ws": 1.9,
+    "price": 1.5
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "SE4": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 6.4,
+    "ws": 6.4,
+    "price": 9.0
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "FI": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 6.4,
+    "ws": 1.8,
+    "price": 8.6
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "DK1": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 0.4,
+    "ws": 6.3,
+    "price": 0.9
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "DK2": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 0.4,
+    "ws": 6.3,
+    "price": 8.0
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "EE": {
+   "load_h": 23.0,
+   "secs": {
+    "load": 0.7,
+    "ws": 6.4,
+    "price": 3.7
+   },
+   "wind_h": 23.0,
+   "solar_h": 23.0,
+   "price_h": 24.0
+  },
+  "LV": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 0.6,
+    "ws": 0.5,
+    "price": 1.6
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "LT": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 0.6,
+    "ws": 6.5,
+    "price": 3.7
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "PL": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 6.6,
+    "ws": 7.3,
+    "price": 4.1
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "DE-LU": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 0.7,
+    "ws": 6.7,
+    "price": 9.7
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "NL": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 6.9,
+    "ws": 7.7,
+    "price": 8.0
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "BE": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 7.0,
+    "ws": 7.7,
+    "price": 8.2
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "FR": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 1.8,
+    "ws": 2.0,
+    "price": 14.1
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "AT": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 7.9,
+    "ws": 1.8,
+    "price": 8.1
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "CZ": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 7.9,
+    "ws": 6.3,
+    "price": 14.3
+   },
+   "wind_h": 0.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "SK": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 2.3,
+    "ws": 2.7,
+    "price": 5.3
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "HU": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 2.4,
+    "ws": 2.8,
+    "price": 3.9
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "SI": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 2.7,
+    "ws": 7.8,
+    "price": 8.2
+   },
+   "wind_h": 0.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "HR": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 7.8,
+    "ws": 6.3,
+    "price": 5.3
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "RO": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 6.8,
+    "ws": 1.7,
+    "price": 3.4
+   },
+   "wind_h": 23.0,
+   "solar_h": 23.0,
+   "price_h": 24.0
+  },
+  "BG": {
+   "load_h": 23.0,
+   "secs": {
+    "load": 6.5,
+    "ws": 6.7,
+    "price": 10.7
+   },
+   "wind_h": 23.0,
+   "solar_h": 23.0,
+   "price_h": 24.0
+  },
+  "GR": {
+   "load_h": 23.0,
+   "secs": {
+    "load": 6.5,
+    "ws": 6.9,
+    "price": 11.7
+   },
+   "wind_h": 23.0,
+   "solar_h": 23.0,
+   "price_h": 24.0
+  },
+  "IT": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 6.5,
+    "ws": 2.1,
+    "price": 11.7
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "ES": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 2.1,
+    "ws": 5.9,
+    "price": 10.6
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  },
+  "PT": {
+   "load_h": 24.0,
+   "secs": {
+    "load": 2.1,
+    "ws": 2.7,
+    "price": 12.4
+   },
+   "wind_h": 24.0,
+   "solar_h": 24.0,
+   "price_h": 24.0
+  }
+ }
+}
