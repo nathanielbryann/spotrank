@@ -19,12 +19,19 @@ which handles both hourly and 15-minute prices. Italy uses its North zone (IT-NO
   from its usual rank (median of the previous 90 days), a pair of neighbouring zones split by
   congestion, a long-time high or low, or a negative price. The rest are filled at random, with rules
   for minimum price gaps and regional variety.
+- **Clues:** each miss unlocks a hint from the same analysis as the explanation panel, ordered from
+  subtle to strong (hydro, demand, wind and solar, bottleneck, unusual rank, record, negative price).
+  No prices are revealed unless a calm day has fewer than three story hints; then the price range or
+  one zone's price fills the gap.
 - **Why these prices:** shown after each round. It uses the price archive (ranks, gaps between
   neighbouring zones, records) and `site/data/spotrank_drivers.json`, which holds daily averages of
   ENTSO-E's day-ahead forecasts of total load, wind and solar per zone. "Normal" means the average of
-  the previous 30 days; demand is compared with the same day type (weekday or weekend).
-- **Classic days:** the most remarkable days in the archive, picked automatically (records, negative
-  prices, splits between neighbours, Europe-wide spikes).
+  the previous 30 days; demand is compared with the same day type (weekday or weekend). Each
+  explanation that was used as a clue is marked with its clue number.
+- **Map:** after the round, every zone is coloured by its price, with the five puzzle zones outlined.
+  A Map | Ranking switch shows the sorted bar chart instead. Zone borders come from entsoe-py (MIT)
+  and surrounding countries from Natural Earth (public domain); `scripts/build_map.py` rebuilds
+  `site/data/zones-map.json`.
 
 The drivers history is backfilled a few months per run, newest first. A run can be given more time
 with **Run workflow**, using the "Minutes to spend on wind/solar/load data" field.

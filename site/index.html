@@ -237,7 +237,9 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .ins .tag { font-family: var(--f-mono); font-size: 11px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--accent); padding-top: 4px; }
 .ins h4 { margin: 0 0 4px; font-size: 17px; font-weight: 600; line-height: 1.3; text-wrap: balance; }
 .ins p { margin: 0; color: var(--ink-2); font-size: 14.5px; max-width: 72ch; }
-.ins b.n { font-family: var(--f-mono); color: var(--ink); font-weight: 700; }
+.ins b.n, .clue b.n { font-family: var(--f-mono); color: var(--ink); font-weight: 700; }
+.clue .ctag { display: block; font-family: var(--f-mono); font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--accent); margin-bottom: 2px; }
+.ins .cnum { display: block; margin-top: 6px; font-size: 10.5px; color: var(--ink-2); letter-spacing: .04em; }
 .meters { display: grid; gap: 6px; margin-top: 10px; max-width: 440px; }
 .meter { display: grid; grid-template-columns: 62px minmax(0, 1fr) 46px; gap: 10px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
 .meter .track { height: 8px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--line); overflow: hidden; }
@@ -245,14 +247,32 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .meter .fill.norm { background: var(--muted); }
 .meter .v { font-family: var(--f-mono); font-weight: 700; color: var(--ink); text-align: right; font-variant-numeric: tabular-nums; }
 .ins-foot { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
-.classic-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 60vh; overflow-y: auto; }
-.classic-list button { appearance: none; width: 100%; text-align: left; display: grid; grid-template-columns: 112px minmax(0, 1fr); gap: 12px; align-items: baseline; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface-2); cursor: pointer; }
-.classic-list button:hover { border-color: var(--accent); }
-.classic-list .d { font-family: var(--f-mono); font-size: 12px; color: var(--ink-2); }
-.classic-list .t { font-weight: 600; }
-.classic-list .s { display: block; font-size: 12.5px; color: var(--muted); font-weight: 400; }
-.chip.classic { background: var(--accent-soft); border-color: var(--accent); color: var(--ink); }
-@media (max-width: 520px) { .ins { grid-template-columns: minmax(0, 1fr); gap: 4px; } .classic-list button { grid-template-columns: minmax(0, 1fr); gap: 2px; } }
+@media (max-width: 520px) { .ins { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
+
+/* Map */
+.seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface-2); }
+.seg button { appearance: none; border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; font-weight: 600; font-size: 13.5px; color: var(--ink-2); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(15,23,34,.15); }
+.map-wrap { position: relative; max-width: 820px; margin: 0 auto; }
+.map-wrap svg { display: block; width: 100%; height: auto; }
+.map-wrap .zone { cursor: pointer; }
+.map-wrap .zone:hover { opacity: .85; }
+.map-msg { padding: 60px 0; text-align: center; color: var(--muted); margin: 0; }
+.legend-scale { display: flex; gap: 3px; max-width: 820px; margin: 12px auto 0; }
+.legend-scale .sw { flex: 1 1 0; min-width: 0; }
+.legend-scale .sw i { display: block; height: 10px; }
+.legend-scale .sw:first-child i { border-radius: 3px 0 0 3px; }
+.legend-scale .sw:last-child i { border-radius: 0 3px 3px 0; }
+.legend-scale .sw span { display: block; margin-top: 4px; font-family: var(--f-mono); font-size: 11px; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.map-note { max-width: 820px; margin: 8px auto 0; font-size: 12px; color: var(--muted); }
+:root {
+  --map-land: #e3e8ed;
+  --m1: #cde2fb; --m2: #b7d3f6; --m3: #9ec5f4; --m4: #6da7ec; --m5: #3987e5; --m6: #2a78d6; --m7: #1c5cab; --m8: #104281; --m9: #0d366b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --map-land: #222c37; --m1: #12304f; --m2: #173f6a; --m3: #1c4f88; --m4: #2563ad; --m5: #2f78d0; --m6: #4d93e6; --m7: #6da7ec; --m8: #9ec5f4; --m9: #cde2fb; }
+}
+:root[data-theme="dark"] { --map-land: #222c37; --m1: #12304f; --m2: #173f6a; --m3: #1c4f88; --m4: #2563ad; --m5: #2f78d0; --m6: #4d93e6; --m7: #6da7ec; --m8: #9ec5f4; --m9: #cde2fb; }
 
 /* Data panel */
 .data { display: grid; gap: 10px; }
@@ -307,7 +327,6 @@ footer a, .data a { color: var(--accent); }
     <div class="actions">
       <button class="btn" id="btn-help" type="button">How to play</button>
       <button class="btn" id="btn-stats" type="button">Stats</button>
-      <button class="btn" id="btn-classic" type="button">Classic days</button>
       <button class="btn" id="btn-mode" type="button">Practice round</button>
     </div>
   </header>
@@ -358,9 +377,20 @@ footer a, .data a { color: var(--accent); }
         <h2 id="all-title" style="margin-bottom:4px">All zones that day</h2>
         <p id="all-sub"></p>
       </div>
-      <div class="key"><span><i style="background:var(--accent)"></i>Today's five</span><span><i style="background:var(--bar-muted)"></i>Other zones</span></div>
+      <div class="seg" role="group" aria-label="Choose a view">
+        <button type="button" id="view-map" aria-pressed="true">Map</button>
+        <button type="button" id="view-rank" aria-pressed="false">Ranking</button>
+      </div>
     </div>
-    <div class="chart-wrap" id="chart"></div>
+    <div id="mapview">
+      <div class="map-wrap" id="map"></div>
+      <div class="legend-scale" id="map-legend" aria-label="Colour scale, €/MWh"></div>
+      <p class="map-note">Your five zones are outlined. Grey areas aren't part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.</p>
+    </div>
+    <div id="rankview" hidden>
+      <div class="key" style="margin-bottom:8px"><span><i style="background:var(--accent)"></i>Today's five</span><span><i style="background:var(--bar-muted)"></i>Other zones</span></div>
+      <div class="chart-wrap" id="chart"></div>
+    </div>
     <details class="tableview"><summary>Table view</summary><div class="tbl-scroll" id="table"></div></details>
   </section>
 
@@ -394,15 +424,6 @@ footer a, .data a { color: var(--accent); }
       <li>The daily puzzle is the same for everyone and counts toward your streak. Practice rounds don't count.</li>
     </ul>
     <button class="btn primary" type="button" data-close>Got it</button>
-  </div>
-</div>
-
-<div class="overlay" id="ov-classic" role="dialog" aria-modal="true" aria-labelledby="classic-title">
-  <div class="dialog">
-    <button class="btn close" type="button" data-close>Close</button>
-    <h2 id="classic-title">Classic days</h2>
-    <p style="margin:0 0 12px;color:var(--ink-2);font-size:14px">The most remarkable days in the archive: records, prices below zero, and zones that split apart. Picked automatically from the price data. Classic rounds don't count toward your stats.</p>
-    <ul class="classic-list" id="classic-list"></ul>
   </div>
 </div>
 
@@ -579,7 +600,7 @@ let selected = null, focusIdx = null, animateNext = false;
 
 function newGame(mode, pz, puzzleNo) {
   return {v: 2, mode, puzzleNo, dsId: DS.id, date: pz.date, live: pz.live, answer: pz.answer, prices: pz.prices,
-    order: pz.start.slice(), attempts: [], locked: Array(N).fill(false), status: 'playing', clueZones: [], counted: false};
+    order: pz.start.slice(), attempts: [], locked: Array(N).fill(false), status: 'playing', clues: null, counted: false};
 }
 function dailyKey(puzzleNo, date) { return 'daily:' + puzzleNo + ':' + date; }
 function persist() { if (G && G.mode === 'daily') lsSet(dailyKey(G.puzzleNo, G.date), G); }
@@ -633,21 +654,26 @@ function tap(i) {
   focusIdx = i; render();
 }
 
-function submit() {
-  if (G.status !== 'playing') return;
+let submitting = false;
+async function submit() {
+  if (!G || G.status !== 'playing' || submitting) return;
+  submitting = true;
+  try {
+    if (!G.clues) {   // fixed at the first check, so the hints never change mid-round
+      if (DRV_STATE === 'idle') loadDrivers();
+      if (DRV_STATE === 'loading') await Promise.race([DRV_PROMISE, new Promise(r => setTimeout(r, 4000))]);
+      G.clues = buildClues(G);
+    }
+    submitScore();
+  } finally { submitting = false; }
+}
+function submitScore() {
   const res = score(G.order, G.answer);
   G.attempts.push(G.order.map((z, i) => ({z, r: res[i]})));
   G.locked = res.map(r => r === 'g');
   const nG = res.filter(r => r === 'g').length;
   if (nG === N) G.status = 'won';
   else if (G.attempts.length >= MAX_ATTEMPTS) G.status = 'lost';
-  else if (G.attempts.length >= 2) {
-    const rng = mulberry32(hashStr(G.date + G.answer.join() + G.attempts.length));
-    const pool = G.answer.filter(z => !G.clueZones.includes(z) && !G.locked[G.order.indexOf(z)]);
-    const fallback = G.answer.filter(z => !G.clueZones.includes(z));
-    const from = pool.length ? pool : fallback;
-    if (from.length) G.clueZones.push(from[Math.floor(rng() * from.length)]);
-  }
   selected = null; animateNext = true;
   if (G.status !== 'playing' && G.mode === 'daily' && !G.counted) { recordStats(); G.counted = true; }
   persist();
@@ -689,8 +715,7 @@ function renderMeta() {
   if (G.mode === 'daily') {
     m.push('<span class="chip">Puzzle <b>#' + G.puzzleNo + '</b></span>');
     m.push('<span class="chip">' + (G.live ? "Yesterday's prices" : 'From the archive') + '</span>');
-  } else if (G.mode === 'classic') m.push('<span class="chip classic">Classic day · <b>not counted</b></span>');
-  else m.push('<span class="chip practice">Practice round · <b>not counted</b></span>');
+  } else m.push('<span class="chip practice">Practice round · <b>not counted</b></span>');
   if (DS.placeholder) m.push('<span class="chip warn">⚠ <span><b>Placeholder prices</b>, not real market data</span></span>');
   else m.push('<span class="chip">Source <b>' + esc(DS.meta.source_short || DS.meta.source || 'Loaded file') + '</b></span>');
   $('#meta').innerHTML = m.join('');
@@ -750,18 +775,14 @@ function renderLog() {
 
 function renderClues() {
   const misses = G.attempts.filter(a => !a.every(t => t.r === 'g')).length;
-  const ps = G.answer.map(z => G.prices[z]);
-  const items = [];
-  const c1 = misses >= 1 || G.status !== 'playing';
-  items.push(c1 ? '<li class="clue"><span class="no">01</span><span>These five cleared between <span class="v">' + fmtP(Math.min(...ps)) + '</span> and <span class="v">' + fmtP(Math.max(...ps)) + '</span> per MWh.</span></li>'
-    : '<li class="clue locked"><span class="no">01</span><span>Price range of the five. Unlocks after your first miss.</span></li>');
-  for (let k = 0; k < 2; k++) {
-    const z = G.clueZones[k];
-    const no = '0' + (k + 2);
-    items.push(z ? '<li class="clue"><span class="no">' + no + '</span><span><b>' + esc(z) + '</b> (' + esc(zm(z).c) + ') cleared at <span class="v">' + fmtP(G.prices[z]) + '</span> per MWh.</span></li>'
-      : '<li class="clue locked"><span class="no">' + no + '</span><span>' + (G.status === 'playing' ? 'One zone\'s actual price. Unlocks after miss ' + (k + 2) + '.' : 'Not needed this round.') + '</span></li>');
-  }
-  $('#clues').innerHTML = items.join('');
+  const done = G.status !== 'playing';
+  if (done && !G.clues) G.clues = buildClues(G);   // rounds saved before story clues existed
+  const list = G.clues || [];
+  $('#clues').innerHTML = [0, 1, 2].map(k => {
+    const c = list[k], no = '0' + (k + 1);
+    if (c && (done || misses > k)) return '<li class="clue"><span class="no">' + no + '</span><span><span class="ctag">' + esc(c.tag) + '</span>' + c.text + '</span></li>';
+    return '<li class="clue locked"><span class="no">' + no + '</span><span>' + (done ? 'Not needed this round.' : 'Unlocks after ' + (k === 0 ? 'your first miss' : 'miss ' + (k + 1)) + '.') + '</span></li>';
+  }).join('');
 }
 
 let countdownTimer = null;
@@ -890,9 +911,9 @@ function storySeeds(date) {
 }
 
 /* ---------- drivers: day-ahead load, wind and solar forecasts ---------- */
-let DRV = null, DRV_STATE = 'idle';
-async function loadDrivers() {
-  if (DRV_STATE !== 'idle') return;
+let DRV = null, DRV_STATE = 'idle', DRV_PROMISE = null;
+function loadDrivers() { if (DRV_STATE === 'idle') DRV_PROMISE = loadDriversNow(); return DRV_PROMISE; }
+async function loadDriversNow() {
   DRV_STATE = 'loading';
   try {
     if (!HOSTED) throw new Error('not hosted');
@@ -902,7 +923,7 @@ async function loadDrivers() {
     DRV = {dates: j.dates, di: new Map(j.dates.map((d, i) => [d, i])), s: j.series};
     DRV_STATE = 'ok';
   } catch (e) { DRV_STATE = 'none'; }
-  if (G && G.status !== 'playing') renderInsights();
+  if (G && G.status !== 'playing') { renderClues(); renderInsights(); }
 }
 function drvAt(z, i) {
   const s = DRV && DRV.s[z]; if (!s || i === undefined || i < 0) return null;
@@ -953,7 +974,9 @@ function buildInsights(g) {
             ? 'More of the demand had to be met by fuel-burning plants, which set a higher price: ' + N$(fmtP(p)) + '.'
             : 'With more renewable output, fewer expensive plants were needed, which kept the price at ' + N$(fmtP(p)) + '.');
         items.push({tag: 'Wind & sun', h, p: txt, score: 50 + Math.abs(diff) * 200 + (fits ? 15 : 0),
-          meters: [['Today', d.res], ['Normal', nrm.res]], z});
+          meters: [['Today', d.res], ['Normal', nrm.res]], z, key: 'ws-' + z, strength: 3,
+          clue: name + ' had ' + (diff < 0 ? 'much less' : 'much more') + ' wind and sun than normal: ' + (d.res > 1 ? 'the equivalent of ' : '') +
+            N$(pct0(d.res)) + ' of demand instead of ' + N$(pct0(nrm.res)) + '.'});
       }
     }
     if (d && nrm && nrm.loadSame) {
@@ -963,7 +986,8 @@ function buildInsights(g) {
           p: 'Demand was forecast at ' + N$(fmtPower(d.load)) + ' on average, ' + N$(pctS(ld)) + ' compared with a typical ' +
             (isWeekend(g.date) ? 'weekend day' : 'weekday') + ' over the past month. ' +
             (ld > 0 ? 'Higher demand pulls more expensive plants into the mix.' : 'Lower demand means fewer expensive plants are needed.'),
-          score: 25 + Math.abs(ld) * 200 + (fits ? 15 : -15), z});
+          score: 25 + Math.abs(ld) * 200 + (fits ? 15 : -15), z, key: 'dem-' + z, strength: 2,
+          clue: 'Demand in ' + name + ' was forecast ' + N$(pctS(ld)) + ' compared with a typical ' + (isWeekend(g.date) ? 'weekend day' : 'weekday') + '.'});
       }
     }
     if (side === 'cheap' && HYDRO.has(z)) {
@@ -971,7 +995,7 @@ function buildInsights(g) {
         p: name + ' gets most of its electricity from hydropower, so its price follows the water in its reservoirs more than the day\'s wind and sun. ' +
           (['NO3', 'NO4', 'SE1', 'SE2'].includes(z) ? 'Limited transmission to the south keeps that cheap power from reaching the rest of Europe. ' : '') +
           'It cleared at ' + N$(fmtP(p)) + '.',
-        score: 30, z});
+        score: 30, z, key: 'hyd-' + z, strength: 1, clue: name + ' runs mostly on hydropower.'});
     }
   }
   // 2. Bottleneck: the biggest unusual gap between neighbouring zones that involves one of the five
@@ -988,7 +1012,8 @@ function buildInsights(g) {
     items.push({tag: 'Bottleneck', h: same ? zm(hiZ).c + ' split in two' : hiZ + ' and ' + loZ + ' drifted apart',
       p: hiZ + ' cleared at ' + N$(fmtP(hiP, 0)) + ' and ' + loZ + ' at ' + N$(fmtP(loP, 0)) + ', a gap of ' + N$(fmtP(best.s, 0)) +
         ' where it is usually about ' + N$(fmtP(best.m, 0)) + '. When neighbouring zones end up this far apart, the power lines between them are full, so cheaper power can\'t flow to where it is needed.',
-      score: 45 + Math.min(60, (best.s - best.m) / 4)});
+      score: 45 + Math.min(60, (best.s - best.m) / 4), key: 'bn-' + best.a + '-' + best.b, strength: 3.5,
+      clue: 'A bottleneck: ' + [best.a, best.b].sort().join(' and ') + ' ended up far apart, though they are usually close.'});
   }
   // 3. Surprise: the zone furthest from its usual place in the European ranking
   let sur = null;
@@ -1001,7 +1026,8 @@ function buildInsights(g) {
     items.push({tag: 'Surprise', h: sur.z + ' was the ' + ordinal(sur.r) + ' cheapest of ' + H.n[idx] + ' zones',
       p: 'Over the previous 90 days ' + zoneLabel(sur.z) + ' usually ranked around ' + N$(ordinal(Math.round(sur.ur))) + '. ' +
         (sur.dev < 0 ? 'This day it was unusually cheap compared with the rest of Europe.' : 'This day it was unusually expensive compared with the rest of Europe.'),
-      score: 20 + Math.abs(sur.dev) * 3});
+      score: 20 + Math.abs(sur.dev) * 3, key: 'sur-' + sur.z, strength: 4,
+      clue: sur.z + ' was unusually ' + (sur.dev < 0 ? 'cheap' : 'expensive') + ' compared with the rest of Europe.'});
   }
   // 4. Record: highest or lowest price in a long time
   let rec = null;
@@ -1017,7 +1043,8 @@ function buildInsights(g) {
     items.push({tag: 'Record', h: rec.k < 0 ? zoneLabel(rec.z) + ': ' + word + ' price in the archive' : zoneLabel(rec.z) + ': ' + word + ' price since ' + fmtShortDay(H.dates[rec.k]),
       p: rec.z + ' cleared at ' + N$(fmtP(p)) + '. ' + (rec.k < 0 ? 'No day since ' + fmtShortDay(H.dates[0]) + ' was ' + (rec.dir > 0 ? 'more expensive' : 'cheaper') + '.'
         : 'The last time it was ' + (rec.dir > 0 ? 'this expensive' : 'this cheap') + ' was ' + N$(fmtShortDay(H.dates[rec.k])) + ', ' + Math.round(rec.gap / 30.4) + ' months earlier.'),
-      score: 30 + Math.min(45, rec.gap / 12)});
+      score: 30 + Math.min(45, rec.gap / 12), key: 'rec-' + rec.z, strength: 5,
+      clue: rec.z + ' had its ' + word + ' price ' + (rec.k < 0 ? 'in the whole archive' : 'in ' + Math.round(rec.gap / 30.4) + ' months') + '.'});
   }
   // 5. Below zero
   const neg = five.filter(z => row[H.zi[z]] < 0);
@@ -1026,7 +1053,7 @@ function buildInsights(g) {
     items.push({tag: 'Below zero', h: zoneLabel(z) + ' averaged below zero',
       p: 'Over the whole day the price averaged ' + N$(fmtP(row[H.zi[z]])) + '. Negative prices mean producers paid to keep generating. It happens when wind and solar output is more than the market can absorb.' +
         (d && d.hasRes ? ' Wind and solar were forecast to cover ' + N$(pct0(d.res)) + ' of demand that day.' : ''),
-      score: 70});
+      score: 70, key: 'neg-' + z, strength: 6, clue: z + ' averaged below zero over the day.'});
   }
   // keep the strongest, at most one per tag except Wind & sun (cheapest and dearest)
   items.sort((a, b) => b.score - a.score);
@@ -1040,6 +1067,16 @@ function buildInsights(g) {
   return {context, items: out};
 }
 
+function buildClues(g) {
+  const out = buildInsights(g).items.filter(it => it.clue).slice(0, 3)
+    .sort((a, b) => a.strength - b.strength).map(it => ({key: it.key, tag: it.tag, text: it.clue}));
+  const ps = g.answer.map(z => g.prices[z]);
+  const fill = [{key: 'price-range', tag: 'Prices', text: 'These five cleared between ' + N$(fmtP(Math.min(...ps))) + ' and ' + N$(fmtP(Math.max(...ps))) + ' per MWh.'}]
+    .concat([g.answer[2], g.answer[3]].map(z => ({key: 'price-' + z, tag: 'Prices', text: z + ' (' + esc(zm(z).c) + ') cleared at ' + N$(fmtP(g.prices[z])) + ' per MWh.'})));
+  while (out.length < 3 && fill.length) out.push(fill.shift());
+  return out;
+}
+
 function renderInsights() {
   const sec = $('#why');
   if (!G || G.status === 'playing') { sec.hidden = true; return; }
@@ -1047,7 +1084,8 @@ function renderInsights() {
   if (DRV_STATE === 'idle') loadDrivers();
   const {context, items} = buildInsights(G);
   $('#why-context').innerHTML = context;
-  $('#insights').innerHTML = items.length ? items.map(it => '<div class="ins"><span class="tag">' + esc(it.tag) + '</span><div><h4>' + esc(it.h) + '</h4><p>' + it.p + '</p>' +
+  const clueNo = {}; (G.clues || []).forEach((c, k) => { clueNo[c.key] = k + 1; });
+  $('#insights').innerHTML = items.length ? items.map(it => '<div class="ins"><span class="tag">' + esc(it.tag) + (clueNo[it.key] ? '<span class="cnum">Clue ' + clueNo[it.key] + '</span>' : '') + '</span><div><h4>' + esc(it.h) + '</h4><p>' + it.p + '</p>' +
     (it.meters ? '<div class="meters" aria-label="Share of demand covered by wind and solar">' + it.meters.map(([l, v], k) =>
       '<div class="meter"><span>' + l + '</span><span class="track"><span class="fill' + (k ? ' norm' : '') + '" style="width:' + Math.min(100, Math.max(1, v * 100)).toFixed(1) + '%"></span></span><span class="v">' + pct0(v) + '</span></div>').join('') + '</div>' : '') +
     '</div></div>').join('') : '<div class="ins"><span class="tag">Calm day</span><div><h4>Nothing out of the ordinary</h4><p>These five zones sat close to their usual places, with no unusual gaps between neighbours.</p></div></div>';
@@ -1059,69 +1097,6 @@ function renderInsights() {
   $('#why-foot').textContent = foot.join(' ');
 }
 
-/* ---------- classic days ---------- */
-let CLASSICS = null;
-function classicDays(limit = 24) {
-  if (CLASSICS && CLASSICS.id === DS.id) return CLASSICS.list;
-  const H = hx(), cand = [];
-  const top = {}, bottom = {};
-  DS.zones.forEach((z, i) => {
-    const v = H.P.map(r => r[i]).filter(x => x !== null).sort((a, b) => a - b);
-    top[z] = v[Math.floor(v.length * 0.997)]; bottom[z] = v[Math.floor(v.length * 0.003)];
-  });
-  for (let idx = 30; idx < H.dates.length; idx++) {
-    if (!DS.eligible.includes(H.dates[idx])) continue;
-    const row = H.P[idx]; let best = null;
-    const consider = (kind, score, title, sub) => { if (!best || score > best.score) best = {kind, score, title, sub}; };
-    DS.zones.forEach((z, i) => {
-      const p = row[i]; if (p === null) return;
-      if (p >= top[z]) consider('record', 90 + p / 8, zoneLabel(z) + ' hits ' + fmtP(p, 0), 'One of the most expensive days in the archive for ' + z);
-      if (p < -5) consider('negative', 60 + Math.abs(p), zoneLabel(z) + ' below zero: ' + fmtP(p, 0), 'A negative daily average');
-    });
-    for (const [a, b] of NEIGHBOURS) {
-      const si = spreadInfo(a, b, idx);
-      if (si && si.s >= 60 && si.s >= 3 * si.m + 20) {
-        const [hz, lz] = si.pa >= si.pb ? [a, b] : [b, a];
-        const same = zm(a).c === zm(b).c;
-        consider('split', 50 + Math.min(70, (si.s - si.m) / 3), same
-          ? zm(a).c + ' split: ' + hz + ' ' + fmtP(Math.max(si.pa, si.pb), 0) + ' vs ' + lz + ' ' + fmtP(Math.min(si.pa, si.pb), 0)
-          : zoneLabel(hz) + ' ' + fmtP(Math.max(si.pa, si.pb), 0) + ', ' + zoneLabel(lz) + ' ' + fmtP(Math.min(si.pa, si.pb), 0),
-          same ? 'One country, two very different prices' : 'Neighbours with a congested link between them');
-      }
-    }
-    const eu = mean(row), prev = [];
-    for (let k = idx - 14; k < idx; k++) prev.push(mean(H.P[k]));
-    const ratio = eu / mean(prev);
-    if (ratio > 1.5) consider('spike', 60 + (ratio - 1) * 60, 'Europe-wide spike: average ' + fmtP(eu, 0), Math.round((ratio - 1) * 100) + '% above the previous two weeks');
-    if (ratio < 0.5 && eu < 40) consider('slump', 40 + (1 - ratio) * 50, 'Europe-wide slump: average ' + fmtP(eu, 0), Math.round((1 - ratio) * 100) + '% below the previous two weeks');
-    if (best) cand.push({date: H.dates[idx], ...best});
-  }
-  cand.sort((a, b) => b.score - a.score);
-  const picked = [], perKind = {}, cap = Math.ceil(limit / 3);
-  for (const c of cand) {
-    if ((perKind[c.kind] || 0) >= cap) continue;
-    if (picked.some(p => Math.abs(daysBetween(p.date, c.date)) < 4)) continue;
-    picked.push(c); perKind[c.kind] = (perKind[c.kind] || 0) + 1;
-    if (picked.length >= limit) break;
-  }
-  picked.sort((a, b) => a.date < b.date ? 1 : -1);
-  CLASSICS = {id: DS.id, list: picked};
-  return picked;
-}
-function openClassics() {
-  const list = classicDays();
-  $('#classic-list').innerHTML = list.map(c => '<li><button type="button" data-classic="' + c.date + '"><span class="d">' + esc(fmtDay(c.date)) + '</span><span class="t">' + esc(c.title) + '<span class="s">' + esc(c.sub) + '</span></span></button></li>').join('');
-  openOv('#ov-classic');
-}
-function startClassic(date) {
-  const pz = pickPuzzle(DS, mulberry32(hashStr('spotrank-classic|' + date)), date, storySeeds(date));
-  if (!pz) return;
-  if (G && G.mode === 'daily') DAILY = G;
-  G = newGame('classic', {...pz, live: false}, null); selected = null;
-  $('#ov-classic').classList.remove('open');
-  render(); window.scrollTo({top: 0, behavior: 'smooth'});
-}
-
 /* ---------- all-zones chart ---------- */
 function niceStep(range, target) { const raw = range / target, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p; return (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * p; }
 function barPath(x0, x1, y, h, r) {
@@ -1130,10 +1105,96 @@ function barPath(x0, x1, y, h, r) {
   if (x1 >= x0) return 'M' + x0 + ',' + y + 'H' + (x1 - r) + 'A' + r + ',' + r + ' 0 0 1 ' + x1 + ',' + (y + r) + 'V' + (y + h - r) + 'A' + r + ',' + r + ' 0 0 1 ' + (x1 - r) + ',' + (y + h) + 'H' + x0 + 'Z';
   return 'M' + x0 + ',' + y + 'H' + (x1 + r) + 'A' + r + ',' + r + ' 0 0 0 ' + x1 + ',' + (y + r) + 'V' + (y + h - r) + 'A' + r + ',' + r + ' 0 0 0 ' + (x1 + r) + ',' + (y + h) + 'H' + x0 + 'Z';
 }
+let VIEW = lsGet('view', 'map') === 'rank' ? 'rank' : 'map';
 function renderAllZones() {
   const sec = $('#all-zones');
   if (G.status === 'playing') { sec.hidden = true; return; }
   sec.hidden = false;
+  $('#view-map').setAttribute('aria-pressed', String(VIEW === 'map'));
+  $('#view-rank').setAttribute('aria-pressed', String(VIEW === 'rank'));
+  $('#mapview').hidden = VIEW !== 'map';
+  $('#rankview').hidden = VIEW !== 'rank';
+  renderBars();
+  if (VIEW === 'map') { $('#all-sub').textContent = 'Daily baseload average, €/MWh. Hover a zone for its price and rank.'; renderMap(); }
+}
+function setView(v) { VIEW = v; lsSet('view', v); renderAllZones(); }
+
+let MAPDATA = null, MAP_STATE = 'idle';
+async function loadMap() {
+  if (MAP_STATE !== 'idle') return;
+  MAP_STATE = 'loading';
+  try {
+    const r = await fetch('data/zones-map.json', {cache: 'force-cache'});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    MAPDATA = await r.json(); MAP_STATE = 'ok';
+  } catch (e) { MAP_STATE = 'none'; }
+  if (G && G.status !== 'playing' && VIEW === 'map') renderMap();
+}
+function inkFor(hex) {   // white or near-black text on a fill, by its luminance
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim()); if (!m) return '#0f1722';
+  const n = parseInt(m[1], 16), c = [n >> 16, (n >> 8) & 255, n & 255].map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2] > 0.3 ? '#0f1722' : '#ffffff';
+}
+function renderMap() {
+  const box = $('#map'), legend = $('#map-legend');
+  if (MAP_STATE !== 'ok') {
+    if (MAP_STATE === 'idle') loadMap();
+    box.innerHTML = '<p class="map-msg">' + (MAP_STATE === 'none' ? 'The map couldn\'t be loaded. Switch to Ranking to see all prices.' : 'Loading map…') + '</p>';
+    legend.innerHTML = ''; return;
+  }
+  const vals = DS.byDate.get(G.date) || [], price = {};
+  DS.zones.forEach((z, i) => { if (vals[i] !== null && vals[i] !== undefined) price[z] = vals[i]; });
+  const sorted = Object.entries(price).sort((a, b) => a[1] - b[1]);
+  const rank = Object.fromEntries(sorted.map(([z], k) => [z, k + 1]));
+  const lo = sorted[0][1], hi = sorted[sorted.length - 1][1];
+  // colour buckets with round breaks; 4 to 9 steps of one blue ramp
+  let step = niceStep((hi - lo) || 1, 7), b0 = Math.floor(lo / step) * step, nb = Math.ceil((hi - b0) / step) || 1;
+  if (nb > 9) { step = niceStep((hi - lo) || 1, 5); b0 = Math.floor(lo / step) * step; nb = Math.ceil((hi - b0) / step) || 1; }
+  nb = Math.max(1, Math.min(9, nb));
+  const css = getComputedStyle(document.documentElement);
+  const ramp = Array.from({length: nb}, (_, k) => {
+    const idx = nb === 1 ? 5 : 1 + Math.round(k * 8 / (nb - 1));
+    return css.getPropertyValue('--m' + idx).trim() || '#3987e5';
+  });
+  const bucket = v => Math.max(0, Math.min(nb - 1, Math.floor((v - b0) / step)));
+  const [, , VW, VH] = MAPDATA.viewBox;
+  const cw = box.clientWidth || 800, u = VW / cw;   // viewBox units per screen pixel
+  const mine = new Set(G.answer), small = cw < 560;
+  let s = '<svg viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="Map of day-ahead prices by bidding zone on ' + esc(fmtDay(G.date)) + '">';
+  for (const c of MAPDATA.context) s += '<path d="' + c.d + '" fill="var(--map-land)" stroke="var(--line-strong)" stroke-width="0.6" vector-effect="non-scaling-stroke"/>';
+  for (const [z, g] of Object.entries(MAPDATA.zones)) {
+    const v = price[z];
+    s += '<path class="zone" data-z="' + z + '" d="' + g.d + '" fill="' + (v === undefined ? 'var(--map-land)' : ramp[bucket(v)]) + '" stroke="var(--surface)" stroke-width="1" vector-effect="non-scaling-stroke"/>';
+  }
+  for (const z of mine) if (MAPDATA.zones[z]) s += '<path d="' + MAPDATA.zones[z].d + '" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linejoin="round" vector-effect="non-scaling-stroke" pointer-events="none"/>';
+  for (const [z, g] of Object.entries(MAPDATA.zones)) {
+    const v = price[z]; if (v === undefined) continue;
+    if (mine.has(z)) {
+      const fs = (small ? 11 : 13) * u;
+      s += '<g pointer-events="none" font-family="var(--f-mono)" font-weight="700" text-anchor="middle" paint-order="stroke" stroke="var(--surface)" stroke-width="' + (3.2 * u) + '" stroke-linejoin="round" fill="var(--ink)">' +
+        '<text x="' + g.x + '" y="' + (g.y - fs * 0.15) + '" font-size="' + fs + '">' + esc(z) + '</text>' +
+        '<text x="' + g.x + '" y="' + (g.y + fs * 1.05) + '" font-size="' + (fs * 0.92) + '">' + fmtP(v, 0) + '</text></g>';
+    } else if (!small) {
+      s += '<text x="' + g.x + '" y="' + (g.y + 3.5 * u) + '" font-size="' + (10 * u) + '" font-family="var(--f-mono)" text-anchor="middle" fill="' + inkFor(ramp[bucket(v)]) + '" pointer-events="none" opacity=".85">' + esc(z) + '</text>';
+    }
+  }
+  s += '</svg><div class="tip" id="maptip"></div>';
+  box.innerHTML = s;
+  const tip = $('#maptip');
+  box.querySelectorAll('.zone').forEach(el => {
+    el.addEventListener('pointermove', e => {
+      const z = el.dataset.z, v = price[z], m = zm(z), r = box.getBoundingClientRect();
+      if (v === undefined) return;
+      tip.innerHTML = '<b>' + esc(z) + '</b> ' + esc(m.c) + (m.a ? ' · ' + esc(m.a) : '') + '<br><b>' + fmtP(v) + '</b> /MWh · rank ' + rank[z] + ' of ' + sorted.length;
+      tip.style.display = 'block';
+      tip.style.left = Math.min(Math.max(e.clientX - r.left, 120), r.width - 120) + 'px';
+      tip.style.top = (e.clientY - r.top - 12) + 'px';
+    });
+    el.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+  });
+  legend.innerHTML = ramp.map((c, k) => '<div class="sw"><i style="background:' + c + '"></i><span>' + (k === 0 ? fmtP(b0, 0) : (b0 + k * step).toFixed(0)) + (k === nb - 1 ? '–' + (b0 + nb * step).toFixed(0) : '') + '</span></div>').join('');
+}
+function renderBars() {
   const vals = DS.byDate.get(G.date) || [];
   const rows = DS.zones.map((z, i) => ({z, p: vals[i]})).filter(o => o.p !== null && o.p !== undefined).sort((a, b) => a.p - b.p);
   const mine = new Set(G.answer);
@@ -1263,6 +1324,8 @@ $('#ladder').addEventListener('keydown', e => {
   else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tap(i); }
 });
 $('#btn-submit').addEventListener('click', submit);
+$('#view-map').addEventListener('click', () => setView('map'));
+$('#view-rank').addEventListener('click', () => setView('rank'));
 function startPractice() { const pz = practicePuzzle(DS); if (pz) { if (G && G.mode === 'daily') DAILY = G; G = newGame('practice', pz, null); selected = null; render(); window.scrollTo({top: 0, behavior: 'smooth'}); } }
 $('#btn-mode').addEventListener('click', () => { if (G.mode === 'daily') startPractice(); else { G = (DAILY && DAILY.dsId === DS.id) ? DAILY : loadDaily(); selected = null; render(); } });
 function openOv(id) { $(id).classList.add('open'); const b = $(id + ' [data-close]'); if (b) b.focus(); }
@@ -1272,8 +1335,6 @@ document.querySelectorAll('.overlay').forEach(ov => {
 document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.overlay.open').forEach(o => o.classList.remove('open')); });
 $('#btn-help').addEventListener('click', () => openOv('#ov-help'));
 $('#btn-stats').addEventListener('click', () => { renderStats(); openOv('#ov-stats'); });
-$('#btn-classic').addEventListener('click', openClassics);
-$('#classic-list').addEventListener('click', e => { const b = e.target.closest('[data-classic]'); if (b) startClassic(b.dataset.classic); });
 
 $('#file-in').addEventListener('change', async e => {
   const f = e.target.files && e.target.files[0]; const msg = $('#data-msg');
@@ -1309,6 +1370,7 @@ async function boot(snap) {
   if (snap && snap.G && snap.G.dsId === DS.id) G = snap.G;
   else G = loadDaily();
   render();
+  loadDrivers();   // wind/solar/demand data for clues and insights
 }
 window.claude?.hot?.snapshot?.(() => ({G}));
 window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
