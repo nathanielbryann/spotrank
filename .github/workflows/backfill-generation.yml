@@ -15,6 +15,8 @@ on:
 
 permissions:
   contents: write
+  pages: write              # redeploy the site with the new data
+  id-token: write
 
 concurrency:
   group: spotrank-backfill
@@ -24,6 +26,9 @@ jobs:
   backfill:
     runs-on: ubuntu-latest
     timeout-minutes: 110
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -61,3 +66,9 @@ jobs:
           git add site/data/gen
           git commit -m "Generation data backfill $(date -u +%FT%H%MZ)" || exit 0
           for i in 1 2 3 4 5; do git pull --rebase && git push && break; sleep 15; done
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+      - id: deploy
+        uses: actions/deploy-pages@v4

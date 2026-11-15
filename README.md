@@ -38,11 +38,31 @@ which handles both hourly and 15-minute prices. Italy uses its North zone (IT-NO
 - **Prices page** (`#prices`): daily baseload history for up to six zones, a period picker (presets,
   dates, or drag on the overview strip) and the period average per zone, for the chart's zones and
   for all 32 zones in a table. The average is the mean of the daily baseload prices in the period.
+- **Merit order:** below the map, for any zone you click (default: the dearest of the five). Blocks
+  are what each technology produced that day (ENTSO-E actual generation per production type, daily
+  average), ordered by estimated running cost, with demand (day-ahead load forecast) and the day's
+  price. Running cost = fuel ÷ efficiency + CO2 × emission factor ÷ efficiency + operating cost, using
+  daily TTF, EUA and coal prices from `data/fuel_prices.csv`. Reservoir hydro is placed at the day's
+  price (water value). Nuclear, biomass and "other" use fixed costs. The assumptions are in
+  `scripts/build_fuel_prices.py`. Generation lives in `site/data/gen/<zone>.json`, one file per zone.
 - **Skill profile** (in Stats): first-attempt accuracy and average places off per region, built from
   the daily rounds saved in the player's browser.
 
 The drivers history is backfilled a few months per run, newest first. A run can be given more time
-with **Run workflow**, using the "Minutes to spend on wind/solar/load data" field.
+with **Run workflow**, using the "Minutes to spend on wind/solar/load data" field. Generation data works the same way
+(10 minutes per daily run); the **Backfill generation data** workflow runs longer catch-ups and starts
+whenever `.github/backfill-request.txt` changes.
+
+### Fuel and CO2 prices
+
+There is no API for these, so new prices are merged from the Data Hub export (the same layout every
+time: blocks of Date | Value | Unit for TTF spot, Coal ARA CIF Spot EUR/tonne and CO2 EUA spot):
+
+    python scripts/build_fuel_prices.py --merge Fuel_and_Carbon_export.xlsx
+
+This updates `data/fuel_prices.csv`, lists any stored values that changed, and rebuilds
+`site/data/fuel_prices.json`. Commit both files. Between updates the chart uses the latest
+prices before the day and says which date they are from.
 
 ## One-time setup
 
