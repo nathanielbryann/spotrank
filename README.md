@@ -32,11 +32,9 @@ which handles both hourly and 15-minute prices. Italy uses its North zone (IT-NO
   A Map | Ranking switch shows the sorted bar chart instead. Zone borders come from entsoe-py (MIT)
   and surrounding countries from Natural Earth (public domain); `scripts/build_map.py` rebuilds
   `site/data/zones-map.json`.
-- **Month context:** after the round, the five puzzle zones show the month-to-date average (from the
-  1st up to the delivery day) and the averages of the two previous calendar months: as a second line on
-  the map labels, in the hover for every zone, in a "Your five in context" table, and as a tick on each
-  bar in the Ranking view.
-
+- **Month tab:** a third view next to Map and Ranking. Every zone is coloured and labelled with its
+  average so far in the delivery day's month (from the 1st up to the delivery day); hovering shows the
+  two previous calendar months.
 - **Prices page** (`#prices`): daily baseload history for up to six zones, a period picker (presets,
   dates, or drag on the overview strip) and the period average per zone, for the chart's zones and
   for all 32 zones in a table. The average is the mean of the daily baseload prices in the period.
