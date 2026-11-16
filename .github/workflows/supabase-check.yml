@@ -28,9 +28,8 @@ jobs:
           {
             date -u
             call ping '{}'
-            call day_results '{"p_puzzle": 1}'
+            for n in 1 2 3; do call day_results "{\"p_puzzle\": $n}"; done
             call leaderboard '{"p_from": "2026-11-01", "p_to": "2026-12-31"}'
-            call register_player '{"p_name": "x"}'
             echo "== direct table read (must be refused)"
             curl -sS -m 30 "$SB_URL/rest/v1/players?select=*" -H "apikey: $SB_KEY" -w "\nHTTP %{http_code}\n"
           } > diagnostics/supabase_check.txt 2>&1
