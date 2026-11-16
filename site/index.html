@@ -780,7 +780,7 @@ footer a, .data a { color: var(--accent); }
     </section>
     <section class="panel" aria-labelledby="vs-title">
       <h2 id="vs-title" style="margin-bottom:4px">You vs everyone</h2>
-      <p class="ph-sub">How often zones were placed right on the first attempt, by region. Your daily rounds against all players' rounds in the last 90 days.</p>
+      <p class="ph-sub">How often zones were placed right on the first attempt, by region (the UN's regions of Europe: North, East, South, West). Your daily rounds against all players' rounds in the last 90 days.</p>
       <div id="vs-body" style="margin-top:12px"></div>
     </section>
   </div>
@@ -1576,7 +1576,15 @@ function renderInsights() {
 }
 
 /* ---------- skill profile (Stats) ---------- */
-const REGIONS = ['Nordics', 'Baltics', 'Central West', 'Central East', 'South East', 'Iberia', 'Italy'];
+const REGIONS = ['Nordics', 'Baltics', 'Central West', 'Central East', 'South East', 'Iberia', 'Italy'];   // finer regions: the puzzle builder's mix rule
+// Four regions for the statistics and the Market data zone picker: the UN's geographic regions of Europe (M49)
+const UN_REGIONS = ['North', 'East', 'South', 'West'];
+const UN_OF = {NO1: 'North', NO2: 'North', NO3: 'North', NO4: 'North', NO5: 'North', SE1: 'North', SE2: 'North', SE3: 'North', SE4: 'North',
+  FI: 'North', DK1: 'North', DK2: 'North', EE: 'North', LV: 'North', LT: 'North',
+  PL: 'East', CZ: 'East', SK: 'East', HU: 'East', RO: 'East', BG: 'East',
+  IT: 'South', ES: 'South', PT: 'South', GR: 'South', HR: 'South', SI: 'South',
+  'DE-LU': 'West', NL: 'West', BE: 'West', FR: 'West', AT: 'West', CH: 'West'};
+function unRegion(z) { return UN_OF[z] || (z.indexOf('IT') === 0 ? 'South' : 'West'); }
 function skillData() {
   const rounds = new Map();
   try {
@@ -1593,7 +1601,7 @@ function skillData() {
   for (const g of rounds.values()) {
     g.attempts[0].forEach((t, i) => {
       const off = Math.abs(i - g.answer.indexOf(t.z));
-      add(reg, zm(t.z).r, off); add(zone, t.z, off);
+      add(reg, unRegion(t.z), off); add(zone, t.z, off);
     });
   }
   return {rounds: rounds.size, reg, zone};
@@ -1603,11 +1611,11 @@ function skillHtml() {
   let h = '<div class="skill"><h3>Skill by region</h3>';
   if (!s.rounds) return h + '<p class="sub">Finish a daily puzzle to start your profile. It is built from your first attempt in each daily round.</p></div>';
   h += '<p class="sub">How often you placed a zone correctly on your first attempt, from ' + s.rounds + ' daily round' + (s.rounds === 1 ? '' : 's') + '.</p>';
-  const rows = REGIONS.map(r => ({r, d: s.reg[r]})).sort((a, b) => (b.d ? b.d.ok / b.d.n : -1) - (a.d ? a.d.ok / a.d.n : -1));
+  const rows = UN_REGIONS.map(r => ({r, d: s.reg[r]})).sort((a, b) => (b.d ? b.d.ok / b.d.n : -1) - (a.d ? a.d.ok / a.d.n : -1));
   h += rows.map(({r, d}) => d
     ? '<div class="skill-row"><span>' + r + '</span><span class="track"><span class="fill" style="width:' + Math.max(2, 100 * d.ok / d.n).toFixed(0) + '%"></span></span><span class="v"><b>' + Math.round(100 * d.ok / d.n) + '%</b> · ' + (d.off / d.n).toFixed(1) + ' off · ' + d.n + '</span></div>'
     : '<div class="skill-row none"><span>' + r + '</span><span class="track"></span><span class="v">no zones yet</span></div>').join('');
-  h += '<p class="skill-note" style="margin-top:6px;font-size:12px;color:var(--muted)">Right column: first-try accuracy · average places off · zones seen.</p>';
+  h += '<p class="skill-note" style="margin-top:6px;font-size:12px;color:var(--muted)">Right column: first-try accuracy · average places off · zones seen. Regions: the UN\'s regions of Europe (North includes the Baltics; Bulgaria is East; Slovenia and Croatia are South; Austria and Switzerland are West).</p>';
   const solid = rows.filter(x => x.d && x.d.n >= 5);
   if (solid.length >= 2) {
     const best = solid[0], worst = solid[solid.length - 1];
@@ -1917,12 +1925,12 @@ function renderVs() {
   const all = {};
   for (const r of VS.rows) {
     if (!Array.isArray(r.first_try) || !Array.isArray(r.answer)) continue;
-    r.first_try.forEach((z, i) => { const k = zm(z).r, o = all[k] || (all[k] = {n: 0, ok: 0}); o.n++; if (r.answer[i] === z) o.ok++; });
+    r.first_try.forEach((z, i) => { const k = unRegion(z), o = all[k] || (all[k] = {n: 0, ok: 0}); o.n++; if (r.answer[i] === z) o.ok++; });
   }
   const mine = skillData().reg;
   if (!VS.rows.length) { box.innerHTML = '<p class="ph-sub">No daily rounds from players yet.</p>'; return; }
   box.innerHTML = '<div class="key" style="margin-bottom:8px"><span><i style="background:var(--accent)"></i>You</span><span><i style="background:var(--muted)"></i>All players</span></div>' +
-    REGIONS.map(k => {
+    UN_REGIONS.map(k => {
       const m = mine[k], a = all[k];
       const mp = m && m.n ? m.ok / m.n : null, ap = a && a.n ? a.ok / a.n : null;
       return '<div class="vs-row"><span>' + k + '</span><span class="bars"><span class="track"><span class="fill" style="width:' + (!mp ? 0 : Math.max(2, 100 * mp)).toFixed(0) + '%"></span></span><span class="track"><span class="fill all" style="width:' + (!ap ? 0 : Math.max(2, 100 * ap)).toFixed(0) + '%"></span></span></span>' +
@@ -2109,8 +2117,8 @@ function renderPhOverview() {
 }
 function renderPhPicker() {
   const used = new Map(PH.sel.map(o => [o.z, o.slot]));
-  $('#ph-zones').innerHTML = REGIONS.map(r => {
-    const zs = MX().zones.filter(z => zm(z).r === r);
+  $('#ph-zones').innerHTML = UN_REGIONS.map(r => {
+    const zs = MX().zones.filter(z => unRegion(z) === r);
     if (!zs.length) return '';
     return '<div class="zp-row"><span class="rg">' + r + '</span><span class="chips">' + zs.map(z =>
       '<button type="button" class="zp" data-zone="' + esc(z) + '" aria-pressed="' + used.has(z) + '" title="' + esc(zm(z).c + (zm(z).a ? ' · ' + zm(z).a : '')) + '"><i' + (used.has(z) ? ' style="background:' + phColor(used.get(z)) + '"' : '') + '></i>' + esc(z) + '</button>').join('') + '</span></div>';
