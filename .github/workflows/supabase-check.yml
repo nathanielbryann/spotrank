@@ -54,13 +54,14 @@ jobs:
             echo; echo "#### Prices for scoring (SUPABASE_SECRET_KEY)"
             if [ -z "$SUPABASE_SECRET_KEY" ]; then echo "The SUPABASE_SECRET_KEY secret is not set."; exit 0; fi
             echo "Secret is set (starts with ${SUPABASE_SECRET_KEY:0:10}...)"
-            python3 scripts/push_day_prices.py --days 10
+            python3 scripts/push_day_prices.py --days 10 || echo "(push_day_prices.py exit code $?)"
             echo "== day_prices read back with the secret key (dates and number of zones only)"
             curl -sS -m 30 "https://ywzvupcjyuvftnpchrtr.supabase.co/rest/v1/day_prices?select=price_date,updated_at&order=price_date.desc&limit=12" \
               -H "apikey: $SUPABASE_SECRET_KEY" -w "\nHTTP %{http_code}\n"
           } >> diagnostics/supabase_check.txt 2>&1
           tail -20 diagnostics/supabase_check.txt
       - name: Save
+        if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
