@@ -1,16 +1,19 @@
-Sun Nov 15 20:05:25 UTC 2026
+Mon Nov 16 08:00:39 UTC 2026
 == ping {}
-0
+1
 HTTP 200
 == day_results {"p_puzzle": 1}
+[{"name":"Nathaniel","solved":true,"tries":1,"first_greens":5,"at":"2026-11-15T20:11:33.289795+00:00"}]
+HTTP 200
+== day_results {"p_puzzle": 2}
+[{"name":"Nathaniel","solved":true,"tries":2,"first_greens":3,"at":"2026-11-16T07:30:01.232957+00:00"}]
+HTTP 200
+== day_results {"p_puzzle": 3}
 []
 HTTP 200
 == leaderboard {"p_from": "2026-11-01", "p_to": "2026-12-31"}
-[]
+[{"name":"Nathaniel","played":2,"wins":2,"points":7,"avg_tries":1.50,"first_greens":4.00,"streak":2}]
 HTTP 200
-== register_player {"p_name": "x"}
-{"code":"P0001","details":null,"hint":"Use 2 to 20 characters.","message":"name_length"}
-HTTP 400
 == direct table read (must be refused)
 {"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.players TO anon;","message":"permission denied for table players"}
 HTTP 401
