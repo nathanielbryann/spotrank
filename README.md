@@ -87,11 +87,11 @@ and redeploys the site.
   calls the functions in `supabase/setup.sql`; the tables can't be read or changed directly. To
   remove a player, delete their row in Supabase (Table Editor → players); their results go with it.
   The daily workflow makes one small call so the free project isn't paused for inactivity.
-- **Skill profile** (in Stats): first-attempt accuracy and average places off per region, built from Regions are the UN's regions of Europe (M49): North (Nordics and Baltics),
-  East (PL, CZ, SK, HU, RO, BG), South (IT, ES, PT, GR, HR, SI), West (DE-LU, NL, BE, FR, AT, CH). The same
-  four group the zones in the Market data picker and "You vs everyone"; the puzzle builder keeps its
-  finer regions for its mix rule.
-  the daily rounds saved in the player's browser.
+- **Skill profile** (in Stats): first-attempt accuracy and average places off per region, built from
+  the daily rounds saved in the player's browser. Regions are the UN's regions of Europe (M49): North
+  (Nordics and Baltics), East (PL, CZ, SK, HU, RO, BG), South (IT, ES, PT, GR, HR, SI), West (DE-LU, NL,
+  BE, FR, AT, CH). The same four group the zones in the Market data picker and "You vs everyone"; the
+  puzzle builder keeps its finer regions for its mix rule.
 
 The drivers history is backfilled a few months per run, newest first. A run can be given more time
 with **Run workflow**, using the "Minutes to spend on wind/solar/load data" field. Generation data works the same way
