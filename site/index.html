@@ -855,8 +855,12 @@ const ZONE_META = {
   AT:{c:'Austria',r:'Central West'}, CZ:{c:'Czechia',r:'Central East'}, SK:{c:'Slovakia',r:'Central East'},
   HU:{c:'Hungary',r:'Central East'}, SI:{c:'Slovenia',r:'Central East'}, HR:{c:'Croatia',r:'South East'},
   RO:{c:'Romania',r:'South East'}, BG:{c:'Bulgaria',r:'South East'}, GR:{c:'Greece',r:'South East'},
-  IT:{c:'Italy',a:'Single zone',r:'Italy'}, ES:{c:'Spain',r:'Iberia'}, PT:{c:'Portugal',r:'Iberia'},
-  CH:{c:'Switzerland',a:'Own auction, outside SDAC',r:'Central West'}
+  IT:{c:'Italy',a:'North (IT-NORD)',r:'Italy'}, ES:{c:'Spain',r:'Iberia'}, PT:{c:'Portugal',r:'Iberia'},
+  CH:{c:'Switzerland',a:'Own auction, outside SDAC',r:'Central West'},
+  // data only (Market data page), never in the game
+  'IT-CNOR':{c:'Italy',a:'Centre-North',r:'Italy',f:'IT',x:1}, 'IT-CSUD':{c:'Italy',a:'Centre-South',r:'Italy',f:'IT',x:1}, 'IT-SUD':{c:'Italy',a:'South',r:'Italy',f:'IT',x:1},
+  'IT-CALA':{c:'Italy',a:'Calabria',r:'Italy',f:'IT',x:1}, 'IT-SICI':{c:'Italy',a:'Sicily',r:'Italy',f:'IT',x:1}, 'IT-SARD':{c:'Italy',a:'Sardinia',r:'Italy',f:'IT',x:1},
+  'IT-ALL':{c:'Italy',a:'Whole country',r:'Italy',f:'IT',x:1}
 };
 function zm(z) {
   const m = ZONE_META[z] || {c: z, r: 'Other'};
@@ -1950,7 +1954,7 @@ function phRange(preset) {
 function phInit() {
   if (PH && PH.dsId === DS.id) return;
   const saved = lsGet('ph', null) || {};
-  let sel = Array.isArray(saved.sel) ? saved.sel.filter(o => o && DS.zones.includes(o.z) && o.slot >= 0 && o.slot < PH_MAX) : null;
+  let sel = Array.isArray(saved.sel) ? saved.sel.filter(o => o && MX().zones.includes(o.z) && o.slot >= 0 && o.slot < PH_MAX) : null;
   if (!sel || !sel.length) sel = ['FI', 'SE3', 'DE-LU', 'FR'].filter(z => DS.zones.includes(z)).map((z, i) => ({z, slot: i}));
   PH = {dsId: DS.id, sel: sel.slice(0, PH_MAX), preset: saved.preset || '90d', from: saved.from, to: saved.to};
   const first = DS.days[0][0], last = DS.days[DS.days.length - 1][0];
@@ -1961,8 +1965,8 @@ function phInit() {
 }
 function phSave() { lsSet('ph', {sel: PH.sel, preset: PH.preset, from: PH.from, to: PH.to}); }
 function phSeries(z, from, to) {
-  const i = DS.zones.indexOf(z), out = [];
-  for (const [d, v] of DS.days) if (d >= from && d <= to) out.push([d, v[i]]);
+  const i = MX().zones.indexOf(z), out = [];
+  for (const [d, v] of MX().days) if (d >= from && d <= to) out.push([d, v[i]]);
   return out;
 }
 function phAvg(z, from, to) {
@@ -1987,6 +1991,7 @@ function phTicks(from, to) {
   return out;
 }
 function renderPrices() {
+  if (EXTRA_STATE === 'idle') loadExtra();
   phInit();
   $('#ph-msg').textContent = '';
   const first = DS.days[0][0], last = DS.days[DS.days.length - 1][0];
@@ -2105,18 +2110,18 @@ function renderPhOverview() {
 function renderPhPicker() {
   const used = new Map(PH.sel.map(o => [o.z, o.slot]));
   $('#ph-zones').innerHTML = REGIONS.map(r => {
-    const zs = DS.zones.filter(z => zm(z).r === r);
+    const zs = MX().zones.filter(z => zm(z).r === r);
     if (!zs.length) return '';
     return '<div class="zp-row"><span class="rg">' + r + '</span><span class="chips">' + zs.map(z =>
       '<button type="button" class="zp" data-zone="' + esc(z) + '" aria-pressed="' + used.has(z) + '" title="' + esc(zm(z).c + (zm(z).a ? ' · ' + zm(z).a : '')) + '"><i' + (used.has(z) ? ' style="background:' + phColor(used.get(z)) + '"' : '') + '></i>' + esc(z) + '</button>').join('') + '</span></div>';
   }).join('');
 }
 function renderPhTable() {
-  const rows = DS.zones.map(z => ({z, a: phAvg(z, PH.from, PH.to)})).filter(o => o.a).sort((a, b) => a.a.avg - b.a.avg);
+  const rows = MX().zones.map(z => ({z, a: phAvg(z, PH.from, PH.to)})).filter(o => o.a).sort((a, b) => a.a.avg - b.a.avg);
   DL.period = {name: 'spotrank-period-average-' + PH.from + '-' + PH.to, header: ['rank', 'zone', 'name', 'average_eur_mwh', 'days'],
     rows: rows.map((o, k) => [k + 1, o.z, zm(o.z).c + (zm(o.z).a ? ' · ' + zm(o.z).a : ''), R2(o.a.avg), o.a.n])};
   const used = new Map(PH.sel.map(o => [o.z, o.slot]));
-  $('#pt-sub').textContent = fmtShortDay(PH.from) + ' – ' + fmtShortDay(PH.to) + '. Mean of the daily baseload prices, cheapest first. Click a row to add or remove it from the chart.';
+  $('#pt-sub').textContent = fmtShortDay(PH.from) + ' – ' + fmtShortDay(PH.to) + '. Mean of the daily baseload prices, cheapest first. Click a row to add or remove it from the chart.' + (MX() !== DS ? ' The Italian zones other than North (IT) are shown here only; they aren\'t part of the game.' : '');
   $('#ph-table').innerHTML = '<thead><tr><th>#</th><th>Zone</th><th>Name</th><th class="num">Average €/MWh</th><th class="num">Days</th></tr></thead><tbody>' +
     rows.map((o, k) => '<tr data-zone="' + esc(o.z) + '"' + (used.has(o.z) ? ' class="mine"' : '') + '><td>' + (k + 1) + '</td><td>' +
       (used.has(o.z) ? '<span style="display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:' + phColor(used.get(o.z)) + '"></span>' : '') + esc(o.z) + '</td><td>' +
@@ -2365,7 +2370,7 @@ function selectMeritZone(z, scroll) {
 }
 function moModel(z, date) {
   const gs = GEN.get(z), gd = gs.d, gi = gd.start ? daysBetween(gd.start, date) : -1;
-  const vals = DS.byDate.get(date) || [], zi = DS.zones.indexOf(z), price = zi >= 0 ? vals[zi] : null;
+  const vals = MX().byDate.get(date) || [], zi = MX().zones.indexOf(z), price = zi >= 0 ? vals[zi] : null;
   const gen = {};
   let any = false;
   for (const g of MO_ORDER) {
@@ -2380,7 +2385,7 @@ function moModel(z, date) {
     .sort((a, b) => a.cost - b.cost || MO_ORDER.indexOf(a.g) - MO_ORDER.indexOf(b.g));
   let cum = 0; for (const b of blocks) { b.x0 = cum; cum += b.mw; b.x1 = cum; }
   const total = cum;
-  const di = DRV && DRV.di ? DRV.di.get(date) : undefined, dr = drvAt(z, di);
+  const dr = drvOn(z, date);
   const load = dr ? dr.load : null;
   // the dearest technology that ran at scale; "Other" and biomass carry assumed costs, so they are left out
   const floor = Math.max(300, 0.03 * (load || total));
@@ -2421,8 +2426,10 @@ function renderMerit() {
   $('#mo-zone').value = MO_Z;
   drawMerit('mo', MO_Z, G.date, 'Merit order: ' + zoneLabel(MO_Z) + ', ' + fmtShortDay(G.date));
 }
-function moZoneOptions(sel) {
-  if (sel.options.length !== DS.zones.length) sel.innerHTML = DS.zones.slice().sort().map(z => '<option value="' + esc(z) + '">' + esc(z) + ' · ' + esc(zm(z).c) + '</option>').join('');
+function moZoneOptions(sel, zones = DS.zones) {
+  if (sel.dataset.n === String(zones.length)) return;
+  sel.dataset.n = zones.length;
+  sel.innerHTML = zones.slice().sort().map(z => '<option value="' + esc(z) + '">' + esc(z) + ' · ' + esc(zm(z).c + (z.indexOf('IT') === 0 && zm(z).a ? ', ' + zm(z).a : '')) + '</option>').join('');
 }
 function rerenderMerits() {
   if (!$('#game-view').hidden) renderMerit();
@@ -2530,6 +2537,37 @@ function drawMerit(p, z, date, title) {
     'Efficiency: gas ' + pct0(A.gas_ccgt.eff) + ', coal ' + pct0(A.coal.eff) + ', lignite ' + pct0(A.lignite.eff) + '. Nuclear, biomass and "other" use fixed costs (' +
     fmtP(A.fixed.nuclear, 0) + ', ' + fmtP(A.fixed.biomass, 0) + ', ' + fmtP(A.fixed.other, 0) + ').' + (z === 'IT' ? ' Italy is its North zone (IT-NORD).' : '');
 }
+/* ---------- data-only zones for the Market data page ---------- */
+// The other Italian bidding zones and Italy as a whole live in their own files, which only this
+// page loads, so the game never sees them.
+let MDS = null, DRVX = null, EXTRA_STATE = 'idle';
+function MX() { return MDS && MDS.baseId === DS.id ? MDS : DS; }
+async function loadExtra() {
+  if (EXTRA_STATE !== 'idle' || !HOSTED) return;
+  EXTRA_STATE = 'loading';
+  const v = '?v=' + isoLocal(new Date()), get = u => fetch(u + v, {cache: 'no-cache'}).then(r => (r.ok ? r.json() : null)).catch(() => null);
+  const [p, d] = await Promise.all([get('data/spotrank_data_extra.json'), get('data/spotrank_drivers_extra.json')]);
+  try {
+    if (p && Array.isArray(p.zones) && Array.isArray(p.days)) {
+      const xb = new Map(p.days), empty = p.zones.map(() => null);
+      const days = DS.days.map(([dd, vals]) => [dd, vals.concat(xb.get(dd) || empty)]);
+      MDS = {...DS, zones: DS.zones.concat(p.zones), days, byDate: new Map(days), baseId: DS.id};
+    }
+    if (d && d.series && Array.isArray(d.dates)) DRVX = {di: new Map(d.dates.map((x, i) => [x, i])), s: d.series};
+  } catch (e) { /* the extra zones are optional */ }
+  EXTRA_STATE = 'done';
+  if (!$('#prices-view').hidden) renderPrices();
+}
+function drvOn(z, date) {   // day-ahead demand and wind/solar for any zone, game or data-only
+  if (DRV && DRV.s[z]) return drvAt(z, DRV.di.get(date));
+  const s = DRVX && DRVX.s[z], i = DRVX ? DRVX.di.get(date) : undefined;
+  if (!s || i === undefined) return null;
+  const L = s.load[i], W = s.wind[i], S = s.solar[i];
+  if (L === null || L <= 0) return null;
+  return {load: L, wind: W, solar: S, hasRes: W !== null || S !== null, res: ((W || 0) + (S || 0)) / L};
+}
+const IT_BORDERS = [['IT','IT-CNOR'],['IT-CNOR','IT-CSUD'],['IT-CSUD','IT-SUD'],['IT-SUD','IT-CALA'],['IT-CALA','IT-SICI'],['IT-CSUD','IT-SARD'],['IT-CNOR','IT-SARD'],['GR','IT-SUD']];
+
 /* ---------- Market data page: tabs, downloads and the extra views ---------- */
 const MD = {tab: lsGet('md-tab', 'prices')};
 if (!['prices', 'gen', 'mo', 'fuel', 'borders'].includes(MD.tab)) MD.tab = 'prices';
@@ -2667,10 +2705,10 @@ function renderFuel() {
 
 /* ---------- Borders ---------- */
 const BD = {pair: null};
-function bdPairs() { return NEIGHBOURS.filter(([a, b]) => DS.zones.includes(a) && DS.zones.includes(b)); }
+function bdPairs() { const zs = MX().zones; return NEIGHBOURS.concat(IT_BORDERS).filter(([a, b]) => zs.includes(a) && zs.includes(b)); }
 function bdStats(a, b, from, to) {
-  const ia = DS.zones.indexOf(a), ib = DS.zones.indexOf(b), days = [];
-  for (const [d, v] of DS.days) if (d >= from && d <= to && v[ia] !== null && v[ib] !== null) days.push({d, pa: v[ia], pb: v[ib], g: v[ia] - v[ib]});
+  const ia = MX().zones.indexOf(a), ib = MX().zones.indexOf(b), days = [];
+  for (const [d, v] of MX().days) if (d >= from && d <= to && v[ia] !== null && v[ib] !== null) days.push({d, pa: v[ia], pb: v[ib], g: v[ia] - v[ib]});
   const n = days.length, split = days.filter(o => Math.abs(o.g) >= 1), aD = split.filter(o => o.g > 0).length, bD = split.length - aD;
   const max = days.reduce((m, o) => (!m || Math.abs(o.g) > Math.abs(m.g) ? o : m), null);
   return {a, b, days, n, split: split.length, aD, bD, meanAbs: n ? days.reduce((s, o) => s + Math.abs(o.g), 0) / n : null, mean: n ? days.reduce((s, o) => s + o.g, 0) / n : null, max};
@@ -2714,7 +2752,7 @@ function renderCapacity() {
   const gs = GEN.get(GM.z);
   if (!gs || gs.state !== 'ok') { box.innerHTML = ''; key.innerHTML = ''; tbl.innerHTML = ''; note.textContent = gs && gs.state === 'loading' ? 'Loading…' : 'No data for this zone.'; return; }
   const gd = gs.d, caps = gd.cap || {}, years = Object.keys(caps).sort();
-  if (!years.length) { box.innerHTML = '<p class="map-msg" style="padding:24px 0">ENTSO-E has no installed capacity for ' + esc(GM.z) + '.</p>'; key.innerHTML = ''; tbl.innerHTML = ''; note.textContent = ''; DL.capacity = null; return; }
+  if (!years.length) { box.innerHTML = '<p class="map-msg" style="padding:24px 0">ENTSO-E has no installed capacity for ' + esc(GM.z) + '.' + (GM.z.indexOf('IT') === 0 ? ' It reports Italy\'s capacity only for the whole country: choose <b>IT-ALL · Italy, Whole country</b>.' : '') + '</p>'; key.innerHTML = ''; tbl.innerHTML = ''; note.textContent = ''; DL.capacity = null; return; }
   const groups = GM_STACK.filter(g => years.some(y => caps[y][g]));
   const css = getComputedStyle(document.documentElement), col = g => css.getPropertyValue(MO_GROUPS[g].c).trim();
   // capacity factor: average daily output in the year ÷ installed capacity
@@ -2761,13 +2799,14 @@ function renderCapacity() {
   });
   key.innerHTML = keyHtml(groups.slice().reverse().map(g => [col(g), MO_GROUPS[g].n]));
   const thisYear = String(new Date().getFullYear());
-  let over = false;
+  let over = false, odd = false;
+  const CF_MAX = {solar: 0.3, wind: 0.6};   // above these a yearly capacity factor isn't physically plausible
   tbl.innerHTML = '<table><thead><tr><th>Technology</th>' + years.map(yr => '<th class="num">' + yr + (yr === thisYear ? ' (so far)' : '') + '</th>').join('') + '</tr></thead><tbody>' +
-    groups.slice().reverse().map(g => '<tr><td>' + esc(MO_GROUPS[g].n) + '</td>' + years.map(yr => { const f = cf[yr][g]; if (!f) return '<td class="num">–</td>'; if (f.v > 1.05) { over = true; return '<td class="num">over 100%*</td>'; } return '<td class="num">' + pct0(f.v) + '</td>'; }).join('') + '</tr>').join('') + '</tbody></table>';
+    groups.slice().reverse().map(g => '<tr><td>' + esc(MO_GROUPS[g].n) + '</td>' + years.map(yr => { const f = cf[yr][g]; if (!f) return '<td class="num">–</td>'; if (f.v > 1.05) { over = true; return '<td class="num">over 100%*</td>'; } if (f.v > (CF_MAX[g] || 1.05)) { odd = true; return '<td class="num">' + pct0(f.v) + '†</td>'; } return '<td class="num">' + pct0(f.v) + '</td>'; }).join('') + '</tr>').join('') + '</tbody></table>';
   DL.capacity = {name: 'spotrank-capacity-' + GM.z, header: ['technology'].concat(years.flatMap(yr => ['installed_mw_' + yr, 'capacity_factor_' + yr])),
     rows: groups.slice().reverse().map(g => [MO_GROUPS[g].n].concat(years.flatMap(yr => [caps[yr][g] || null, cf[yr][g] ? R2(cf[yr][g].v) : null])))};
   note.textContent = 'Capacity: ENTSO-E installed generation capacity per production type, as reported for each year; it doesn\'t follow the period above. Capacity factor: average daily output in that year (ENTSO-E actual generation) ÷ installed capacity. ' +
-    'Pumped storage counts only its generation.' + (over ? ' * Output above the reported capacity means the capacity figure is incomplete for that year.' : '') + (GM.z === 'IT' ? ' Italy is its North zone (IT-NORD).' : '');
+    'Pumped storage counts only its generation.' + (over ? ' * Output above the reported capacity means the capacity figure is incomplete for that year.' : '') + (odd ? ' † Higher than solar or wind can reach over a year, so the reported capacity is probably incomplete (for example, small rooftop systems left out).' : '');
 }
 
 /* ---------- practice on any past day ---------- */
@@ -2813,7 +2852,7 @@ function renderGenMix() {
   const box = $('#gm-chart');
   if (!box || !DS || !PH) return;
   if (!GM.z) GM.z = PH.sel[0] ? PH.sel[0].z : DS.zones.includes('DE-LU') ? 'DE-LU' : DS.zones[0];
-  const sel = $('#gm-zone'); moZoneOptions(sel); sel.value = GM.z;
+  const sel = $('#gm-zone'); moZoneOptions(sel, MX().zones.concat(['IT-ALL'])); sel.value = GM.z;
   document.querySelectorAll('[data-gm-unit]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.gmUnit === GM.unit)));
   const key = $('#gm-key'), tbl = $('#gm-table'), note = $('#gm-note');
   const msg = t => { box.innerHTML = '<p class="map-msg" style="padding:36px 0">' + t + '</p>'; key.innerHTML = ''; tbl.innerHTML = ''; note.textContent = ''; };
@@ -2823,12 +2862,12 @@ function renderGenMix() {
   const gs = GEN.get(GM.z);
   if (!gs || gs.state === 'loading') { msg('Loading…'); return; }
   if (gs.state === 'none' || !gs.d.start) { msg('No generation data for ' + esc(GM.z) + '.'); return; }
-  const gd = gs.d, from = PH.from, to = PH.to, zi = DS.zones.indexOf(GM.z), pct = GM.unit === 'pct';
+  const gd = gs.d, from = PH.from, to = PH.to, zi = MX().zones.indexOf(GM.z), pct = GM.unit === 'pct', hasPrice = zi >= 0;
   // daily values, then the period's shares to decide which small technologies fold into "Other"
   const day = d => {
     const i = daysBetween(gd.start, d), g = {}; let tot = 0, any = false;
     for (const [k, a] of Object.entries(gd.gen || {})) { const v = i >= 0 && i < a.length ? a[i] : null; if (v !== null) { any = true; g[k] = Math.max(0, v); tot += Math.max(0, v); } }
-    const row = DS.byDate.get(d), di = DRV ? DRV.di.get(d) : undefined, dr = di !== undefined ? drvAt(GM.z, di) : null;
+    const row = MX().byDate.get(d), dr = drvOn(GM.z, d);
     return {g: any && tot > 0 ? g : null, tot, price: row ? row[zi] : null, load: dr ? dr.load : null};
   };
   const {res, buckets} = gmBuckets(from, to);
@@ -2854,7 +2893,7 @@ function renderGenMix() {
   // layout: the mix on top, the zone's price below, one time axis
   const css = getComputedStyle(document.documentElement), col = k => css.getPropertyValue(MO_GROUPS[k].c).trim();
   const W = Math.max(300, box.clientWidth || 800), small = W < 520;
-  const padL = 46, padR = 14, padT = 22, H1 = small ? 220 : 300, gap = 26, H2 = small ? 90 : 110, padB = 26, H = padT + H1 + gap + H2 + padB;
+  const padL = 46, padR = 14, padT = 22, H1 = small ? 220 : 300, gap = hasPrice ? 26 : 0, H2 = hasPrice ? (small ? 90 : 110) : 0, padB = 26, H = padT + H1 + gap + H2 + padB;
   const n = Math.max(1, daysBetween(from, to));
   const xc = b => padL + (daysBetween(from, b.days[0]) + (b.days.length - 1) / 2) / n * (W - padL - padR);
   const val = (b, k) => !b.f ? 0 : pct ? (b.f[k] || 0) / b.tot * 100 : (b.f[k] || 0) / 1000;
@@ -2890,9 +2929,9 @@ function renderGenMix() {
     if (d) s += '<path d="' + d + '" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="4 3" stroke-linejoin="round"/>';
   }
   // price panel
-  for (let t = plo; t <= phi + 1e-9; t += pstep) s += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y2(t).toFixed(1) + '" y2="' + y2(t).toFixed(1) + '" stroke="' + (Math.abs(t) < 1e-9 ? 'var(--line-strong)' : 'var(--line)') + '"/><text x="' + (padL - 8) + '" y="' + (y2(t) + 4).toFixed(1) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + (t < 0 ? '−' : '') + Math.abs(Math.round(t)) + '</text>';
-  s += '<text x="' + padL + '" y="' + (y2t - 8) + '" font-size="11" font-weight="600" fill="var(--ink-2)">' + esc(GM.z) + ' price, €/MWh</text>';
-  { let d = '', pen = false; for (const b of buckets) { if (b.price === null) { pen = false; continue; } d += (pen ? 'L' : 'M') + xc(b).toFixed(1) + ',' + y2(b.price).toFixed(1); pen = true; }
+  if (hasPrice) for (let t = plo; t <= phi + 1e-9; t += pstep) s += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y2(t).toFixed(1) + '" y2="' + y2(t).toFixed(1) + '" stroke="' + (Math.abs(t) < 1e-9 ? 'var(--line-strong)' : 'var(--line)') + '"/><text x="' + (padL - 8) + '" y="' + (y2(t) + 4).toFixed(1) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + (t < 0 ? '−' : '') + Math.abs(Math.round(t)) + '</text>';
+  if (hasPrice) s += '<text x="' + padL + '" y="' + (y2t - 8) + '" font-size="11" font-weight="600" fill="var(--ink-2)">' + esc(GM.z) + ' price, €/MWh</text>';
+  if (hasPrice) { let d = '', pen = false; for (const b of buckets) { if (b.price === null) { pen = false; continue; } d += (pen ? 'L' : 'M') + xc(b).toFixed(1) + ',' + y2(b.price).toFixed(1); pen = true; }
     s += '<path d="' + d + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'; }
   for (const [d, lab] of phTicks(from, to)) s += '<text x="' + (padL + daysBetween(from, d) / n * (W - padL - padR)).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + esc(lab) + '</text>';
   s += '<line id="gm-cross" x1="0" x2="0" y1="' + padT + '" y2="' + (y2t + H2) + '" stroke="var(--ink-2)" stroke-width="1" visibility="hidden" pointer-events="none"/>';
@@ -2926,7 +2965,7 @@ function renderGenMix() {
     const sec = $('#pmo-h').closest('section'); if (sec) sec.scrollIntoView({behavior: 'smooth', block: 'start'});
   });
   key.innerHTML = groups.slice().reverse().map(k => '<span><i style="background:' + col(k) + '"></i>' + esc(k === 'other' && fold.length ? 'Other (incl. ' + fold.map(f => MO_GROUPS[f].n.toLowerCase()).join(', ') + ')' : MO_GROUPS[k].n) + '</span>').join('') +
-    (pct ? '' : '<span><i class="dl"></i>Demand (day-ahead forecast)</span>') + '<span><i class="ln"></i>Price</span>';
+    (pct ? '' : '<span><i class="dl"></i>Demand (day-ahead forecast)</span>') + (hasPrice ? '<span><i class="ln"></i>Price</span>' : '');
   const days = buckets.reduce((a, b) => a + b.vals.filter(v => v.g).length, 0);
   DL.mix = {name: 'spotrank-generation-' + GM.z + '-' + from + '-' + to, header: [res === 'day' ? 'date' : res === 'week' ? 'week_from' : 'month'].concat(groups.slice().reverse().map(k => (k === 'other' && fold.length ? 'other_incl_small' : k) + '_gw'), ['total_gw', 'demand_gw', 'price_eur_mwh']),
     rows: buckets.map(b => [res === 'week' ? b.days[0] : b.key].concat(groups.slice().reverse().map(k => b.f ? R2((b.f[k] || 0) / 1000) : null), [b.f ? R2(b.tot / 1000) : null, b.load ? R2(b.load / 1000) : null, R2(b.price)]))};
@@ -2935,7 +2974,7 @@ function renderGenMix() {
     '<tr><td><b>Total</b></td><td class="num"><b>' + (grand / days / 1000).toFixed(2) + '</b></td><td class="num">100%</td><td class="num"><b>' + (grand * 24 / 1e6).toFixed(2) + '</b></td></tr></tbody></table>';
   note.textContent = (res === 'day' ? 'Daily averages' : res === 'week' ? 'Weekly averages of the daily values' : 'Monthly averages of the daily values') + ', ' + fmtShortDay(from) + ' – ' + fmtShortDay(to) + '. ' +
     'Generation: ENTSO-E actual generation per production type; demand: ENTSO-E day-ahead load forecast, so the gap between them is only an estimate of net imports or exports. ' +
-    'Technologies under 2% of the zone\'s output in this period are grouped as "Other". Days without data are left as gaps. What countries report as "other" differs.' + (GM.z === 'IT' ? ' Italy is its North zone (IT-NORD).' : '');
+    'Technologies under 2% of the zone\'s output in this period are grouped as "Other". Days without data are left as gaps. What countries report as "other" differs.' + (GM.z === 'IT' ? ' IT is the North zone (IT-NORD).' : GM.z === 'IT-ALL' ? ' Italy as a whole has no single day-ahead price on ENTSO-E, so no price is shown.' : '');
 }
 /* merit order on the Prices page: any zone, any past day */
 const PMO = {z: null, date: null};
@@ -2948,11 +2987,11 @@ function renderPMO() {
   const {first, last} = pmoBounds();
   if (!PMO.z) {
     const saved = lsGet('pmo', null);
-    PMO.z = saved && DS.zones.includes(saved.z) ? saved.z : PH.sel[0] ? PH.sel[0].z : DS.zones.includes('DE-LU') ? 'DE-LU' : DS.zones[0];
+    PMO.z = saved && MX().zones.includes(saved.z) ? saved.z : PH.sel[0] ? PH.sel[0].z : DS.zones.includes('DE-LU') ? 'DE-LU' : DS.zones[0];
   }
   if (!PMO.date || PMO.date > last) PMO.date = last;
   if (PMO.date < first) PMO.date = first;
-  const sel = $('#pmo-zone'); moZoneOptions(sel); sel.value = PMO.z;
+  const sel = $('#pmo-zone'); moZoneOptions(sel, MX().zones); sel.value = PMO.z;
   const di = $('#pmo-date'); di.min = first; di.max = last; di.value = PMO.date;
   $('#pmo-prev').disabled = PMO.date <= first;
   $('#pmo-next').disabled = PMO.date >= last;

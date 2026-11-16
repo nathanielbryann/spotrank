@@ -59,6 +59,12 @@ and redeploys the site.
     and the lasting switches.
   - **Borders:** the price gap across any interconnected border, days split (daily averages €1 or
     more apart), and a table of all borders.
+  - **Italy on Market data:** besides the game's IT (North zone), the page shows the other Italian
+    bidding zones (IT-CNOR, IT-CSUD, IT-SUD, IT-CALA, IT-SICI, IT-SARD) and Italy as a whole (IT-ALL,
+    generation mix and installed capacity only: no single day-ahead price, and ENTSO-E reports
+    Italy's capacity only for the whole country). They live in `site/data/spotrank_data_extra.json`,
+    `site/data/spotrank_drivers_extra.json` and `site/data/gen/`, which the game never loads, so they
+    are never in puzzles, clues or rankings. Builder: `--zones extra`.
 - **Practice:** a random day, or any day from 2021 to yesterday.
 - **Generation mix (Prices page):** for one zone over the period chosen in the price chart, a
   stacked chart of generation by technology (GW or % share) with demand (day-ahead forecast) and the
