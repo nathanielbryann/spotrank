@@ -1,4 +1,4 @@
-Mon Nov 16 08:00:39 UTC 2026
+Mon Nov 16 08:21:26 UTC 2026
 == ping {}
 1
 HTTP 200
@@ -11,6 +11,15 @@ HTTP 200
 == day_results {"p_puzzle": 3}
 []
 HTTP 200
+== my_results {"p_secret": "00000000-0000-0000-0000-000000000000"}
+[]
+HTTP 200
+== my_progress {"p_secret": "00000000-0000-0000-0000-000000000000"}
+[]
+HTTP 200
+== save_attempt {"p_secret": "00000000-0000-0000-0000-000000000000", "p_puzzle": 1, "p_price_date": "2026-11-15", "p_answer": ["A","B","C","D","E"], "p_attempts": [["A","B","C","D","E"]]}
+{"code":"P0001","details":null,"hint":null,"message":"unknown_player"}
+HTTP 400
 == leaderboard {"p_from": "2026-11-01", "p_to": "2026-12-31"}
 [{"name":"Nathaniel","played":2,"wins":2,"points":7,"avg_tries":1.50,"first_greens":4.00,"streak":2}]
 HTTP 200
