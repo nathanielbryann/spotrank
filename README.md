@@ -49,6 +49,11 @@ and redeploys the site.
 - **Prices page** (`#prices`): daily baseload history for up to six zones, a period picker (presets,
   dates, or drag on the overview strip) and the period average per zone, for the chart's zones and
   for all zones in a table. The average is the mean of the daily baseload prices in the period.
+- **Generation mix (Prices page):** for one zone over the period chosen in the price chart, a
+  stacked chart of generation by technology (GW or % share) with demand (day-ahead forecast) and the
+  zone's price underneath on the same time axis. Daily up to 400 days, then weekly, then monthly
+  averages. Technologies under 2% of the zone's output in the period are grouped as "Other". Clicking
+  a day opens its merit order.
 - **Merit order:** below the map, for any zone you click (default: the dearest of the five), and on
   the Prices page for any zone and any past day (date picker with ‹ › day steps). Blocks
   are what each technology produced that day (ENTSO-E actual generation per production type, daily

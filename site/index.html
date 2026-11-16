@@ -351,6 +351,8 @@ table.lb tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .brief-watch { margin: 10px 0 0; font-size: 14px; color: var(--ink-2); }
 .brief-watch b { color: var(--ink); }
 
+.gm-ctrl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+
 /* Views */
 .view { display: grid; gap: 20px; }
 .view[hidden] { display: none; }
@@ -587,6 +589,25 @@ footer a, .data a { color: var(--accent); }
       <h3 class="ph-h3">Zones <span id="ph-count"></span></h3>
       <div class="zone-picker" id="ph-zones"></div>
       <p class="status-line" id="ph-msg" role="status"></p>
+    </section>
+    <section class="panel" aria-labelledby="gm-h">
+      <div class="lb-head">
+        <div>
+          <h2 id="gm-h" style="margin-bottom:4px">Generation mix</h2>
+          <p class="ph-sub" id="gm-sub">What each technology produced, for the period chosen in the price chart above.</p>
+        </div>
+        <div class="gm-ctrl">
+          <label class="mo-pick">Zone <select id="gm-zone" aria-label="Zone for the generation mix"></select></label>
+          <div class="seg" role="group" aria-label="Unit">
+            <button type="button" data-gm-unit="gw" aria-pressed="true">GW</button>
+            <button type="button" data-gm-unit="pct" aria-pressed="false">% share</button>
+          </div>
+        </div>
+      </div>
+      <div class="chart-wrap" id="gm-chart"></div>
+      <div class="key mo-key" id="gm-key"></div>
+      <details class="tableview"><summary>Period average as a table</summary><div class="tbl-scroll" id="gm-table"></div></details>
+      <p class="map-note" id="gm-note" style="max-width:none;margin-left:0"></p>
     </section>
     <section class="panel" aria-labelledby="pmo-h">
       <h2 id="pmo-h" style="margin-bottom:4px">Merit order</h2>
@@ -1857,7 +1878,7 @@ function renderPrices() {
     return '<span class="lg"><i style="background:' + phColor(slot) + '"></i><b>' + esc(z) + '</b><span class="nm">' + esc(zm(z).c) + '</span><span class="avg">' + (a ? fmtP(a.avg) : 'no data') + '</span><button type="button" data-remove="' + esc(z) + '" aria-label="Remove ' + esc(z) + '">×</button></span>';
   }).join('') : '<span class="ph-sub">Pick up to ' + PH_MAX + ' zones below.</span>';
   $('#ph-count').textContent = PH.sel.length + ' of ' + PH_MAX + ' selected';
-  renderPhChart(); renderPhOverview(); renderPhPicker(); renderPhTable(); renderPMO();
+  renderPhChart(); renderPhOverview(); renderPhPicker(); renderPhTable(); renderGenMix(); renderPMO();
 }
 function renderPhChart() {
   const box = $('#ph-chart');
@@ -2164,6 +2185,7 @@ async function loadGen(z) {
   } catch (e) { GEN.set(z, {state: 'none'}); }
   if (z === MO_Z || z === PMO.z) rerenderMerits();
   if (G && G.answer.includes(z)) renderBrief();
+  if (z === GM.z && !$('#prices-view').hidden) renderGenMix();
 }
 /* latest fuel and CO2 prices on or before the day (markets don't trade on weekends and holidays) */
 function fuelAt(date) {
@@ -2370,6 +2392,151 @@ function drawMerit(p, z, date, title) {
     'Efficiency: gas ' + pct0(A.gas_ccgt.eff) + ', coal ' + pct0(A.coal.eff) + ', lignite ' + pct0(A.lignite.eff) + '. Nuclear, biomass and "other" use fixed costs (' +
     fmtP(A.fixed.nuclear, 0) + ', ' + fmtP(A.fixed.biomass, 0) + ', ' + fmtP(A.fixed.other, 0) + ').' + (z === 'IT' ? ' Italy is its North zone (IT-NORD).' : '');
 }
+/* generation mix on the Prices page: one zone, over the price chart's period */
+const GM = {z: null, unit: lsGet('gm-unit', 'gw')};
+const GM_STACK = ['nuclear', 'lignite', 'coal', 'gas', 'oil', 'other', 'biomass', 'hydro_ror', 'hydro_storage', 'wind', 'solar'];   // bottom to top
+function gmBuckets(from, to) {
+  const n = daysBetween(from, to) + 1, res = n <= 400 ? 'day' : n <= 1100 ? 'week' : 'month', out = [];
+  let cur = null;
+  for (let i = 0; i < n; i++) {
+    const dt = addDays(parseISO(from), i), d = isoLocal(dt);
+    const key = res === 'day' ? d : res === 'week' ? isoLocal(addDays(dt, -((dt.getDay() + 6) % 7))) : d.slice(0, 7);
+    if (!cur || cur.key !== key) { cur = {key, days: []}; out.push(cur); }
+    cur.days.push(d);
+  }
+  return {res, buckets: out};
+}
+function gmLabel(b, res) {
+  if (res === 'day') return fmtDay(b.key);
+  if (res === 'week') return 'Week of ' + fmtShortDay(b.days[0]);
+  return MONTHS[+b.key.slice(5, 7) - 1] + ' ' + b.key.slice(0, 4);
+}
+function renderGenMix() {
+  const box = $('#gm-chart');
+  if (!box || !DS || !PH) return;
+  if (!GM.z) { const saved = lsGet('gm-z', null); GM.z = saved && DS.zones.includes(saved) ? saved : PH.sel[0] ? PH.sel[0].z : DS.zones.includes('DE-LU') ? 'DE-LU' : DS.zones[0]; }
+  const sel = $('#gm-zone'); moZoneOptions(sel); sel.value = GM.z;
+  document.querySelectorAll('[data-gm-unit]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.gmUnit === GM.unit)));
+  const key = $('#gm-key'), tbl = $('#gm-table'), note = $('#gm-note');
+  const msg = t => { box.innerHTML = '<p class="map-msg" style="padding:36px 0">' + t + '</p>'; key.innerHTML = ''; tbl.innerHTML = ''; note.textContent = ''; };
+  if (!HOSTED) { msg('The generation mix needs the hosted data files.'); return; }
+  if (!GEN.has(GM.z)) loadGen(GM.z);
+  if (DRV_STATE === 'idle') loadDrivers().then(() => { if (!$('#prices-view').hidden) renderGenMix(); });
+  const gs = GEN.get(GM.z);
+  if (!gs || gs.state === 'loading') { msg('Loading…'); return; }
+  if (gs.state === 'none' || !gs.d.start) { msg('No generation data for ' + esc(GM.z) + '.'); return; }
+  const gd = gs.d, from = PH.from, to = PH.to, zi = DS.zones.indexOf(GM.z), pct = GM.unit === 'pct';
+  // daily values, then the period's shares to decide which small technologies fold into "Other"
+  const day = d => {
+    const i = daysBetween(gd.start, d), g = {}; let tot = 0, any = false;
+    for (const [k, a] of Object.entries(gd.gen || {})) { const v = i >= 0 && i < a.length ? a[i] : null; if (v !== null) { any = true; g[k] = Math.max(0, v); tot += Math.max(0, v); } }
+    const row = DS.byDate.get(d), di = DRV ? DRV.di.get(d) : undefined, dr = di !== undefined ? drvAt(GM.z, di) : null;
+    return {g: any && tot > 0 ? g : null, tot, price: row ? row[zi] : null, load: dr ? dr.load : null};
+  };
+  const {res, buckets} = gmBuckets(from, to);
+  const periodTot = {}; let grand = 0;
+  for (const b of buckets) {
+    b.vals = b.days.map(day);
+    const ok = b.vals.filter(v => v.g);
+    b.g = null;
+    if (ok.length) { b.g = {}; for (const v of ok) for (const [k, x] of Object.entries(v.g)) b.g[k] = (b.g[k] || 0) + x / ok.length; }
+    const ps = b.vals.map(v => v.price).filter(v => v !== null && v !== undefined), ls = b.vals.map(v => v.load).filter(v => v);
+    b.price = ps.length ? ps.reduce((a, c) => a + c, 0) / ps.length : null;
+    b.load = ls.length ? ls.reduce((a, c) => a + c, 0) / ls.length : null;
+    if (b.g) for (const [k, x] of Object.entries(b.g)) { periodTot[k] = (periodTot[k] || 0) + x * ok.length; grand += x * ok.length; }
+  }
+  if (!grand) { msg('ENTSO-E has no generation data for ' + esc(GM.z) + ' in this period.'); return; }
+  const fold = Object.keys(periodTot).filter(k => k !== 'other' && periodTot[k] / grand < 0.02);
+  const groups = GM_STACK.filter(k => k === 'other' ? (periodTot.other > 0 || fold.length > 0) : periodTot[k] > 0 && !fold.includes(k));
+  for (const b of buckets) if (b.g) {
+    const g = {}; let t = 0;
+    for (const [k, x] of Object.entries(b.g)) { const kk = fold.includes(k) ? 'other' : k; g[kk] = (g[kk] || 0) + x; t += x; }
+    b.f = g; b.tot = t;
+  }
+  // layout: the mix on top, the zone's price below, one time axis
+  const css = getComputedStyle(document.documentElement), col = k => css.getPropertyValue(MO_GROUPS[k].c).trim();
+  const W = Math.max(300, box.clientWidth || 800), small = W < 520;
+  const padL = 46, padR = 14, padT = 22, H1 = small ? 220 : 300, gap = 26, H2 = small ? 90 : 110, padB = 26, H = padT + H1 + gap + H2 + padB;
+  const n = Math.max(1, daysBetween(from, to));
+  const xc = b => padL + (daysBetween(from, b.days[0]) + (b.days.length - 1) / 2) / n * (W - padL - padR);
+  const val = (b, k) => !b.f ? 0 : pct ? (b.f[k] || 0) / b.tot * 100 : (b.f[k] || 0) / 1000;
+  let top = pct ? 100 : Math.max(...buckets.filter(b => b.f).map(b => Math.max(b.tot, b.load || 0))) / 1000;
+  const ystep = niceStep(top || 1, small ? 4 : 5); top = pct ? 100 : Math.ceil(top / ystep) * ystep;
+  const y1 = v => padT + (top - v) / top * H1;
+  const pv = buckets.map(b => b.price).filter(v => v !== null);
+  let plo = Math.min(0, ...pv), phi = Math.max(1, ...pv);
+  const pstep = niceStep((phi - plo) || 1, 3); plo = Math.floor(plo / pstep) * pstep; phi = Math.ceil(phi / pstep) * pstep;
+  const y2t = padT + H1 + gap, y2 = v => y2t + (phi - v) / (phi - plo) * H2;
+  let s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Generation by technology in ' + esc(GM.z) + ', with the zone\'s price below">';
+  for (let t = 0; t <= top + 1e-9; t += ystep) s += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y1(t).toFixed(1) + '" y2="' + y1(t).toFixed(1) + '" stroke="var(--line)"/><text x="' + (padL - 8) + '" y="' + (y1(t) + 4).toFixed(1) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + (+t.toFixed(1)) + '</text>';
+  s += '<text x="' + (padL - 8) + '" y="' + (padT - 12) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + (pct ? '%' : 'GW') + '</text>';
+  // stacked areas, broken where data is missing
+  const segs = []; let cur = [];
+  for (const b of buckets) { if (b.f) cur.push(b); else if (cur.length) { segs.push(cur); cur = []; } }
+  if (cur.length) segs.push(cur);
+  for (const seg of segs) {
+    const base = seg.map(() => 0);
+    const one = seg.length === 1;
+    for (const k of groups) {
+      const up = seg.map((b, i) => base[i] + val(b, k));
+      const pts = seg.map((b, i) => [xc(b), y1(up[i])]), low = seg.map((b, i) => [xc(b), y1(base[i])]);
+      if (one) { const w = 3; pts.unshift([pts[0][0] - w, pts[0][1]]); pts[1][0] += w; low.unshift([low[0][0] - w, low[0][1]]); low[1][0] += w; }
+      const d = 'M' + pts.map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('L') + 'L' + low.reverse().map(p => p[0].toFixed(1) + ',' + p[1].toFixed(1)).join('L') + 'Z';
+      s += '<path d="' + d + '" fill="' + col(k) + '" stroke="var(--surface)" stroke-width="0.6" stroke-linejoin="round"/>';
+      up.forEach((v, i) => { base[i] = v; });
+    }
+  }
+  if (!pct) {   // demand (day-ahead forecast)
+    let d = '', pen = false;
+    for (const b of buckets) { if (!b.load || !b.f) { pen = false; continue; } d += (pen ? 'L' : 'M') + xc(b).toFixed(1) + ',' + y1(b.load / 1000).toFixed(1); pen = true; }
+    if (d) s += '<path d="' + d + '" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="4 3" stroke-linejoin="round"/>';
+  }
+  // price panel
+  for (let t = plo; t <= phi + 1e-9; t += pstep) s += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y2(t).toFixed(1) + '" y2="' + y2(t).toFixed(1) + '" stroke="' + (Math.abs(t) < 1e-9 ? 'var(--line-strong)' : 'var(--line)') + '"/><text x="' + (padL - 8) + '" y="' + (y2(t) + 4).toFixed(1) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + (t < 0 ? '−' : '') + Math.abs(Math.round(t)) + '</text>';
+  s += '<text x="' + padL + '" y="' + (y2t - 8) + '" font-size="11" font-weight="600" fill="var(--ink-2)">' + esc(GM.z) + ' price, €/MWh</text>';
+  { let d = '', pen = false; for (const b of buckets) { if (b.price === null) { pen = false; continue; } d += (pen ? 'L' : 'M') + xc(b).toFixed(1) + ',' + y2(b.price).toFixed(1); pen = true; }
+    s += '<path d="' + d + '" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'; }
+  for (const [d, lab] of phTicks(from, to)) s += '<text x="' + (padL + daysBetween(from, d) / n * (W - padL - padR)).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + esc(lab) + '</text>';
+  s += '<line id="gm-cross" x1="0" x2="0" y1="' + padT + '" y2="' + (y2t + H2) + '" stroke="var(--ink-2)" stroke-width="1" visibility="hidden" pointer-events="none"/>';
+  s += '<rect id="gm-hit" x="' + padL + '" y="' + padT + '" width="' + (W - padL - padR) + '" height="' + (y2t + H2 - padT) + '" fill="transparent" style="cursor:' + (res === 'day' ? 'pointer' : 'default') + '"/></svg><div class="tip" id="gm-tip"></div>';
+  box.innerHTML = s;
+  const hit = $('#gm-hit'), cross = $('#gm-cross'), tip = $('#gm-tip');
+  const pick = e => {
+    const r = box.getBoundingClientRect(), px = e.clientX - r.left;
+    let best = null, bd = Infinity;
+    for (const b of buckets) { const dd = Math.abs(xc(b) - px); if (dd < bd) { bd = dd; best = b; } }
+    return best;
+  };
+  hit.addEventListener('pointermove', e => {
+    const b = pick(e); if (!b) return;
+    cross.setAttribute('x1', xc(b)); cross.setAttribute('x2', xc(b)); cross.setAttribute('visibility', 'visible');
+    let t = '<b>' + esc(gmLabel(b, res)) + '</b>';
+    if (b.f) {
+      t += groups.slice().reverse().filter(k => b.f[k]).map(k => '<br><span style="display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:' + col(k) + '"></span>' + esc(k === 'other' && fold.length ? 'Other (incl. small)' : MO_GROUPS[k].n) + ' <b>' + (b.f[k] / 1000).toFixed(1) + ' GW</b> · ' + pct0(b.f[k] / b.tot)).join('');
+      t += '<br>Total generation <b>' + (b.tot / 1000).toFixed(1) + ' GW</b>';
+      if (b.load) { const net = b.load - b.tot; t += '<br>Demand <b>' + (b.load / 1000).toFixed(1) + ' GW</b> · ' + (Math.abs(net) < 0.03 * b.load ? 'about balanced' : net > 0 ? 'net imports ' + (net / 1000).toFixed(1) + ' GW' : 'net exports ' + (-net / 1000).toFixed(1) + ' GW'); }
+    } else t += '<br>No generation data';
+    if (b.price !== null) t += '<br>Price <b>' + fmtP(b.price) + '</b>';
+    if (res === 'day' && b.f) t += '<br><span style="color:var(--muted)">Click for this day\'s merit order</span>';
+    tip.innerHTML = t; tip.style.display = 'block';
+    tip.style.left = Math.min(Math.max(xc(b), 110), W - 110) + 'px'; tip.style.top = (padT + 6) + 'px'; tip.style.transform = 'translate(-50%, 0)';
+  });
+  hit.addEventListener('pointerleave', () => { tip.style.display = 'none'; cross.setAttribute('visibility', 'hidden'); });
+  hit.addEventListener('click', e => {
+    const b = pick(e); if (!b || res !== 'day' || !b.f) return;
+    pmoSet(GM.z, b.key);
+    const sec = $('#pmo-h').closest('section'); if (sec) sec.scrollIntoView({behavior: 'smooth', block: 'start'});
+  });
+  key.innerHTML = groups.slice().reverse().map(k => '<span><i style="background:' + col(k) + '"></i>' + esc(k === 'other' && fold.length ? 'Other (incl. ' + fold.map(f => MO_GROUPS[f].n.toLowerCase()).join(', ') + ')' : MO_GROUPS[k].n) + '</span>').join('') +
+    (pct ? '' : '<span><i class="dl"></i>Demand (day-ahead forecast)</span>') + '<span><i class="ln"></i>Price</span>';
+  const days = buckets.reduce((a, b) => a + b.vals.filter(v => v.g).length, 0);
+  tbl.innerHTML = '<table><thead><tr><th>Technology</th><th class="num">Average, GW</th><th class="num">Share</th><th class="num">TWh in the period</th></tr></thead><tbody>' +
+    groups.slice().reverse().map(k => { const t = k === 'other' ? (periodTot.other || 0) + fold.reduce((a, f) => a + periodTot[f], 0) : periodTot[k]; return '<tr><td>' + esc(k === 'other' && fold.length ? 'Other (incl. small)' : MO_GROUPS[k].n) + '</td><td class="num">' + (t / days / 1000).toFixed(2) + '</td><td class="num">' + (100 * t / grand).toFixed(1) + '%</td><td class="num">' + (t * 24 / 1e6).toFixed(2) + '</td></tr>'; }).join('') +
+    '<tr><td><b>Total</b></td><td class="num"><b>' + (grand / days / 1000).toFixed(2) + '</b></td><td class="num">100%</td><td class="num"><b>' + (grand * 24 / 1e6).toFixed(2) + '</b></td></tr></tbody></table>';
+  note.textContent = (res === 'day' ? 'Daily averages' : res === 'week' ? 'Weekly averages of the daily values' : 'Monthly averages of the daily values') + ', ' + fmtShortDay(from) + ' – ' + fmtShortDay(to) + '. ' +
+    'Generation: ENTSO-E actual generation per production type; demand: ENTSO-E day-ahead load forecast, so the gap between them is only an estimate of net imports or exports. ' +
+    'Technologies under 2% of the zone\'s output in this period are grouped as "Other". Days without data are left as gaps. What countries report as "other" differs.' + (GM.z === 'IT' ? ' Italy is its North zone (IT-NORD).' : '');
+}
 /* merit order on the Prices page: any zone, any past day */
 const PMO = {z: null, date: null};
 function pmoBounds() {
@@ -2574,6 +2741,8 @@ $('#btn-submit').addEventListener('click', submit);
 $('#view-map').addEventListener('click', () => setView('map'));
 $('#mo-zone').addEventListener('change', e => selectMeritZone(e.target.value, false));
 $('#pmo-zone').addEventListener('change', e => pmoSet(e.target.value, null));
+$('#gm-zone').addEventListener('change', e => { GM.z = e.target.value; lsSet('gm-z', GM.z); renderGenMix(); });
+document.querySelectorAll('[data-gm-unit]').forEach(b => b.addEventListener('click', () => { GM.unit = b.dataset.gmUnit; lsSet('gm-unit', GM.unit); renderGenMix(); }));
 $('#pmo-date').addEventListener('change', e => { if (e.target.value) pmoSet(null, e.target.value); });
 $('#pmo-prev').addEventListener('click', () => pmoSet(null, isoLocal(addDays(parseISO(PMO.date), -1))));
 $('#pmo-next').addEventListener('click', () => pmoSet(null, isoLocal(addDays(parseISO(PMO.date), 1))));
