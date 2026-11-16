@@ -1,0 +1,30 @@
+# Starts the daily price update ("Update prices and deploy") every afternoon.
+#
+# GitHub only runs a schedule for the person who last edited its cron line, and edits made through
+# Claude's app connection don't count. So this file is Nathaniel's: Claude doesn't change it.
+#
+# To start an update by hand: "Run workflow" on this workflow's Actions page, or push a change
+# to .github/update-now.txt.
+name: Daily start
+
+on:
+  schedule:
+    - cron: "37 14 * * *"    # 14:37 UTC (16:37 Helsinki in winter), after the 12:00 CET auction results
+  push:
+    branches: [main]
+    paths: [".github/update-now.txt"]
+  workflow_dispatch:
+
+permissions:
+  actions: write             # allowed to start another workflow
+
+jobs:
+  start:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start "Update prices and deploy"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run update-and-deploy.yml --repo "${{ github.repository }}" --ref main
+          echo "Started the update for $(date -u +%F) (event: ${{ github.event_name }})"

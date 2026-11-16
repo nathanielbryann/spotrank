@@ -1,8 +1,7 @@
 name: Update prices and deploy
 
 on:
-  schedule:
-    - cron: "37 14 * * *"   # every day 14:37 UTC, after the SDAC day-ahead results are published
+  # the daily start comes from daily-start.yml (GitHub didn't run a schedule kept in this file)
   workflow_dispatch:        # "Run workflow" button in the Actions tab
     inputs:
       drivers_minutes:

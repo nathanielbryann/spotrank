@@ -6,8 +6,11 @@ A daily game: rank five European bidding zones by their day-ahead baseload price
 - `site/data/spotrank_data.json` holds daily baseload prices from January 2021 for 32 SDAC zones
   plus Switzerland (its own day-ahead auction, outside SDAC), from the
   [ENTSO-E Transparency Platform](https://transparency.entsoe.eu/).
-- `.github/workflows/update-and-deploy.yml` runs every day at 14:37 UTC. It fetches the newest
-  prices, commits them, and republishes the site.
+- `.github/workflows/update-and-deploy.yml` fetches the newest prices, commits them, and republishes
+  the site. `.github/workflows/daily-start.yml` starts it every day at 14:37 UTC. GitHub only runs a
+  schedule for the person who last edited its cron line (edits through Claude's app connection don't
+  count), so that small file is edited by hand on GitHub only. To start an update by hand: "Run
+  workflow" on the Daily start page in the Actions tab, or push a change to `.github/update-now.txt`.
 - `scripts/build_spotrank_data.py` is the price builder. It also runs locally:
   `python scripts/build_spotrank_data.py --update --out site/data/spotrank_data.json`
 
