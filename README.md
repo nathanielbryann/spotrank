@@ -14,6 +14,9 @@ A daily game: rank five European bidding zones by their day-ahead baseload price
 Daily baseload is the time-weighted average of all market time units in the CET delivery day,
 which handles both hourly and 15-minute prices. Italy uses its North zone (IT-NORD).
 
+After rebuilding the map (`scripts/build_map.py`), change `MAP_VERSION` in `site/index.html`:
+browsers keep the map file cached, and a new version string makes them fetch the new one.
+
 To extend the history (or after adding a zone), change `.github/history-request.txt`: the
 **Backfill history** workflow fetches older prices, forecasts and generation in three parallel jobs
 and redeploys the site.
