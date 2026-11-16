@@ -927,7 +927,7 @@ function submitScore() {
   selected = null; animateNext = true;
   if (G.status !== 'playing' && G.mode === 'daily' && !G.counted) { recordStats(); G.counted = true; }
   persist();
-  if (G.status !== 'playing' && G.mode === 'daily') { CROWD.at = 0; submitDaily(); }
+  if (G.mode === 'daily') { if (G.status === 'playing') saveProgress(); else { CROWD.at = 0; submitDaily(); } }
   say('Attempt ' + G.attempts.length + ': ' + nG + ' of ' + N + ' in the right place.' + (G.status === 'won' ? ' Solved.' : G.status === 'lost' ? ' Out of attempts.' : ''));
   render();
 }
@@ -1480,6 +1480,7 @@ const SB_MSG = {
   name_chars: 'Use letters, numbers, spaces and . _ -',
   unknown_player: 'That player code wasn\'t found.',
   not_todays_puzzle: 'Only today\'s daily puzzle can be saved.',
+  started_elsewhere: 'This round was continued on another device, so that one is shown here.',
 };
 async function sb(fn, args) {
   let r;
@@ -1489,7 +1490,8 @@ async function sb(fn, args) {
   const j = await r.json().catch(() => null);
   if (!r.ok) {
     const code = j && j.message;
-    throw new Error(SB_MSG[code] || (j && j.hint) || 'The leaderboard answered with an error (' + r.status + ').');
+    const err = new Error(SB_MSG[code] || (j && j.hint) || 'The leaderboard answered with an error (' + r.status + ').');
+    err.code = code; throw err;
   }
   return j;
 }
@@ -1509,9 +1511,13 @@ async function submitDaily() {
   if (!PLAYER || !g || g.status === 'playing' || g.sbSaved || SB_SAVING) return;
   SB_SAVING = true;
   try {
-    await sb('submit_result', {p_secret: PLAYER.secret, p_puzzle: g.puzzleNo, p_price_date: g.date, p_answer: g.answer, p_attempts: attemptsOf(g)});
+    const res = await sb('submit_result', {p_secret: PLAYER.secret, p_puzzle: g.puzzleNo, p_price_date: g.date, p_answer: g.answer, p_attempts: attemptsOf(g)});
     g.sbSaved = true; CROWD.err = null;
-  } catch (e) { CROWD.err = e.message; }
+    if (res === 'already_saved') { SB_SAVING = false; lsSet(dailyKey(g.puzzleNo, g.date), g); await syncMine(g.puzzleNo); loadCrowd(true); return; }   // show the round that counts
+  } catch (e) {
+    CROWD.err = e.message;
+    if (e.code === 'started_elsewhere') { SB_SAVING = false; await syncMine(g.puzzleNo); return; }
+  }
   SB_SAVING = false;
   lsSet(dailyKey(g.puzzleNo, g.date), g);
   LB.cache = {};
@@ -1532,7 +1538,7 @@ async function joinWithCode(code) {
   PLAYER = {id: rows[0].player_id, name: rows[0].name, secret: c}; lsSet('player', PLAYER);
   LB.cache = {};
   await syncMine();   // rounds already played on another device
-  submitDaily();
+  submitDaily(); saveProgress();
 }
 /* a name field and a Join button, used in the game and on the leaderboard page */
 function joinFormHtml(id, lead) {
@@ -1552,37 +1558,55 @@ function wireJoin(id, after) {
   });
 }
 
+/* save today's round after every attempt, so it can continue on another device */
+async function saveProgress() {
+  const g = todaysDaily();
+  if (!PLAYER || !HOSTED || !g || g.status !== 'playing' || !g.attempts.length) return;
+  try {
+    const stored = await sb('save_attempt', {p_secret: PLAYER.secret, p_puzzle: g.puzzleNo, p_price_date: g.date, p_answer: g.answer, p_attempts: attemptsOf(g)});
+    if (Array.isArray(stored) && stored.length > g.attempts.length) await syncMine();   // another device got further
+  } catch (e) { /* offline or not set up: tried again on the next attempt or visit */ }
+}
+function gameFromServer(r, status) {
+  const row = DS.byDate.get(r.price_date);
+  if (!row || !Array.isArray(r.answer) || r.answer.length !== N || !Array.isArray(r.attempts) || !r.attempts.length) return null;
+  const prices = {};
+  for (const z of r.answer) { const v = row[DS.zones.indexOf(z)]; if (v === null || v === undefined) return null; prices[z] = v; }
+  const att = r.attempts.map(a => a.map((z, i) => ({z, r: z === r.answer[i] ? 'g' : 'x'})));
+  const last = att[att.length - 1];
+  const g = {v: 2, mode: 'daily', puzzleNo: r.puzzle_no, dsId: DS.id, date: r.price_date, live: false, answer: r.answer.slice(), prices,
+    order: last.map(t => t.z), attempts: att, locked: last.map(t => t.r === 'g'), status,
+    clues: null, counted: status !== 'playing', sbSaved: status !== 'playing', restored: true};
+  g.clues = buildClues(g);
+  return g;
+}
 /* bring this player's saved daily rounds to this browser (another device, or cleared storage) */
-async function syncMine() {
+async function syncMine(replace) {
   if (!PLAYER || !HOSTED || !DS) return 0;
-  let rows;
-  try { rows = await sb('my_results', {p_secret: PLAYER.secret}); } catch (e) { return 0; }
+  let done = [], open = [];
+  try { done = await sb('my_results', {p_secret: PLAYER.secret}) || []; } catch (e) { /* function not set up yet */ }
+  try { open = await sb('my_progress', {p_secret: PLAYER.secret}) || []; } catch (e) { /* function not set up yet */ }
   let added = 0;
-  for (const r of rows || []) {
+  for (const r of done) {
     const key = dailyKey(r.puzzle_no, r.price_date), have = lsGet(key, null);
-    if (have && have.status !== 'playing') { if (!have.sbSaved) { have.sbSaved = true; lsSet(key, have); } continue; }
-    const row = DS.byDate.get(r.price_date);
-    if (!row || !Array.isArray(r.answer) || r.answer.length !== N || !Array.isArray(r.attempts) || !r.attempts.length) continue;
-    const prices = {};
-    let ok = true;
-    for (const z of r.answer) { const v = row[DS.zones.indexOf(z)]; if (v === null || v === undefined) ok = false; prices[z] = v; }
-    if (!ok) continue;
-    const att = r.attempts.map(a => a.map((z, i) => ({z, r: z === r.answer[i] ? 'g' : 'x'})));
-    const last = att[att.length - 1];
-    const g = {v: 2, mode: 'daily', puzzleNo: r.puzzle_no, dsId: DS.id, date: r.price_date, live: false, answer: r.answer.slice(), prices,
-      order: last.map(t => t.z), attempts: att, locked: last.map(t => t.r === 'g'), status: r.solved ? 'won' : 'lost',
-      clues: null, counted: true, sbSaved: true, restored: true};
-    g.clues = buildClues(g);
-    lsSet(key, g); added++;
+    if (have && have.status !== 'playing' && r.puzzle_no !== replace) { if (!have.sbSaved) { have.sbSaved = true; lsSet(key, have); } continue; }
+    const g = gameFromServer(r, r.solved ? 'won' : 'lost');
+    if (g) { lsSet(key, g); added++; }
+  }
+  for (const r of open) {
+    const key = dailyKey(r.puzzle_no, r.price_date), have = lsGet(key, null);
+    if (r.puzzle_no !== replace && have && (have.status !== 'playing' || have.attempts.length >= r.attempts.length)) continue;
+    const g = gameFromServer(r, 'playing');
+    if (g) { lsSet(key, g); added++; }
   }
   if (!added) return 0;
   rebuildStats();
   const today = loadDaily();
-  if (today && today.status !== 'playing') {
-    if (G && G.mode === 'daily' && G.status === 'playing') G = today;
-    if (DAILY && DAILY.status === 'playing') DAILY = today;
+  if (today) {
+    if (G && G.mode === 'daily' && G.puzzleNo === today.puzzleNo) G = today;
+    if (DAILY && DAILY.puzzleNo === today.puzzleNo) DAILY = today;
   }
-  render();
+  selected = null; render();
   return added;
 }
 /* stats from every finished daily round kept in this browser */
@@ -2555,6 +2579,11 @@ $('#pmo-prev').addEventListener('click', () => pmoSet(null, isoLocal(addDays(par
 $('#pmo-next').addEventListener('click', () => pmoSet(null, isoLocal(addDays(parseISO(PMO.date), 1))));
 $('#view-month').addEventListener('click', () => setView('month'));
 $('#btn-prices').addEventListener('click', () => { location.hash = location.hash === '#prices' ? 'game' : 'prices'; });
+let lastSync = Date.now();
+document.addEventListener('visibilitychange', () => {   // back to this tab: pick up attempts made on another device
+  if (document.hidden || !PLAYER || !DS || Date.now() - lastSync < 20000) return;
+  lastSync = Date.now(); syncMine();
+});
 $('#btn-board').addEventListener('click', () => { location.hash = location.hash === '#board' ? 'game' : 'board'; });
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) { location.hash = b.dataset.go; window.scrollTo({top: 0}); } });
 document.querySelectorAll('[data-lb]').forEach(b => b.addEventListener('click', () => setBoardPeriod(b.dataset.lb)));
@@ -2612,7 +2641,7 @@ async function boot(snap) {
   render();
   route();
   loadDrivers();   // wind/solar/demand data for clues and insights
-  if (PLAYER && HOSTED) syncMine().then(() => submitDaily());   // rounds from other devices; then a finished round that wasn't saved yet
+  if (PLAYER && HOSTED) syncMine().then(() => { submitDaily(); saveProgress(); });   // rounds from other devices, then anything not saved yet
 }
 window.claude?.hot?.snapshot?.(() => ({G}));
 window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});
