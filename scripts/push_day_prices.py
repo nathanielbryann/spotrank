@@ -47,6 +47,10 @@ def main() -> int:
     if not key:
         print("::notice::SUPABASE_SECRET_KEY isn't set, so forecast prices weren't sent to the database.")
         return 0
+    if not key.startswith("sb_secret_"):
+        print("::warning::SUPABASE_SECRET_KEY doesn't start with sb_secret_. It needs the secret key from "
+              "Supabase (Project Settings > API Keys > Secret keys), not the publishable key.")
+        return 1
     req = urllib.request.Request(
         SUPABASE_URL + "/rest/v1/day_prices?on_conflict=price_date",
         data=json.dumps(rows).encode("utf-8"),
