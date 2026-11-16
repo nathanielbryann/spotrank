@@ -58,6 +58,11 @@ jobs:
             echo "== day_prices read back with the secret key (dates and number of zones only)"
             curl -sS -m 30 "https://ywzvupcjyuvftnpchrtr.supabase.co/rest/v1/day_prices?select=price_date,updated_at&order=price_date.desc&limit=12" \
               -H "apikey: $SUPABASE_SECRET_KEY" -w "\nHTTP %{http_code}\n"
+            echo "== deadline: 17 Nov delivery at 10:59 and 11:05 CET (expect open, closed)"
+            for t in 2026-11-16T09:59:00Z 2026-11-16T10:05:00Z; do
+              curl -sS -m 30 -X POST "https://ywzvupcjyuvftnpchrtr.supabase.co/rest/v1/rpc/spotrank_fc_state" -H "apikey: $SUPABASE_SECRET_KEY" \
+                -H "Content-Type: application/json" -d "{\"p_delivery\": \"2026-11-17\", \"p_at\": \"$t\"}" -w "  HTTP %{http_code}\n"
+            done
           } >> diagnostics/supabase_check.txt 2>&1
           tail -20 diagnostics/supabase_check.txt
       - name: Save
