@@ -1,4 +1,4 @@
-Mon Nov 16 08:21:26 UTC 2026
+Mon Nov 16 12:08:31 UTC 2026
 == ping {}
 1
 HTTP 200
@@ -25,4 +25,35 @@ HTTP 400
 HTTP 200
 == direct table read (must be refused)
 {"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.players TO anon;","message":"permission denied for table players"}
+HTTP 401
+
+#### Forecast challenge (supabase/forecast-challenge.sql)
+== fc_day_results {"p_delivery": "2026-11-17"}
+[]
+HTTP 200
+== fc_leaderboard {"p_from": "2026-11-01", "p_to": "2026-12-31"}
+[]
+HTTP 200
+== my_forecasts {"p_secret": "00000000-0000-0000-0000-000000000000"}
+[]
+HTTP 200
+== submit_forecast {"p_secret": "00000000-0000-0000-0000-000000000000", "p_delivery": "2026-11-17", "p_ranking": ["FI","SE3","FR","DE-LU","PL"]}
+{"code":"P0001","details":null,"hint":null,"message":"unknown_player"}
+HTTP 400
+== direct read of forecasts with the page's key (must be refused)
+{"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.forecasts TO anon;","message":"permission denied for table forecasts"}
+HTTP 401
+== direct read of forecast_days with the page's key (must be refused)
+{"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.forecast_days TO anon;","message":"permission denied for table forecast_days"}
+HTTP 401
+== direct read of day_prices with the page's key (must be refused)
+{"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.day_prices TO anon;","message":"permission denied for table day_prices"}
+HTTP 401
+
+#### Prices for scoring (SUPABASE_SECRET_KEY)
+Secret is set (starts with sb_publish...)
+::warning::The database refused the prices (HTTP 401): {"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT, INSERT, UPDATE ON public.day_prices TO anon;","message":"permission denied for table day_prices"}
+(push_day_prices.py exit code 1)
+== day_prices read back with the secret key (dates and number of zones only)
+{"code":"42501","details":null,"hint":"Grant the required privileges to the current role with: GRANT SELECT ON public.day_prices TO anon;","message":"permission denied for table day_prices"}
 HTTP 401
