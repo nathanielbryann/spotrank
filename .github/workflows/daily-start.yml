@@ -9,7 +9,7 @@ name: Daily start
 
 on:
   schedule:
-    - cron: "37 14 * * *"    # 14:37 UTC (16:37 Helsinki in winter), after the 12:00 CET auction results
+    - cron: "38 14 * * *"    # 14:37 UTC (16:37 Helsinki in winter), after the 12:00 CET auction results
   push:
     branches: [main]
     paths: [".github/update-now.txt"]
