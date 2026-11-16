@@ -65,8 +65,11 @@ def daily_baseload(s: pd.Series) -> pd.Series:
     day = s.index.normalize()
     weighted = (s * dur).groupby(day).sum()
     minutes = dur.groupby(day).sum()
+    nonzero = (s != 0).groupby(day).sum()
     out = weighted / minutes
-    out = out[minutes >= 20 * 60]  # drop days with less than 20 h of prices
+    # drop days with less than 20 h of prices, and days where every price is exactly 0.00: that is a
+    # placeholder before the real prices are in (EE, 17 Nov 2026), so the next run fetches the day again
+    out = out[(minutes >= 20 * 60) & (nonzero > 0)]
     out.index = out.index.strftime("%Y-%m-%d")
     return out
 
