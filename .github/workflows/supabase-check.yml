@@ -35,8 +35,31 @@ jobs:
             call leaderboard '{"p_from": "2026-11-01", "p_to": "2026-12-31"}'
             echo "== direct table read (must be refused)"
             curl -sS -m 30 "$SB_URL/rest/v1/players?select=*" -H "apikey: $SB_KEY" -w "\nHTTP %{http_code}\n"
+            echo; echo "#### Forecast challenge (supabase/forecast-challenge.sql)"
+            call fc_day_results '{"p_delivery": "2026-11-17"}'
+            call fc_leaderboard '{"p_from": "2026-11-01", "p_to": "2026-12-31"}'
+            call my_forecasts '{"p_secret": "00000000-0000-0000-0000-000000000000"}'
+            call submit_forecast '{"p_secret": "00000000-0000-0000-0000-000000000000", "p_delivery": "2026-11-17", "p_ranking": ["FI","SE3","FR","DE-LU","PL"]}'
+            for t in forecasts forecast_days day_prices; do
+              echo "== direct read of $t with the page's key (must be refused)"
+              curl -sS -m 30 "$SB_URL/rest/v1/$t?select=*&limit=1" -H "apikey: $SB_KEY" -w "\nHTTP %{http_code}\n"
+            done
           } > diagnostics/supabase_check.txt 2>&1
           cat diagnostics/supabase_check.txt
+      - name: Send prices with the secret key and read them back
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: |
+          {
+            echo; echo "#### Prices for scoring (SUPABASE_SECRET_KEY)"
+            if [ -z "$SUPABASE_SECRET_KEY" ]; then echo "The SUPABASE_SECRET_KEY secret is not set."; exit 0; fi
+            echo "Secret is set (starts with ${SUPABASE_SECRET_KEY:0:10}...)"
+            python3 scripts/push_day_prices.py --days 10
+            echo "== day_prices read back with the secret key (dates and number of zones only)"
+            curl -sS -m 30 "https://ywzvupcjyuvftnpchrtr.supabase.co/rest/v1/day_prices?select=price_date,updated_at&order=price_date.desc&limit=12" \
+              -H "apikey: $SUPABASE_SECRET_KEY" -w "\nHTTP %{http_code}\n"
+          } >> diagnostics/supabase_check.txt 2>&1
+          tail -20 diagnostics/supabase_check.txt
       - name: Save
         run: |
           git config user.name "github-actions[bot]"
