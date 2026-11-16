@@ -360,11 +360,6 @@ table.lb tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .md-tabs button[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
 .btn.dl { font-size: 13px; padding: 6px 12px; min-height: 0; }
 .pmo-act { display: flex; gap: 8px; align-items: center; }
-.cv-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 8px 0 14px; }
-.cv-stat { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface-2); }
-.cv-stat .l { font-size: 12.5px; color: var(--ink-2); }
-.cv-stat .v { font-family: var(--f-mono); font-size: 22px; font-weight: 700; color: var(--ink); margin-top: 2px; }
-.cv-stat .s { font-size: 12.5px; color: var(--muted); }
 .fu-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 20px; margin-top: 18px; }
 @media (max-width: 900px) { .fu-grid { grid-template-columns: minmax(0, 1fr); } }
 table.click tbody tr { cursor: pointer; }
@@ -677,20 +672,6 @@ footer a, .data a { color: var(--accent); }
       <details class="tableview"><summary>Period average as a table</summary><div class="tbl-scroll" id="gm-table"></div></details>
       <p class="map-note" id="gm-note" style="max-width:none;margin-left:0"></p>
     </section>
-      <section class="panel" aria-labelledby="cv-h">
-        <div class="lb-head">
-          <div>
-            <h2 id="cv-h" style="margin-bottom:4px">Wind and solar value</h2>
-            <p class="ph-sub">The average price wind and solar earned, weighted by how much they produced each day, against the baseload average.</p>
-          </div>
-          <button class="btn dl" type="button" data-dl="value">Download CSV</button>
-        </div>
-        <div class="cv-stats" id="cv-stats"></div>
-        <div class="chart-wrap" id="cv-chart"></div>
-        <div class="key mo-key" id="cv-key"></div>
-        <details class="tableview"><summary>By month as a table</summary><div class="tbl-scroll" id="cv-table"></div></details>
-        <p class="map-note" id="cv-note" style="max-width:none;margin-left:0"></p>
-      </section>
       <section class="panel" aria-labelledby="cap-h">
         <div class="lb-head">
           <div>
@@ -2553,7 +2534,7 @@ function drawMerit(p, z, date, title) {
 const MD = {tab: lsGet('md-tab', 'prices')};
 if (!['prices', 'gen', 'mo', 'fuel', 'borders'].includes(MD.tab)) MD.tab = 'prices';
 function setTab(t) { MD.tab = t; lsSet('md-tab', t); renderPrices(); }
-function renderGenTab() { renderGenMix(); renderValue(); renderCapacity(); }
+function renderGenTab() { renderGenMix(); renderCapacity(); }
 
 /* CSV downloads: what each section shows. Separators follow the browser's number format,
    so Excel opens the file in columns (a comma decimal means semicolon-separated). */
@@ -2725,49 +2706,6 @@ function renderBorders() {
   DL.borders = {name: 'spotrank-borders-' + from + '-' + to, header: ['border', 'days', 'days_split', 'share_split', 'average_gap_eur_mwh', 'dearer_side', 'dearer_share_of_split_days', 'largest_gap_eur_mwh', 'largest_gap_date'],
     rows: rows.map(r => [r.a + '-' + r.b, r.n, r.split, R2(r.split / r.n), R2(r.meanAbs), r.aD === r.bD ? '' : r.aD > r.bD ? r.a : r.b, r.split ? R2(Math.max(r.aD, r.bD) / r.split) : null, r.max ? R2(Math.abs(r.max.g)) : null, r.max ? r.max.d : ''])};
   $('#bd-note').textContent = 'Daily baseload prices, so a day counts as split when the daily averages differ by €1 or more; single hours can split even on days that look coupled. Click a row to show that border. Neighbours: borders with a direct interconnector between bidding zones in the game.';
-}
-
-/* ---------- Wind and solar value ---------- */
-function renderValue() {
-  const box = $('#cv-chart'), stats = $('#cv-stats'), note = $('#cv-note'), tbl = $('#cv-table'), key = $('#cv-key');
-  const gs = GEN.get(GM.z);
-  if (!gs || gs.state !== 'ok' || !gs.d.start) { stats.innerHTML = ''; box.innerHTML = ''; tbl.innerHTML = ''; key.innerHTML = ''; note.textContent = gs && gs.state === 'loading' ? 'Loading…' : 'No generation data for this zone.'; return; }
-  const gd = gs.d, zi = DS.zones.indexOf(GM.z), from = PH.from, to = PH.to;
-  const genAt = (k, d) => { const a = gd.gen && gd.gen[k], i = daysBetween(gd.start, d); return a && i >= 0 && i < a.length ? a[i] : null; };
-  const months = new Map();
-  const add = (m, f, v) => { m[f] = (m[f] || 0) + v; };
-  const tot = {};
-  for (let i = 0; i <= daysBetween(from, to); i++) {
-    const d = isoLocal(addDays(parseISO(from), i)), row = DS.byDate.get(d), p = row ? row[zi] : null;
-    if (p === null || p === undefined) continue;
-    const mk = d.slice(0, 7), m = months.get(mk) || {}; months.set(mk, m);
-    for (const o of [m, tot]) { add(o, 'ps', p); add(o, 'n', 1); }
-    for (const k of ['wind', 'solar']) { const w = genAt(k, d); if (w !== null && w > 0) for (const o of [m, tot]) { add(o, k + 'pw', p * w); add(o, k + 'w', w); add(o, k + 'n', 1); } }
-  }
-  const val = o => {
-    const base = o.n ? o.ps / o.n : null, r = {base, n: o.n || 0};
-    for (const k of ['wind', 'solar']) { r[k] = o[k + 'w'] ? o[k + 'pw'] / o[k + 'w'] : null; r[k + 'Rate'] = r[k] !== null && base > 0 ? r[k] / base : null; r[k + 'Gw'] = o[k + 'n'] ? o[k + 'w'] / o[k + 'n'] / 1000 : null; }
-    return r;
-  };
-  const T = val(tot);
-  if (!T.n) { stats.innerHTML = ''; box.innerHTML = ''; tbl.innerHTML = ''; key.innerHTML = ''; note.textContent = 'No prices in this period.'; return; }
-  const tile = (l, v, sub) => '<div class="cv-stat"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + sub + '</div></div>';
-  stats.innerHTML = tile('Baseload average', fmtP(T.base), T.n + ' days') +
-    tile('Wind-weighted price', T.wind === null ? '–' : fmtP(T.wind), T.wind === null ? 'no wind output reported' : 'capture rate <b>' + pct0(T.windRate) + '</b> · wind averaged ' + T.windGw.toFixed(1) + ' GW') +
-    tile('Solar-weighted price', T.solar === null ? '–' : fmtP(T.solar), T.solar === null ? 'no solar output reported' : 'capture rate <b>' + pct0(T.solarRate) + '</b> · solar averaged ' + T.solarGw.toFixed(1) + ' GW');
-  const ms = [...months.entries()].map(([k, o]) => ({k, ...val(o)}));
-  if (ms.length >= 2) {
-    const xs = ms.map(m => daysBetween(from, m.k + '-15' < from ? from : m.k + '-15' > to ? to : m.k + '-15'));
-    drawLines(box, {from, to, xs, labels: ms.map(m => MONTHS[+m.k.slice(5) - 1] + ' ' + m.k.slice(0, 4)), aria: 'Monthly capture rates of wind and solar', unit: '%', H: 220, refs: [100], zeroBase: true,
-      fmt: v => Math.round(v) + '%', series: [{name: 'Wind capture rate', color: 'var(--t-wind)', vals: ms.map(m => m.windRate === null ? null : m.windRate * 100)}, {name: 'Solar capture rate', color: 'var(--t-solar)', vals: ms.map(m => m.solarRate === null ? null : m.solarRate * 100)}],
-      extra: i => '<br>Baseload <b>' + fmtP(ms[i].base) + '</b>' + (ms[i].wind !== null ? ' · wind <b>' + fmtP(ms[i].wind) + '</b>' : '') + (ms[i].solar !== null ? ' · solar <b>' + fmtP(ms[i].solar) + '</b>' : '')});
-    key.innerHTML = keyHtml([['var(--t-wind)', 'Wind capture rate'], ['var(--t-solar)', 'Solar capture rate'], [null, '100% = baseload price', 'dl']]);
-  } else { box.innerHTML = ''; key.innerHTML = ''; }
-  tbl.innerHTML = '<table><thead><tr><th>Month</th><th class="num">Baseload €/MWh</th><th class="num">Wind-weighted</th><th class="num">Wind capture</th><th class="num">Solar-weighted</th><th class="num">Solar capture</th></tr></thead><tbody>' +
-    ms.map(m => '<tr><td>' + MONTHS[+m.k.slice(5) - 1] + ' ' + m.k.slice(0, 4) + '</td><td class="num">' + m.base.toFixed(2) + '</td><td class="num">' + (m.wind === null ? '–' : m.wind.toFixed(2)) + '</td><td class="num">' + (m.windRate === null ? '–' : pct0(m.windRate)) + '</td><td class="num">' + (m.solar === null ? '–' : m.solar.toFixed(2)) + '</td><td class="num">' + (m.solarRate === null ? '–' : pct0(m.solarRate)) + '</td></tr>').join('') + '</tbody></table>';
-  DL.value = {name: 'spotrank-wind-solar-value-' + GM.z + '-' + from + '-' + to, header: ['month', 'baseload_eur_mwh', 'wind_weighted_eur_mwh', 'wind_capture_rate', 'solar_weighted_eur_mwh', 'solar_capture_rate', 'days'],
-    rows: ms.map(m => [m.k, R2(m.base), R2(m.wind), m.windRate === null ? null : R2(m.windRate), R2(m.solar), m.solarRate === null ? null : R2(m.solarRate), m.n]).concat([['whole period', R2(T.base), R2(T.wind), T.windRate === null ? null : R2(T.windRate), R2(T.solar), T.solarRate === null ? null : R2(T.solarRate), T.n]])};
-  note.textContent = 'An approximation from daily data: each day\'s baseload price weighted by that day\'s wind or solar output (ENTSO-E actual generation). True capture prices are weighted hour by hour; they come out lower, above all for solar, whose midday output pushes down the very hours it sells in.';
 }
 
 /* ---------- Installed capacity by year ---------- */

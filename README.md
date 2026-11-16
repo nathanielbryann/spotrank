@@ -53,8 +53,7 @@ and redeploys the site.
   drag strip) for five tabs, each section with a **Download CSV** button (semicolons and decimal
   commas when the browser uses decimal commas, so Excel opens it in columns):
   - **Prices:** price history for up to 6 zones and the period average of all zones.
-  - **Generation:** generation mix; wind- and solar-weighted price with capture rates (a daily
-    approximation); installed capacity by year with capacity factors.
+  - **Generation:** generation mix; installed capacity by year with capacity factors.
   - **Merit order:** any zone and day, with "Play this day".
   - **Fuel & CO2:** TTF, EUA and coal, and gas vs coal running cost with the periods coal was cheaper
     and the lasting switches.
