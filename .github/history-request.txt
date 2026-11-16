@@ -1,2 +1,2 @@
-new_zones: NO4,SE3
-minutes: 40
+set: extra
+minutes: 60

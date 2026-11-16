@@ -82,6 +82,22 @@ jobs:
           python scripts/build_spotrank_data.py --skip-prices --end today --workers 16 \
             --gen-out site/data/gen --gen-budget $((MINUTES * 60))
 
+      - name: Fetch the other Italian zones and Italy as a whole (Market data only)
+        if: github.event_name != 'push'
+        continue-on-error: true
+        timeout-minutes: 30
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+          PYTHONUNBUFFERED: "1"
+        run: |
+          if [ -z "$ENTSOE_API_KEY" ]; then exit 0; fi
+          python scripts/build_spotrank_data.py --update --no-csv --zones extra --end tomorrow --workers 6 \
+            --time-budget 300 --out site/data/spotrank_data_extra.json || true
+          python scripts/build_spotrank_data.py --skip-prices --zones extra --end tomorrow --workers 8 \
+            --drivers-out site/data/spotrank_drivers_extra.json --drivers-budget 300 || true
+          python scripts/build_spotrank_data.py --skip-prices --zones extra --end today --workers 8 \
+            --gen-out site/data/gen --gen-budget 300 || true
+
       - name: Keep the leaderboard database awake
         # Supabase pauses free projects after a week without activity; one small call a day prevents that
         continue-on-error: true

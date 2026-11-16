@@ -179,10 +179,13 @@ def main():
     today = pd.Timestamp.now(tz=TZ).normalize().tz_localize(None)
     first_day = pd.Timestamp(args.start)
     end_day = parse_day(args.end, today)
-    zones = [z.strip() for z in args.zones.split(",")] if args.zones else list(ZONES)
-    unknown = [z for z in zones if z not in ZONES]
+    if args.zones == "extra":   # the data-only zones
+        zones = list(EXTRA_ZONES)
+    else:
+        zones = [z.strip() for z in args.zones.split(",")] if args.zones else list(ZONES)
+    unknown = [z for z in zones if z not in ZONES and z not in EXTRA_ZONES]
     if unknown:
-        sys.exit(f"Unknown zone(s): {unknown}. Valid: {list(ZONES)}")
+        sys.exit(f"Unknown zone(s): {unknown}. Valid: {list(ZONES) + list(EXTRA_ZONES)}")
 
     key = resolve_key(args.key)
     if not key:
@@ -209,6 +212,7 @@ def main():
 
 
 def run_prices(args, make_client, zones, first_day, end_day):
+    zones = [z for z in zones if z not in EXTRA_NO_PRICE]   # Italy as a whole has no day-ahead price
     existing = load_existing(args.out) if args.update else None
     fetch_from = first_day
     if existing is not None and len(existing):
@@ -253,7 +257,7 @@ def fetch_zone(make_client, z, start, end, italy):
             if s is not None:
                 parts.append(daily_baseload(s).rename(a))
         return pd.concat(parts, axis=1).mean(axis=1) if parts else pd.Series(dtype=float)
-    s = fetch(client, ZONES[z], start, end)
+    s = fetch(client, ZONES.get(z) or EXTRA_ZONES[z], start, end)
     return daily_baseload(s) if s is not None else pd.Series(dtype=float)
 
 
@@ -325,6 +329,13 @@ def write_outputs(args, df, cols):
 # ---------------------------------------------------------------------------
 METRICS = ["load", "wind", "solar"]
 DRIVER_AREA = dict(ZONES)  # Italy: North zone for drivers in both --italy modes
+# Data-only zones for the Market data page (never in the game): the other Italian bidding zones,
+# and Italy as a whole (forecasts, generation and capacity; it has no single day-ahead price).
+EXTRA_ZONES = {"IT-CNOR": "IT_CNOR", "IT-CSUD": "IT_CSUD", "IT-SUD": "IT_SUD", "IT-CALA": "IT_CALA",
+               "IT-SICI": "IT_SICI", "IT-SARD": "IT_SARD", "IT-ALL": "IT"}
+EXTRA_NO_PRICE = {"IT-ALL"}
+NO_CAPACITY = {"IT", "IT-CNOR", "IT-CSUD", "IT-SUD", "IT-CALA", "IT-SICI", "IT-SARD"}   # ENTSO-E reports capacity for Italy only as a whole
+DRIVER_AREA.update(EXTRA_ZONES)
 RECENT_DAYS = 35           # refetched every run (from the start of that month): the 30-day "normal" behind yesterday
 
 
@@ -632,6 +643,8 @@ def run_generation(args, make_client, zones, first_day, end_day, today):
     recent_from = max(first_day, cutoff.start_time)
     tasks = []
     for z in zones:   # installed capacity: each year once (a missing year is retried next run)
+        if z in NO_CAPACITY:
+            continue
         for y in range(first_day.year, today.year + 1):
             if str(y) not in state[z][2]:
                 tasks.append(("cap", z, y, None))
