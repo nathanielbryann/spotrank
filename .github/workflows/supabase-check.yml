@@ -29,6 +29,9 @@ jobs:
             date -u
             call ping '{}'
             for n in 1 2 3; do call day_results "{\"p_puzzle\": $n}"; done
+            call my_results '{"p_secret": "00000000-0000-0000-0000-000000000000"}'
+            call my_progress '{"p_secret": "00000000-0000-0000-0000-000000000000"}'
+            call save_attempt '{"p_secret": "00000000-0000-0000-0000-000000000000", "p_puzzle": 1, "p_price_date": "2026-11-15", "p_answer": ["A","B","C","D","E"], "p_attempts": [["A","B","C","D","E"]]}'
             call leaderboard '{"p_from": "2026-11-01", "p_to": "2026-12-31"}'
             echo "== direct table read (must be refused)"
             curl -sS -m 30 "$SB_URL/rest/v1/players?select=*" -H "apikey: $SB_KEY" -w "\nHTTP %{http_code}\n"
