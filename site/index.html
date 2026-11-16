@@ -327,6 +327,7 @@ table.lb tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 .me-line b { font-family: var(--f-mono); }
 .code-box { font-family: var(--f-mono); font-size: 13px; width: 340px; max-width: 100%; }
 .linkish { appearance: none; border: 0; background: none; padding: 0; color: var(--accent); font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.lb-ctrl { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
 .lb-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: end; gap: 10px 16px; margin-bottom: 12px; }
 .vs-row { display: grid; grid-template-columns: 96px minmax(0, 1fr) 150px; gap: 10px; align-items: center; font-size: 13px; padding: 4px 0; }
 .vs-row .bars { display: grid; gap: 3px; }
@@ -462,6 +463,36 @@ footer a, .data a { color: var(--accent); }
   .where b { font-size: 13px; }
   .tile { font-size: 15px; }
 }
+
+/* Forecast challenge */
+.fc-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 16px; }
+.fc-clock { font-size: 13px; color: var(--ink-2); }
+.fc-clock b { font-family: var(--f-mono); color: var(--ink); }
+.fc-lead { margin: 8px 0 14px; font-size: 15px; color: var(--ink-2); max-width: 75ch; }
+.fc-lead b { color: var(--ink); }
+.fc-prev { margin: 8px 0 0; font-size: 13.5px; color: var(--ink-2); }
+.fc-prev b { color: var(--ink); }
+.fc-grid { display: grid; gap: 18px 28px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 840px) { .fc-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+.fc .plate { min-height: 58px; }
+.fc .code { font-size: 30px; }
+.fc .today { font-family: var(--f-mono); font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; text-align: right; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.fc .today .price { font-size: 15px; }
+.fc .today small { display: block; font-family: var(--f-body); font-weight: 500; font-size: 11px; color: var(--muted); }
+.fc .controls .pips { font-size: 12.5px; color: var(--muted); }
+.fc-score { font-family: var(--f-display); font-weight: 800; font-size: 34px; line-height: 1; text-transform: uppercase; color: var(--ink); }
+.fc-tag { display: inline-block; font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 8px; margin-left: 8px; background: var(--good); color: var(--good-ink); white-space: nowrap; }
+.fc-tag.even { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line-strong); }
+.fc-tag.lost { background: var(--miss); color: var(--miss-ink); }
+table.fc-clues th, table.fc-clues td { padding: 6px 8px; }
+table.fc-clues td { white-space: nowrap; }
+table.fc-clues small { color: var(--muted); font-family: var(--f-body); font-size: 11.5px; }
+.fc-clues .nm { color: var(--ink-2); font-size: 12.5px; margin-left: 6px; }
+.fc-clues .na { color: var(--muted); font-family: var(--f-body); font-size: 12.5px; }
+.fc-note { margin: 10px 0 0; font-size: 13.5px; color: var(--ink-2); }
+.fc-note b { color: var(--ink); font-family: var(--f-mono); }
+.fc-note small { color: var(--muted); }
+@media (max-width: 520px) { .fc .where { display: none; } .fc-clues .nm { display: none; } }
 </style>
 </head>
 <body>
@@ -538,6 +569,15 @@ footer a, .data a { color: var(--accent); }
       </section>
     </div>
   </div>
+
+  <section class="panel fc" id="fc" hidden aria-labelledby="fc-title">
+    <div class="fc-head">
+      <h2 id="fc-title" style="margin:0">Forecast: tomorrow <span class="sub" id="fc-sub"></span></h2>
+      <span class="fc-clock" id="fc-clock" role="timer"></span>
+    </div>
+    <div id="fc-body"></div>
+    <div id="fc-join" style="margin-top:12px"></div>
+  </section>
 
   <section class="panel" id="crowd" hidden aria-labelledby="crowd-title">
     <div class="crowd-head">
@@ -768,11 +808,17 @@ footer a, .data a { color: var(--accent); }
           <h2 id="lb-title" style="margin-bottom:4px">Leaderboard</h2>
           <p class="ph-sub" id="lb-sub">Daily puzzles only. Points: 4 for solving in 1 try, 3 in 2 tries, 2 in 3, 1 in 4, 0 for a miss.</p>
         </div>
-        <div class="seg" role="group" aria-label="Period">
-          <button type="button" data-lb="today" aria-pressed="false">Today</button>
-          <button type="button" data-lb="week" aria-pressed="true">This week</button>
-          <button type="button" data-lb="month" aria-pressed="false">This month</button>
-          <button type="button" data-lb="all" aria-pressed="false">All time</button>
+        <div class="lb-ctrl">
+          <div class="seg" id="lb-game" role="group" aria-label="Game" hidden>
+            <button type="button" data-lbg="daily" aria-pressed="true">Daily puzzle</button>
+            <button type="button" data-lbg="fc" aria-pressed="false">Forecast</button>
+          </div>
+          <div class="seg" role="group" aria-label="Period">
+            <button type="button" data-lb="today" aria-pressed="false">Today</button>
+            <button type="button" data-lb="week" aria-pressed="true">This week</button>
+            <button type="button" data-lb="month" aria-pressed="false">This month</button>
+            <button type="button" data-lb="all" aria-pressed="false">All time</button>
+          </div>
         </div>
       </div>
       <div class="tbl-scroll" id="lb-body"></div>
@@ -815,6 +861,7 @@ footer a, .data a { color: var(--accent); }
       <li>Every miss unlocks a clue with numbers: first the price range of the five, then a record or an unusual rank, then one zone's actual price.</li>
       <li>Drag a zone to where it belongs and the others slide out of the way (on a phone, press and hold it first). You can also tap two zones to swap them, or use the arrow buttons. With a zone focused, ↑/↓ moves it and Enter selects it for a swap.</li>
       <li>The daily puzzle is the same for everyone and counts toward your streak. Practice rounds don't count.</li>
+      <li id="help-fc" hidden><b>Forecast: tomorrow.</b> After the daily puzzle, rank the same five zones by their price for the next day, once, before 11:30 CET (the auction closes at 12:00). You get a point for each zone in the right place; zones less than €1 apart count either way. Beat the <b>naive forecast</b>, which is the zones in the day before's order.</li>
     </ul>
     <button class="btn primary" type="button" data-close>Got it</button>
   </div>
@@ -1325,6 +1372,7 @@ async function loadDriversNow() {
   } catch (e) { DRV_STATE = 'none'; }
   if (G) renderBrief();
   if (G && G.status !== 'playing') { renderClues(); renderInsights(); }
+  if (G && FC_ON) renderForecast();
 }
 function drvAt(z, i) {
   const s = DRV && DRV.s[z]; if (!s || i === undefined || i < 0) return null;
@@ -1638,6 +1686,10 @@ const SB_MSG = {
   unknown_player: 'That player code wasn\'t found.',
   not_todays_puzzle: 'Only today\'s daily puzzle can be saved.',
   started_elsewhere: 'This round was continued on another device, so that one is shown here.',
+  forecast_closed: 'forecasts for this day closed at 11:30 CET',
+  forecast_not_open: 'this forecast isn\'t open yet',
+  bad_ranking: 'the forecast needs five different game zones',
+  other_zones: 'other players got different zones for this day; reload the page',
 };
 async function sb(fn, args) {
   let r;
@@ -1685,7 +1737,7 @@ async function joinWithName(name) {
   const r = rows && rows[0];
   if (!r) throw new Error('Something went wrong. Try again.');
   PLAYER = {id: r.player_id, name: r.name, secret: r.secret}; lsSet('player', PLAYER);
-  LB.cache = {}; submitDaily();
+  LB.cache = {}; submitDaily(); fcSave();
 }
 async function joinWithCode(code) {
   const c = String(code || '').trim().toLowerCase();
@@ -1695,7 +1747,7 @@ async function joinWithCode(code) {
   PLAYER = {id: rows[0].player_id, name: rows[0].name, secret: c}; lsSet('player', PLAYER);
   LB.cache = {};
   await syncMine();   // rounds already played on another device
-  submitDaily(); saveProgress();
+  submitDaily(); saveProgress(); fcSync();
 }
 /* a name field and a Join button, used in the game and on the leaderboard page */
 function joinFormHtml(id, lead) {
@@ -1836,7 +1888,7 @@ function renderCrowd() {
 }
 
 /* leaderboard page */
-const LB = {period: lsGet('lb', 'week'), cache: {}};
+const LB = {period: lsGet('lb', 'week'), game: lsGet('lb-game', 'daily'), cache: {}};
 function lbRange(period) {
   const t = parseISO(TODAY);
   if (period === 'week') { const dow = (t.getDay() + 6) % 7; return [isoLocal(addDays(t, -dow)), TODAY]; }
@@ -1857,6 +1909,12 @@ function renderLeaderboard() {
   if (!DS) return;
   renderMe();
   document.querySelectorAll('[data-lb]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lb === LB.period)));
+  $('#lb-game').hidden = !FC_ON;
+  const fc = FC_ON && LB.game === 'fc';
+  document.querySelectorAll('[data-lbg]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lbg === (fc ? 'fc' : 'daily'))));
+  $('[data-lb="today"]').textContent = fc ? 'Latest day' : 'Today';
+  if (fc) { renderFcBoard(); renderVs(); return; }
+  $('#lb-sub').textContent = 'Daily puzzles only. Points: 4 for solving in 1 try, 3 in 2 tries, 2 in 3, 1 in 4, 0 for a miss.';
   const c = LB.cache[LB.period], box = $('#lb-body'), msg = $('#lb-msg');
   if (!c || Date.now() - c.at >= 60000) loadBoard(LB.period);
   if (!c || !c.rows) { box.innerHTML = ''; msg.textContent = c && c.err ? c.err : 'Loading…'; renderVs(); return; }
@@ -1939,6 +1997,345 @@ function renderVs() {
     '<p class="skill-note" style="font-size:12px;color:var(--muted)">From ' + VS.rows.length + ' player round' + (VS.rows.length === 1 ? '' : 's') + '. Yours come from the daily rounds saved in this browser.</p>';
 }
 function setBoardPeriod(p) { LB.period = p; lsSet('lb', p); renderLeaderboard(); }
+function setBoardGame(g) { LB.game = g; lsSet('lb-game', g); renderLeaderboard(); }
+
+/* ---------- Forecast challenge: rank tomorrow's prices before 11:30 CET ---------- */
+// Each day, the five zones of that day's daily puzzle are ranked by their price for the next delivery day,
+// once, before 11:30 Brussels time (the SDAC auction closes at 12:00). The database checks the deadline on its
+// own clock and scores forecasts once the nightly job has sent the prices (supabase/forecast-challenge.sql).
+const FC_LIVE = false;   // true once the challenge is launched; until then ?fc=1 turns on a preview in this browser (?fc=0 off)
+(function () { const m = /[?&]fc=([01])\b/.exec(location.search); if (m) lsSet('fc-preview', m[1] === '1'); })();
+const FC_ON = FC_LIVE || lsGet('fc-preview', false) === true;
+const FC_TZ = 'Europe/Brussels', FC_CUT = [11, 30], FC_RESULTS = [16, 30];   // results come with the afternoon price update
+let FC_CLOCK = null;   // a fixed time (ms) for tests
+const fcNow = () => (FC_CLOCK === null ? Date.now() : FC_CLOCK);
+let TZF = null;
+function bxParts(ms) {   // the Brussels wall clock at a moment, and its offset from UTC in minutes
+  if (!TZF) TZF = new Intl.DateTimeFormat('en-GB', {timeZone: FC_TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'});
+  const o = {}; for (const p of TZF.formatToParts(new Date(ms))) o[p.type] = p.value;
+  const h = +o.hour % 24, wall = Date.UTC(+o.year, +o.month - 1, +o.day, h, +o.minute);
+  return {iso: o.year + '-' + o.month + '-' + o.day, h, mi: +o.minute, off: Math.round((wall - Math.floor(ms / 60000) * 60000) / 60000)};
+}
+function bxEpoch(iso, h, mi) {   // the moment the Brussels clock shows iso h:mi
+  const [y, m, d] = iso.split('-').map(Number), want = Date.UTC(y, m - 1, d, h, mi);
+  let t = want - 60 * 60000;
+  for (let k = 0; k < 3; k++) t = want - bxParts(t).off * 60000;
+  return t;
+}
+const isoAdd = (iso, n) => isoLocal(addDays(parseISO(iso), n));
+function bxTime(ms) {   // "11:30 CET (12:30 your time)"
+  const b = bxParts(ms), t = String(b.h).padStart(2, '0') + ':' + String(b.mi).padStart(2, '0') + ' ' + (b.off === 120 ? 'CEST' : 'CET');
+  if (-new Date(ms).getTimezoneOffset() === b.off) return t;
+  return t + ' (' + new Date(ms).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}) + ' your time)';
+}
+function fcLeft(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000)), h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60);
+  return h ? h + ' h ' + m + ' min' : m ? m + ' min' : s + ' s';
+}
+// timing of the forecast that can be made now: delivery day is tomorrow in Brussels
+function fcInfo(now) {
+  const bx = bxParts(now).iso, deadline = bxEpoch(bx, FC_CUT[0], FC_CUT[1]);
+  return {bx, delivery: isoAdd(bx, 1), deadline, state: now < deadline ? 'open' : 'closed',
+    opensNext: bxEpoch(isoAdd(bx, 1), 0, 0), results: bxEpoch(bx, FC_RESULTS[0], FC_RESULTS[1])};
+}
+// the five zones: those of the daily puzzle played on the Brussels day before delivery
+function fcPuzzle(bx) {
+  const no = Math.max(1, daysBetween(EPOCH, bx) + 1);
+  if (G && G.mode === 'daily' && G.puzzleNo === no) return {no, date: G.date, zones: G.answer.slice()};
+  if (DAILY && DAILY.puzzleNo === no) return {no, date: DAILY.date, zones: DAILY.answer.slice()};
+  const d = dailyDate(DS, no, bx), saved = lsGet(dailyKey(no, d.date), null);
+  if (saved && saved.v === 2 && Array.isArray(saved.answer)) return {no, date: d.date, zones: saved.answer.slice()};
+  const pz = dailyPuzzle(DS, no, bx);
+  return pz ? {no, date: pz.date, zones: pz.answer.slice()} : null;
+}
+function fcPuzzleDone(P) {
+  const g = (G && G.mode === 'daily' && G.puzzleNo === P.no) ? G : (DAILY && DAILY.puzzleNo === P.no) ? DAILY : lsGet(dailyKey(P.no, P.date), null);
+  return !!g && g.status !== 'playing';
+}
+function priceMap(date, zones) {   // {zone: price} for the zones with a price that day, or null without the day
+  const row = DS.byDate.get(date); if (!row) return null;
+  const o = {}; for (const z of zones) { const v = row[DS.zones.indexOf(z)]; if (v !== null && v !== undefined) o[z] = v; }
+  return o;
+}
+const byCode = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
+function fcOrderBy(zones, prices) {   // cheapest first, ties and missing prices alphabetical (as in the database)
+  return zones.slice().sort((a, b) => {
+    const pa = prices && prices[a] !== undefined ? prices[a] : Infinity, pb = prices && prices[b] !== undefined ? prices[b] : Infinity;
+    return pa - pb || byCode(a, b);
+  });
+}
+// points (0-5): a zone is right when its price is within €1 of the price that belongs in its place; null without all five prices
+function fcScore(ranking, prices) {
+  if (!prices || !ranking || ranking.length !== N || ranking.some(z => prices[z] === undefined)) return null;
+  const sorted = ranking.map(z => prices[z]).sort((a, b) => a - b);
+  const marks = ranking.map((z, i) => (Math.abs(prices[z] - sorted[i]) <= 1 + 1e-9 ? 'g' : 'x'));
+  return {pts: marks.filter(m => m === 'g').length, marks};
+}
+function fcNaive(zones, prev) {
+  if (!prev || zones.some(z => prev[z] === undefined)) return null;
+  return fcOrderBy(zones, prev);
+}
+function fcResult(s) {   // score of a submitted forecast, with the naive one, once the prices are in
+  if (!s || !s.ranking) return null;
+  const act = priceMap(s.delivery, s.ranking), sc = fcScore(s.ranking, act);
+  if (!sc) return null;
+  const nv = fcNaive(s.ranking, priceMap(isoAdd(s.delivery, -1), s.ranking)), ns = nv ? fcScore(nv, act) : null;
+  return {...sc, actual: act, naive: ns ? ns.pts : null};
+}
+let FCS = null, FCI = null, FCP = null;   // the forecast that can be made now, its timing and its puzzle
+const FCV = {sel: null, focus: null, sure: false, timer: null, key: '', saving: false};
+function fcPersist() { if (FCS) lsSet('fc:' + FCS.delivery, FCS); }
+function fcRefresh() {
+  FCI = fcInfo(fcNow());
+  FCP = DS ? fcPuzzle(FCI.bx) : null;
+  if (!FCP) { FCS = null; return; }
+  const zs = FCP.zones.slice().sort(byCode);
+  let s = lsGet('fc:' + FCI.delivery, null);
+  if (s && s.v === 1 && Array.isArray(s.ranking) && s.ranking.length === N) { FCS = s; return; }   // submitted: never changes
+  if (!s || s.v !== 1 || !Array.isArray(s.order) || s.order.slice().sort(byCode).join() !== zs.join())
+    s = {v: 1, delivery: FCI.delivery, order: fcOrderBy(zs, priceMap(FCI.bx, zs)), ranking: null, at: null, saved: false};
+  FCS = s;
+}
+function fcEditable() { return FC_ON && !!FCS && !FCS.ranking && FCI.state === 'open' && fcNow() < FCI.deadline && fcPuzzleDone(FCP); }
+function fcMove(i, dir) {
+  const j = i + dir; if (!fcEditable() || j < 0 || j >= N) return;
+  const o = FCS.order; [o[i], o[j]] = [o[j], o[i]];
+  fcPersist(); FCV.focus = j; FCV.sel = null; FCV.sure = false;
+  say(o[j] + ' moved to place ' + (j + 1)); renderForecast();
+}
+function fcTap(i) {
+  if (!fcEditable()) return;
+  const o = FCS.order;
+  if (FCV.sel === null) { FCV.sel = i; say(o[i] + ' selected. Choose another zone to swap with.'); }
+  else if (FCV.sel === i) FCV.sel = null;
+  else { [o[FCV.sel], o[i]] = [o[i], o[FCV.sel]]; say(o[FCV.sel] + ' and ' + o[i] + ' swapped'); FCV.sel = null; FCV.sure = false; fcPersist(); }
+  FCV.focus = i; renderForecast();
+}
+function fcSubmit() {
+  if (!fcEditable()) return;
+  if (!FCV.sure) { FCV.sure = true; renderForecast(); return; }   // second click confirms: it can't be changed
+  FCV.sure = false;
+  FCS.ranking = FCS.order.slice(); FCS.at = new Date(fcNow()).toISOString(); FCS.saved = false; FCS.err = null;
+  fcPersist(); say('Forecast submitted.'); renderForecast();
+  fcSave();
+}
+/* save the submitted forecast to the leaderboard (once; the first one saved is the one that counts) */
+async function fcSave() {
+  if (!FC_ON || !PLAYER || !HOSTED || !FCS || !FCS.ranking || FCS.saved || FCS.late || FCV.saving) return;
+  FCV.saving = true;
+  const s = FCS;
+  try {
+    const r = await sb('submit_forecast', {p_secret: PLAYER.secret, p_delivery: s.delivery, p_ranking: s.ranking});
+    s.saved = true; s.err = null;
+    if (r && Array.isArray(r.ranking)) { s.ranking = r.ranking; s.order = r.ranking.slice(); }   // another device may have been first
+    if (r && r.submitted_at) s.at = r.submitted_at;
+  } catch (e) {
+    s.err = e.message;
+    if (e.code === 'forecast_closed') s.late = true;   // never counted
+  }
+  FCV.saving = false;
+  lsSet('fc:' + s.delivery, s);
+  FCLB.cache = {};
+  renderForecast();
+}
+/* this player's forecasts from the database, so another device shows them */
+async function fcSync() {
+  if (!FC_ON || !PLAYER || !HOSTED) return;
+  let rows;
+  try { rows = await sb('my_forecasts', {p_secret: PLAYER.secret}) || []; } catch (e) { return; }   // not set up yet
+  for (const r of rows) {
+    if (!r || !Array.isArray(r.ranking) || r.ranking.length !== N) continue;
+    const have = lsGet('fc:' + r.delivery_date, null);
+    if (have && have.saved && Array.isArray(have.ranking) && have.ranking.join() === r.ranking.join()) continue;
+    lsSet('fc:' + r.delivery_date, {v: 1, delivery: r.delivery_date, order: r.ranking.slice(), ranking: r.ranking.slice(), at: r.submitted_at, saved: true});
+  }
+  renderForecast();
+  fcSave();   // a forecast made here before joining, if it's still open
+}
+function fcFuelHtml(bx) {
+  if (FUEL_STATE === 'idle') loadFuel();
+  const f = fuelAt(bx); if (!f || !f.ttf) return '';
+  const weekAgo = k => { const a = FUEL[k] || [], i0 = daysBetween(FUEL.start, f[k].date) - 7; for (let i = i0; i >= Math.max(0, i0 - 4); i--) if (a[i] !== null && a[i] !== undefined) return a[i]; return null; };
+  const item = (k, label, unit, dp) => {
+    if (!f[k]) return '';
+    const w = weekAgo(k), d = w === null ? null : f[k].v - w;
+    return label + ' <b>' + fmtP(f[k].v, dp) + '</b>' + unit + (f[k].date !== f.ttf.date ? ' <small>(' + esc(fmtShortDay(f[k].date).replace(/ \d{4}$/, '')) + ')</small>' : '') +
+      (d === null ? '' : ' <small>' + (+Math.abs(d).toFixed(dp) === 0 ? '±' : d > 0 ? '+' : '−') + Math.abs(d).toFixed(dp) + ' on the week</small>');
+  };
+  const parts = [item('ttf', 'TTF gas', '/MWh', 2), item('eua', 'EUA carbon', '/t', 2), item('coal', 'coal', '/t', 0)].filter(Boolean);
+  let cost = '';
+  const A = FUEL.meta && FUEL.meta.assumptions;
+  if (A && f.eua) {
+    const g = A.gas_ccgt, gas = f.ttf.v / g.eff + f.eua.v * g.ef / g.eff + g.vom;
+    cost = ' Running cost of a gas plant about <b>' + fmtP(gas, 0) + '</b>/MWh';
+    if (f.coal && A.coal) { const c = A.coal, coal = f.coal.v / c.mwh_per_t / c.eff + f.eua.v * c.ef / c.eff + c.vom; cost += ', a coal plant about <b>' + fmtP(coal, 0) + '</b>'; }
+    cost += '.';
+  }
+  return '<p class="fc-note">Fuel and CO2, latest in the data (' + esc(fmtShortDay(f.ttf.date)) + '): ' + parts.join(' · ') + '.' + cost + '</p>';
+}
+function fcCluesHtml(zones, bx, del) {
+  if (DRV_STATE === 'idle') loadDrivers();
+  const today = priceMap(bx, zones) || {};
+  const rows = zones.slice().sort(byCode).map(z => {
+    const m = zm(z), a = drvOn(z, del), b = drvOn(z, bx);
+    const na = '<span class="na">not yet</span>';
+    let dem = na, res = na;
+    if (a) {
+      dem = b ? (a.load >= b.load ? '+' : '−') + Math.abs(Math.round(100 * (a.load / b.load - 1))) + '%' : fmtPower(a.load);
+      if (a.hasRes) res = pct0(a.res) + (a.wind === null ? ' <small>solar only</small>' : '') + (b && b.hasRes ? ' <small>(today ' + pct0(b.res) + ')</small>' : '');
+    } else if (DRV_STATE === 'loading') dem = res = '<span class="na">…</span>';
+    return '<tr><td><b>' + esc(z) + '</b><span class="nm">' + esc(m.c) + '</span></td><td class="num">' + (today[z] === undefined ? '–' : fmtP(today[z])) + '</td><td class="num">' + dem + '</td><td class="num">' + res + '</td></tr>';
+  }).join('');
+  const any = zones.some(z => drvOn(z, del));
+  const dt = d => (isWeekend(d) ? 'weekend day' : 'weekday');
+  const dayNote = dt(del) !== dt(bx) ? '<p class="fc-note">Tomorrow is a <b>' + WDAYS[parseISO(del).getDay()] + '</b>, a ' + dt(del) + '; today is a ' + dt(bx) + '.</p>' : '';
+  return '<h3 class="ph-h3" style="margin-top:0">Known so far for ' + esc(fmtShortDay(del)) + '</h3>' +
+    '<div class="tbl-scroll"><table class="fc-clues"><thead><tr><th>Zone</th><th class="num">Today</th><th class="num" title="Tomorrow\'s demand forecast against today\'s">Demand vs today</th><th class="num" title="Forecast wind and solar output as a share of forecast demand">Wind + solar</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    dayNote + fcFuelHtml(bx) +
+    '<p class="ins-foot">' + (any ? 'Demand, wind and solar: ENTSO-E day-ahead forecasts for tomorrow as published so far; wind + solar is their share of forecast demand.' : 'Tomorrow\'s demand, wind and solar forecasts aren\'t published yet. The grid operators send them to ENTSO-E during the morning.') + ' Today: daily baseload price.</p>';
+}
+function fcPlatesHtml(order, edit, today, res) {
+  return order.map((z, i) => {
+    const m = zm(z), mk = res ? res.marks[i] : null;
+    const cls = ['plate', mk ? 'r-' + mk : '', edit ? '' : 'locked', edit && FCV.sel === i ? 'sel' : ''].filter(Boolean).join(' ');
+    const tp = today && today[z] !== undefined ? fmtP(today[z]) : '–';
+    let right = '';
+    if (res) right = '<span class="badge ' + mk + '">' + BADGE[mk][1] + '</span><span class="today"><b class="price">' + fmtP(res.actual[z]) + '</b><small>today ' + tp + '</small></span>';
+    else right = '<span class="today">' + tp + '<small>today</small></span>';
+    if (edit) right += '<span class="moves"><button class="mv" type="button" data-mv="-1" data-i="' + i + '" aria-label="Move ' + z + ' up"' + (i === 0 ? ' disabled' : '') + '>' + UP + '</button>' +
+      '<button class="mv" type="button" data-mv="1" data-i="' + i + '" aria-label="Move ' + z + ' down"' + (i === N - 1 ? ' disabled' : '') + '>' + DN + '</button></span>';
+    const label = 'Place ' + (i + 1) + ': ' + z + ', ' + m.c + (m.a ? ' ' + m.a : '') + ', today ' + tp + (res ? ', tomorrow ' + fmtP(res.actual[z]) + ', ' + (mk === 'g' ? 'right' : 'wrong') : '');
+    return '<li class="slot" data-i="' + i + '"><span class="rank" aria-hidden="true">' + (i + 1) + '</span>' +
+      '<div class="' + cls + '" data-i="' + i + '" tabindex="0" role="group" aria-roledescription="zone" aria-label="' + esc(label) + '">' +
+      '<span class="grip" data-grip="' + i + '" aria-hidden="true">' + GRIP + '</span>' +
+      '<span class="id"><span class="code">' + esc(z) + '</span><span class="where"><b>' + esc(m.c) + '</b>' + esc(m.a || m.r) + '</span></span>' +
+      '<span class="right">' + right + '</span></div></li>';
+  }).join('');
+}
+function fcNaiveLine(r, del) {
+  if (r.naive === null) return '';
+  const day = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][parseISO(isoAdd(del, -1)).getDay()];
+  const tag = r.pts > r.naive ? '<span class="fc-tag">Beat the naive forecast</span>' : r.pts === r.naive ? '<span class="fc-tag even">Same as naive</span>' : '<span class="fc-tag lost">Naive did better</span>';
+  return ' The naive forecast, the five in ' + day + '\'s order, got <b>' + r.naive + '</b>. ' + tag;
+}
+function fcSavedLine(s) {
+  if (s.late) return ' It wasn\'t saved to the leaderboard: ' + esc(s.err || 'too late') + '.';
+  if (s.saved) return ' It\'s on the leaderboard.';
+  if (!PLAYER) return FCI.state === 'open' ? ' It\'s only in this browser: join below to put it on the leaderboard.' : ' It\'s only in this browser, so it isn\'t on the leaderboard.';
+  if (FCV.saving) return ' Saving…';
+  return ' Not saved to the leaderboard yet' + (s.err ? ': ' + esc(s.err) : '') + '. <button class="linkish" type="button" id="fc-retry">Try again</button>';
+}
+function renderForecast() {
+  const sec = $('#fc');
+  if (!FC_ON || !HOSTED || !DS || !G || G.mode !== 'daily') { sec.hidden = true; clearInterval(FCV.timer); FCV.timer = null; return; }
+  fcRefresh();
+  if (!FCP || !FCS) { sec.hidden = true; return; }
+  sec.hidden = false;
+  FCV.key = FCI.bx + '|' + FCI.state;
+  if (!FCV.timer) FCV.timer = setInterval(fcTick, 1000);
+  const del = FCI.delivery, s = FCS, done = fcPuzzleDone(FCP), edit = fcEditable(), res = fcResult(s);
+  const zones = s.order.slice(), today = priceMap(FCI.bx, zones);
+  $('#fc-sub').textContent = fmtDay(del);
+  fcTick();
+  const prev = lsGet('fc:' + FCI.bx, null), pr = fcResult(prev);
+  const prevLine = pr ? '<p class="fc-prev">Your forecast for today, ' + esc(fmtShortDay(FCI.bx)) + ': <b>' + pr.pts + ' of 5</b>' + (pr.naive !== null ? ' (naive ' + pr.naive + ')' : '') + '.</p>' : '';
+  const cut = bxTime(FCI.deadline);
+  let lead = '', body = '';
+  if (!s.ranking && !done && FCI.state === 'open') {
+    lead = 'Rank tomorrow\'s prices for today\'s five zones, once, before <b>' + esc(cut) + '</b>. It opens when you finish today\'s puzzle: it shows today\'s prices for the same zones, which would give the puzzle away.';
+  } else if (!s.ranking && FCI.state === 'closed') {
+    lead = 'Forecasts for ' + esc(fmtDay(del)) + ' closed at ' + esc(bxTime(FCI.deadline)) + '. The next one opens at <b>' + esc(bxTime(FCI.opensNext)) + '</b>.';
+  } else {
+    if (edit) lead = 'Put <b>' + esc(fmtDay(del)) + '</b> in order from cheapest to most expensive. The zones start in today\'s order, which is the <b>naive forecast</b>: move the ones you think will change places. One forecast a day, and it can\'t be changed.';
+    else if (res) lead = '<span class="fc-score">' + res.pts + ' of 5</span><br>in the right place.' + fcNaiveLine(res, s.delivery) + ' Zones less than €1 apart count either way.';
+    else lead = 'Forecast in, ' + esc(new Date(s.at).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})) + '.' + fcSavedLine(s) + ' Results come with the afternoon price update, usually by ' + esc(bxTime(FCI.results)) + '.';
+    if (res) lead += '<br><span style="font-size:13.5px">' + fcSavedLine(s).trim() + '</span>';
+    const order = s.ranking || s.order;
+    body = '<div class="fc-grid"><div>' +
+      '<div class="ends"><span class="cool">▲ Cheapest</span></div>' +
+      '<ol class="ladder" id="fc-ladder">' + fcPlatesHtml(order, edit, today, res) + '</ol>' +
+      '<div class="ends" style="margin-top:8px"><span class="hot">▼ Most expensive</span></div>' +
+      (edit ? '<div class="controls"><span class="pips">One forecast, final once submitted</span><button class="btn primary big" type="button" id="fc-submit">' + (FCV.sure ? 'Submit? It can\'t be changed' : 'Submit forecast') + '</button></div>' +
+        '<p class="hint">Drag a zone (on a phone, press and hold it first), tap two zones to swap them, or use the arrows.</p>' : '') +
+      '</div><div>' + fcCluesHtml(zones, FCI.bx, del) + '</div></div>';
+  }
+  $('#fc-body').innerHTML = (res ? '' : prevLine) + '<p class="fc-lead">' + lead + '</p>' + body;
+  const sb2 = $('#fc-submit'); if (sb2) sb2.addEventListener('click', fcSubmit);
+  const rt = $('#fc-retry'); if (rt) rt.addEventListener('click', () => { FCS.err = null; fcSave(); renderForecast(); });
+  const join = $('#fc-join');
+  if (PLAYER || !s.ranking || s.late || FCI.state !== 'open') join.innerHTML = '';
+  else if (!join.querySelector('form')) {
+    join.innerHTML = joinFormHtml('join-f', 'Pick a name to put your forecast on the leaderboard' + (FCI.state === 'open' ? ' (before ' + esc(cut) + ')' : '') + '. No email or password: this browser remembers you.');
+    wireJoin('join-f', () => { fcSave(); renderForecast(); renderCrowd(); });
+  }
+  if (FCV.focus !== null) { const el = $('#fc-ladder .plate[data-i="' + FCV.focus + '"]'); if (el) el.focus({preventScroll: true}); FCV.focus = null; }
+}
+/* forecast leaderboard: the latest delivery day with prices, or totals for a period */
+const FCLB = {cache: {}};
+function fcLatestDay() { return lastDate(DS); }
+async function loadFcBoard(period) {
+  const c = FCLB.cache[period];
+  if (c && (c.loading || Date.now() - c.at < 60000)) return;
+  FCLB.cache[period] = {loading: true, at: 0, rows: c && c.rows};
+  try {
+    const rows = period === 'today' ? await sb('fc_day_results', {p_delivery: fcLatestDay()})
+      : await sb('fc_leaderboard', {p_from: lbRange(period)[0], p_to: isoAdd(TODAY, 1)});
+    FCLB.cache[period] = {at: Date.now(), rows};
+  } catch (e) { FCLB.cache[period] = {at: Date.now(), err: e.message, rows: c && c.rows}; }
+  if (!$('#board-view').hidden && LB.game === 'fc') renderLeaderboard();
+}
+function renderFcBoard() {
+  $('#lb-sub').textContent = 'Forecast challenge: 1 point for each zone in the right place (0–5); zones less than €1 apart count either way. Beat naive: more points than the day-before order.';
+  const c = FCLB.cache[LB.period], box = $('#lb-body'), msg = $('#lb-msg');
+  if (!c || Date.now() - c.at >= 60000) loadFcBoard(LB.period);
+  if (!c || !c.rows) { box.innerHTML = ''; msg.textContent = c && c.err ? c.err : 'Loading…'; return; }
+  const me = PLAYER ? PLAYER.name : null, rows = c.rows;
+  if (LB.period === 'today') {
+    const day = fcLatestDay(), scored = rows.filter(r => r.points !== null);
+    const pos = r => r.points === null ? '' : scored.findIndex(o => o.points === r.points) + 1;
+    box.innerHTML = rows.length ? '<table class="lb"><thead><tr><th>#</th><th>Player</th><th class="num">Points</th><th class="num">Naive</th><th class="num">Submitted</th></tr></thead><tbody>' +
+      rows.map(r => '<tr' + (r.name === me ? ' class="mine"' : '') + '><td>' + pos(r) + '</td><td>' + esc(r.name) + '</td><td class="num">' + (r.points === null ? '–' : r.points + ' of 5') + '</td><td class="num">' + (r.naive_points === null ? '–' : r.naive_points) + '</td><td class="num">' + esc(new Date(r.submitted_at).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})) + '</td></tr>').join('') + '</tbody></table>'
+      : '<p class="ph-sub">No forecasts for ' + esc(fmtDay(day)) + '.</p>';
+    msg.textContent = (c.err ? c.err + ' ' : '') + 'Forecasts for delivery day ' + fmtDay(day) + ', made by 11:30 CET the day before. Submitted: your time.';
+    return;
+  }
+  const [a] = lbRange(LB.period);
+  const posOf = r => rows.findIndex(o => o.points === r.points && +o.avg_points === +r.avg_points) + 1;
+  box.innerHTML = rows.length ? '<table class="lb"><thead><tr><th>#</th><th>Player</th><th class="num">Points</th><th class="num">Played</th><th class="num">Average</th><th class="num" title="Days with more points than the naive forecast">Beat naive</th><th class="num" title="Days with all five in the right place">5 of 5</th></tr></thead><tbody>' +
+    rows.map(r => '<tr' + (r.name === me ? ' class="mine"' : '') + '><td>' + posOf(r) + '</td><td>' + esc(r.name) + '</td><td class="num">' + r.points + '</td><td class="num">' + r.played + '</td><td class="num">' + (+r.avg_points).toFixed(1) + '</td><td class="num">' + r.beat_naive + '</td><td class="num">' + r.perfect + '</td></tr>').join('') + '</tbody></table>'
+    : '<p class="ph-sub">No scored forecasts ' + (LB.period === 'all' ? 'yet' : 'in this period yet') + '.</p>';
+  msg.textContent = (c.err ? c.err + ' ' : '') + 'Delivery days from ' + fmtShortDay(a) + ' on, scored once the prices are in. Ties are ordered by average points.';
+}
+/* forecast history kept in this browser, for the Stats window */
+function fcHistory() {
+  const out = [];
+  try {
+    for (let k = 0; k < localStorage.length; k++) {
+      const key = localStorage.key(k);
+      if (!key || key.indexOf(LSK + 'fc:') !== 0) continue;
+      const s = JSON.parse(localStorage.getItem(key));
+      if (s && s.v === 1 && Array.isArray(s.ranking)) out.push({s, r: fcResult(s)});
+    }
+  } catch (e) { return []; }
+  return out.sort((x, y) => (x.s.delivery < y.s.delivery ? 1 : -1));
+}
+function fcStatsHtml() {
+  if (!FC_ON) return '';
+  const h = fcHistory(), sc = h.filter(o => o.r);
+  if (!h.length) return '<div class="skill"><h3>Forecast challenge</h3><p class="sub">No forecasts yet. Finish a daily puzzle before 11:30 CET to make one.</p></div>';
+  const tot = sc.reduce((p, o) => p + o.r.pts, 0), beat = sc.filter(o => o.r.naive !== null && o.r.pts > o.r.naive).length;
+  return '<div class="skill"><h3>Forecast challenge</h3><p class="sub">Your forecasts of the next day\'s order, from this browser.</p><div class="stats">' +
+    [['Made', h.length], ['Average', sc.length ? (tot / sc.length).toFixed(1) : '–'], ['Beat naive', sc.length ? beat + '/' + sc.length : '–'], ['5 of 5', sc.filter(o => o.r.pts === 5).length]]
+      .map(([l, v]) => '<div class="stat"><div class="v">' + v + '</div><div class="l">' + l + '</div></div>').join('') + '</div>' +
+    '<table class="lb" style="margin-top:10px"><thead><tr><th>Delivery day</th><th class="num">Points</th><th class="num">Naive</th></tr></thead><tbody>' +
+    h.slice(0, 7).map(o => '<tr><td>' + esc(fmtShortDay(o.s.delivery)) + '</td><td class="num">' + (o.r ? o.r.pts + ' of 5' : 'waiting') + '</td><td class="num">' + (o.r && o.r.naive !== null ? o.r.naive : '–') + '</td></tr>').join('') + '</tbody></table></div>';
+}
+function fcTick() {
+  if (!FCI || $('#fc').hidden) return;
+  const now = fcNow(), info = fcInfo(now);
+  if (info.bx + '|' + info.state !== FCV.key) { renderForecast(); return; }
+  $('#fc-clock').innerHTML = info.state === 'open' ? 'Closes in <b>' + fcLeft(info.deadline - now) + '</b> · ' + esc(bxTime(info.deadline)) : 'Closed at ' + esc(bxTime(info.deadline));
+}
 
 /* ---------- price history page ---------- */
 const PH_MAX = 6;
@@ -2322,6 +2719,7 @@ async function loadFuel() {
     FUEL = await r.json(); FUEL_STATE = 'ok';
   } catch (e) { FUEL_STATE = 'none'; }
   rerenderMerits();
+  if (FC_ON && !$('#fc').hidden) renderForecast();
 }
 async function loadGen(z) {
   if (GEN.has(z)) return;
@@ -3073,8 +3471,8 @@ function renderStats() {
   $('#stats-body').innerHTML = '<div class="stats">' +
     [['Played', s.played], ['Win %', s.played ? Math.round(100 * s.wins / s.played) : 0], ['Streak', s.streak], ['Best', s.best]].map(([l, v]) => '<div class="stat"><div class="v">' + v + '</div><div class="l">' + l + '</div></div>').join('') +
     '</div><div class="dist">' + ['1', '2', '3', '4', 'X'].map(k => '<div class="d"><span>' + k + '</span><span class="bar' + (k === cur ? ' cur' : '') + '" style="width:' + Math.max(8, 100 * s.dist[k] / maxD) + '%">' + s.dist[k] + '</span></div>').join('') + '</div>' +
-    skillHtml() +
-    '<p style="font-size:13px;color:var(--ink-2);margin:14px 0 0">Daily puzzles only. Stats are kept in this browser.</p>';
+    skillHtml() + fcStatsHtml() +
+    '<p style="font-size:13px;color:var(--ink-2);margin:14px 0 0">Daily puzzles' + (FC_ON ? ' and forecasts' : '') + ' only. Stats are kept in this browser.</p>';
 }
 
 function render() {
@@ -3082,25 +3480,35 @@ function render() {
     $('#ladder').innerHTML = '<li class="clue locked">No puzzle could be built from this data. Load a file with at least 12 zones per day.</li>';
     return;
   }
-  renderMeta(); renderBrief(); renderBoard(); renderLog(); renderClues(); renderResult(); renderCrowd(); renderInsights(); renderAllZones(); renderData();
+  renderMeta(); renderBrief(); renderBoard(); renderLog(); renderClues(); renderResult(); renderForecast(); renderCrowd(); renderInsights(); renderAllZones(); renderData();
 }
 
 /* ---------- drag: grab a zone anywhere and move it; the others slide out of the way ---------- */
 // Mouse and pen: drag starts after a few pixels of movement. Touch: press and hold (or use the grip),
 // so a swipe over the ladder still scrolls the page. Locked zones stay put; the rest reorder around them.
 let drag = null, pend = null, hold = null, dragJust = 0;
-function slotRects() { return [...document.querySelectorAll('#ladder .slot')].map(sl => sl.getBoundingClientRect()); }
-function dragBegin(plate, i, y, touch) {
-  const unl = []; for (let k = 0; k < N; k++) if (!G.locked[k]) unl.push(k);
-  const plates = [...document.querySelectorAll('#ladder .slot .plate')];
-  drag = {i, y0: y, touch, plate, plates, unl, to: i};
-  selected = null; plates.forEach(p => p.classList.remove('sel'));
+// the two ladders that can be dragged: the daily puzzle and the forecast
+const LADDERS = {
+  ladder: {on: () => !!G && G.status === 'playing', can: i => canMove(i), locked: k => G.locked[k], order: () => G.order,
+    moved: (z, to, touch) => { persist(); say(z + ' moved to place ' + (to + 1)); if (!touch) focusIdx = to; },
+    redraw: () => { selected = null; render(); }},
+  'fc-ladder': {on: () => fcEditable(), can: () => fcEditable(), locked: () => false, order: () => FCS.order,
+    moved: (z, to, touch) => { FCV.sure = false; fcPersist(); say(z + ' moved to place ' + (to + 1)); if (!touch) FCV.focus = to; },
+    redraw: () => { FCV.sel = null; renderForecast(); }}
+};
+function ladderOf(el) { const l = el && el.closest('.ladder'); return l && LADDERS[l.id] ? Object.assign({id: l.id}, LADDERS[l.id]) : null; }
+function slotRects(id) { return [...document.querySelectorAll('#' + id + ' .slot')].map(sl => sl.getBoundingClientRect()); }
+function dragBegin(lad, plate, i, y, touch) {
+  const unl = []; for (let k = 0; k < N; k++) if (!lad.locked(k)) unl.push(k);
+  const plates = [...document.querySelectorAll('#' + lad.id + ' .slot .plate')];
+  drag = {lad, i, y0: y, touch, plate, plates, unl, to: i};
+  plates.forEach(p => p.classList.remove('sel'));
   plate.classList.add('dragging'); document.body.classList.add('is-dragging');
   if (touch && navigator.vibrate) { try { navigator.vibrate(12); } catch (e) { /* not supported */ } }
 }
 function dragMove(y) {
   const d = drag; if (!d) return;
-  const R = slotRects(), h = R[d.i].height;
+  const R = slotRects(d.lad.id), h = R[d.i].height;
   const dy = Math.max(R[0].top - R[d.i].top - 12, Math.min(R[N - 1].top - R[d.i].top + 12, y - d.y0));
   d.plate.style.transform = 'translateY(' + dy + 'px) scale(1.02)';
   const mid = R[d.i].top + dy + h / 2;
@@ -3117,26 +3525,27 @@ function dragEnd(cancel) {
   drag = null; dragJust = Date.now();
   document.body.classList.remove('is-dragging');
   if (!cancel && d.to !== d.i) {
-    const zs = d.unl.map(k => G.order[k]), a = d.unl.indexOf(d.i), b = d.unl.indexOf(d.to);
+    const ord = d.lad.order(), zs = d.unl.map(k => ord[k]), a = d.unl.indexOf(d.i), b = d.unl.indexOf(d.to);
     const [z] = zs.splice(a, 1); zs.splice(b, 0, z);
-    d.unl.forEach((k, j) => { G.order[k] = zs[j]; });
-    persist(); say(z + ' moved to place ' + (d.to + 1));
-    if (!d.touch) focusIdx = d.to;
+    d.unl.forEach((k, j) => { ord[k] = zs[j]; });
+    d.lad.moved(z, d.to, d.touch);
   }
-  selected = null; render();
+  d.lad.redraw();
 }
 // mouse and pen
 document.addEventListener('pointerdown', e => {
-  if (e.pointerType === 'touch' || e.button !== 0 || !G || G.status !== 'playing') return;
-  const plate = e.target.closest('#ladder .plate');
+  if (e.pointerType === 'touch' || e.button !== 0) return;
+  const plate = e.target.closest('.ladder .plate');
   if (!plate || e.target.closest('.mv')) return;
+  const lad = ladderOf(plate);
+  if (!lad || !lad.on()) return;
   const i = +plate.dataset.i;
-  if (canMove(i)) pend = {i, x: e.clientX, y: e.clientY, plate, id: e.pointerId};
+  if (lad.can(i)) pend = {lad, i, x: e.clientX, y: e.clientY, plate, id: e.pointerId};
 });
 document.addEventListener('pointermove', e => {
   if (e.pointerType === 'touch') return;
   if (pend && !drag && Math.hypot(e.clientX - pend.x, e.clientY - pend.y) > 4) {
-    dragBegin(pend.plate, pend.i, pend.y, false);
+    dragBegin(pend.lad, pend.plate, pend.i, pend.y, false);
     try { pend.plate.setPointerCapture(pend.id); } catch (_) {}
     pend = null;
   }
@@ -3146,16 +3555,20 @@ const mouseUp = e => { if (e.pointerType === 'touch') return; pend = null; if (d
 document.addEventListener('pointerup', mouseUp);
 document.addEventListener('pointercancel', mouseUp);
 // touch: press and hold, or start from the grip
-$('#ladder').addEventListener('touchstart', e => {
-  if (e.touches.length !== 1 || !G || G.status !== 'playing' || drag) return;
-  const t = e.touches[0], plate = e.target.closest('.plate');
+const touchStart = e => {
+  if (e.touches.length !== 1 || drag) return;
+  const t = e.touches[0], plate = e.target.closest('.ladder .plate');
   if (!plate || e.target.closest('.mv')) return;
+  const lad = ladderOf(plate);
+  if (!lad || !lad.on()) return;
   const i = +plate.dataset.i;
-  if (!canMove(i)) return;
-  if (e.target.closest('[data-grip]')) { e.preventDefault(); dragBegin(plate, i, t.clientY, true); return; }
-  hold = {i, x: t.clientX, y: t.clientY, plate};
-  hold.timer = setTimeout(() => { if (hold) { const h = hold; hold = null; dragBegin(h.plate, h.i, h.y, true); } }, 260);
-}, {passive: false});
+  if (!lad.can(i)) return;
+  if (e.target.closest('[data-grip]')) { e.preventDefault(); dragBegin(lad, plate, i, t.clientY, true); return; }
+  hold = {lad, i, x: t.clientX, y: t.clientY, plate};
+  hold.timer = setTimeout(() => { if (hold) { const h = hold; hold = null; dragBegin(h.lad, h.plate, h.i, h.y, true); } }, 260);
+};
+$('#ladder').addEventListener('touchstart', touchStart, {passive: false});
+$('#fc').addEventListener('touchstart', touchStart, {passive: false});
 document.addEventListener('touchmove', e => {
   const t = e.touches[0];
   if (drag && drag.touch) { e.preventDefault(); dragMove(t.clientY); return; }
@@ -3185,6 +3598,22 @@ $('#ladder').addEventListener('keydown', e => {
   else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); tap(i); }
 });
 $('#btn-submit').addEventListener('click', submit);
+$('#fc').addEventListener('click', e => {
+  if (!e.target.closest('#fc-ladder')) return;
+  const mv = e.target.closest('[data-mv]');
+  if (mv) { fcMove(+mv.dataset.i, +mv.dataset.mv); return; }
+  if (e.target.closest('[data-grip]') || Date.now() - dragJust < 300) return;
+  const p = e.target.closest('.plate');
+  if (p) fcTap(+p.dataset.i);
+});
+$('#fc').addEventListener('keydown', e => {
+  const p = e.target.closest('#fc-ladder .plate');
+  if (!p || e.target !== p) return;
+  const i = +p.dataset.i;
+  if (e.key === 'ArrowUp') { e.preventDefault(); fcMove(i, -1); }
+  else if (e.key === 'ArrowDown') { e.preventDefault(); fcMove(i, 1); }
+  else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fcTap(i); }
+});
 $('#view-map').addEventListener('click', () => setView('map'));
 $('#mo-zone').addEventListener('change', e => selectMeritZone(e.target.value, false));
 $('#pmo-zone').addEventListener('change', e => pmoSet(e.target.value, null));
@@ -3214,6 +3643,7 @@ document.addEventListener('visibilitychange', () => {   // back to this tab: pic
 $('#btn-board').addEventListener('click', () => { location.hash = location.hash === '#board' ? 'game' : 'board'; });
 document.addEventListener('click', e => { const b = e.target.closest('[data-go]'); if (b) { location.hash = b.dataset.go; window.scrollTo({top: 0}); } });
 document.querySelectorAll('[data-lb]').forEach(b => b.addEventListener('click', () => setBoardPeriod(b.dataset.lb)));
+document.querySelectorAll('[data-lbg]').forEach(b => b.addEventListener('click', () => setBoardGame(b.dataset.lbg)));
 window.addEventListener('hashchange', route);
 $('#ph-presets').addEventListener('click', e => { const b = e.target.closest('[data-preset]'); if (!b) return; PH.preset = b.dataset.preset; [PH.from, PH.to] = phRange(PH.preset); phSave(); renderPrices(); });
 $('#ph-from').addEventListener('change', e => { if (!e.target.value) return; PH.from = e.target.value; if (PH.from > PH.to) PH.to = PH.from; PH.preset = 'custom'; phSave(); renderPrices(); });
@@ -3229,7 +3659,7 @@ document.querySelectorAll('.overlay').forEach(ov => {
   ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-close]')) ov.classList.remove('open'); });
 });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.overlay.open').forEach(o => o.classList.remove('open')); });
-$('#btn-help').addEventListener('click', () => openOv('#ov-help'));
+$('#btn-help').addEventListener('click', () => { $('#help-fc').hidden = !FC_ON; openOv('#ov-help'); });
 $('#btn-stats').addEventListener('click', () => { renderStats(); openOv('#ov-stats'); });
 
 $('#file-in').addEventListener('change', async e => {
@@ -3268,7 +3698,7 @@ async function boot(snap) {
   render();
   route();
   loadDrivers();   // wind/solar/demand data for clues and insights
-  if (PLAYER && HOSTED) syncMine().then(() => { submitDaily(); saveProgress(); });   // rounds from other devices, then anything not saved yet
+  if (PLAYER && HOSTED) syncMine().then(() => { submitDaily(); saveProgress(); fcSync(); });   // rounds from other devices, then anything not saved yet
 }
 window.claude?.hot?.snapshot?.(() => ({G}));
 window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});

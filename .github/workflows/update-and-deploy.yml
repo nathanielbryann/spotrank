@@ -105,6 +105,13 @@ jobs:
           curl -sS -m 30 -X POST "https://ywzvupcjyuvftnpchrtr.supabase.co/rest/v1/rpc/ping" \
             -H "apikey: sb_publishable_uRr_kiMcy3RxNQk2_52AIg_h5QsoYLF" -H "Content-Type: application/json" -d '{}' || true
 
+      - name: Send prices to the leaderboard database (scores the Forecast challenge)
+        # needs the SUPABASE_SECRET_KEY secret; without it this step only prints a notice
+        continue-on-error: true
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python scripts/push_day_prices.py --days 10
+
       - name: Commit updated prices
         run: |
           if [ -z "$(git status --porcelain site/data)" ]; then

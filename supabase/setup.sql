@@ -1,5 +1,6 @@
 -- Spotrank players and results (Supabase).
 -- Paste all of this into Supabase: SQL Editor > New query > Run. Safe to run again.
+-- For the Forecast challenge, run forecast-challenge.sql the same way afterwards.
 --
 -- How it is protected: the web page uses the publishable key, which acts as the
 -- "anon" role. That role cannot read or write the tables at all (row level security

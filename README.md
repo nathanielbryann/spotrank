@@ -93,6 +93,20 @@ and redeploys the site.
   BE, FR, AT, CH). The same four group the zones in the Market data picker and "You vs everyone"; the
   puzzle builder keeps its finer regions for its mix rule.
 
+- **Forecast challenge** (preview: open the site with `?fc=1`; `?fc=0` turns it off again; `FC_LIVE`
+  in `site/index.html` turns it on for everyone). After the daily puzzle, the player ranks the same five
+  zones by their daily baseload price for the next delivery day, once, before 11:30 Brussels time (the
+  SDAC auction closes at 12:00). The zones start in today's order, the naive forecast. Points: one per zone
+  in the right place, where a zone counts as right when its price is within €1 of the price that belongs
+  in its place (so near-ties count either way). The card shows today's price, tomorrow's demand change and
+  wind + solar share as far as published, and the latest fuel and CO2 prices. It opens only after the daily
+  puzzle, because today's prices for the same zones would give the puzzle away. Database:
+  `supabase/forecast-challenge.sql` (run once in the Supabase SQL Editor). The deadline is checked on the
+  database's clock; the first forecast of a day fixes its five zones. Scores come from the `day_prices`
+  table, which the daily workflow fills with `scripts/push_day_prices.py` using the `SUPABASE_SECRET_KEY`
+  GitHub secret (the page's publishable key can't write it). Leaderboard page: Daily puzzle / Forecast
+  switch. Stats: the player's forecasts.
+
 The drivers history is backfilled a few months per run, newest first. A run can be given more time
 with **Run workflow**, using the "Minutes to spend on wind/solar/load data" field. Generation data works the same way
 (10 minutes per daily run); the **Backfill generation data** workflow runs longer catch-ups and starts
