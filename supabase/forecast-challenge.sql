@@ -2,7 +2,8 @@
 -- Safe to run again. It adds three tables and a few functions; nothing that exists is changed.
 --
 -- Players rank tomorrow's daily baseload prices for the five zones of today's daily puzzle, once,
--- before 11:30 Brussels time on the day before delivery (the SDAC auction closes at 12:00).
+-- before 11:00 Brussels time on the day before delivery. The Swiss auction closes at 11:00 and publishes
+-- from 11:10, so a later cut-off would let players look up Switzerland's price; SDAC closes at 12:00.
 --
 -- How it is protected:
 --  * The deadline is checked on the database's own clock, so a wrong clock on a phone changes nothing.
@@ -42,12 +43,12 @@ grant select, insert, update on public.day_prices to service_role;   -- the nigh
 create or replace function public.spotrank_now() returns timestamptz
 language sql stable as $$ select now() $$;
 
--- 'early' before midnight Brussels time on the day before delivery, 'open' until 11:30, then 'closed'.
+-- 'early' before midnight Brussels time on the day before delivery, 'open' until 11:00, then 'closed'.
 create or replace function public.spotrank_fc_state(p_delivery date, p_at timestamptz) returns text
 language sql stable as $$
   select case
     when p_at < ((p_delivery - 1)::timestamp at time zone 'Europe/Brussels') then 'early'
-    when p_at < (((p_delivery - 1) + time '11:30') at time zone 'Europe/Brussels') then 'open'
+    when p_at < (((p_delivery - 1) + time '11:00') at time zone 'Europe/Brussels') then 'open'
     else 'closed' end
 $$;
 
@@ -98,7 +99,7 @@ begin
   if pid is null then raise exception 'unknown_player'; end if;
   st := spotrank_fc_state(p_delivery, spotrank_now());
   if st = 'early' then raise exception 'forecast_not_open' using hint = 'This forecast isn''t open yet.'; end if;
-  if st = 'closed' then raise exception 'forecast_closed' using hint = 'Forecasts for this day closed at 11:30 CET.'; end if;
+  if st = 'closed' then raise exception 'forecast_closed' using hint = 'Forecasts for this day closed at 11:00 CET.'; end if;
   if p_ranking is null or coalesce(array_length(p_ranking, 1), 0) <> 5 or array_position(p_ranking, null) is not null
      or (select count(distinct x) from unnest(p_ranking) x) <> 5 or not (p_ranking <@ spotrank_game_zones()) then
     raise exception 'bad_ranking' using hint = 'A forecast is five different game zones.';

@@ -861,7 +861,7 @@ table.fc-clues small { color: var(--muted); font-family: var(--f-body); font-siz
       <li>Every miss unlocks a clue with numbers: first the price range of the five, then a record or an unusual rank, then one zone's actual price.</li>
       <li>Drag a zone to where it belongs and the others slide out of the way (on a phone, press and hold it first). You can also tap two zones to swap them, or use the arrow buttons. With a zone focused, ↑/↓ moves it and Enter selects it for a swap.</li>
       <li>The daily puzzle is the same for everyone and counts toward your streak. Practice rounds don't count.</li>
-      <li id="help-fc" hidden><b>Forecast: tomorrow.</b> After the daily puzzle, rank the same five zones by their price for the next day, once, before 11:30 CET (the auction closes at 12:00). You get a point for each zone in the right place; zones less than €1 apart count either way. Beat the <b>naive forecast</b>, which is the zones in the day before's order.</li>
+      <li id="help-fc" hidden><b>Forecast: tomorrow.</b> After the daily puzzle, rank the same five zones by their price for the next day, once, before 11:00 CET (Switzerland's own auction closes then; the main auction at 12:00). You get a point for each zone in the right place; zones less than €1 apart count either way. Beat the <b>naive forecast</b>, which is the zones in the day before's order.</li>
     </ul>
     <button class="btn primary" type="button" data-close>Got it</button>
   </div>
@@ -1686,7 +1686,7 @@ const SB_MSG = {
   unknown_player: 'That player code wasn\'t found.',
   not_todays_puzzle: 'Only today\'s daily puzzle can be saved.',
   started_elsewhere: 'This round was continued on another device, so that one is shown here.',
-  forecast_closed: 'forecasts for this day closed at 11:30 CET',
+  forecast_closed: 'forecasts for this day closed at 11:00 CET',
   forecast_not_open: 'this forecast isn\'t open yet',
   bad_ranking: 'the forecast needs five different game zones',
   other_zones: 'other players got different zones for this day; reload the page',
@@ -1999,14 +1999,14 @@ function renderVs() {
 function setBoardPeriod(p) { LB.period = p; lsSet('lb', p); renderLeaderboard(); }
 function setBoardGame(g) { LB.game = g; lsSet('lb-game', g); renderLeaderboard(); }
 
-/* ---------- Forecast challenge: rank tomorrow's prices before 11:30 CET ---------- */
+/* ---------- Forecast challenge: rank tomorrow's prices before 11:00 CET ---------- */
 // Each day, the five zones of that day's daily puzzle are ranked by their price for the next delivery day,
-// once, before 11:30 Brussels time (the SDAC auction closes at 12:00). The database checks the deadline on its
+// once, before 11:00 Brussels time: the Swiss auction closes then and publishes from 11:10, the SDAC auction at 12:00. The database checks the deadline on its
 // own clock and scores forecasts once the nightly job has sent the prices (supabase/forecast-challenge.sql).
 const FC_LIVE = false;   // true once the challenge is launched; until then ?fc=1 turns on a preview in this browser (?fc=0 off)
 (function () { const m = /[?&]fc=([01])\b/.exec(location.search); if (m) lsSet('fc-preview', m[1] === '1'); })();
 const FC_ON = FC_LIVE || lsGet('fc-preview', false) === true;
-const FC_TZ = 'Europe/Brussels', FC_CUT = [11, 30], FC_RESULTS = [16, 30];   // results come with the afternoon price update
+const FC_TZ = 'Europe/Brussels', FC_CUT = [11, 0], FC_RESULTS = [16, 30];   // results come with the afternoon price update
 let FC_CLOCK = null;   // a fixed time (ms) for tests
 const fcNow = () => (FC_CLOCK === null ? Date.now() : FC_CLOCK);
 let TZF = null;
@@ -2023,7 +2023,7 @@ function bxEpoch(iso, h, mi) {   // the moment the Brussels clock shows iso h:mi
   return t;
 }
 const isoAdd = (iso, n) => isoLocal(addDays(parseISO(iso), n));
-function bxTime(ms) {   // "11:30 CET (12:30 your time)"
+function bxTime(ms) {   // "11:00 CET (12:00 your time)"
   const b = bxParts(ms), t = String(b.h).padStart(2, '0') + ':' + String(b.mi).padStart(2, '0') + ' ' + (b.off === 120 ? 'CEST' : 'CET');
   if (-new Date(ms).getTimezoneOffset() === b.off) return t;
   return t + ' (' + new Date(ms).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'}) + ' your time)';
@@ -2296,7 +2296,7 @@ function renderFcBoard() {
     box.innerHTML = rows.length ? '<table class="lb"><thead><tr><th>#</th><th>Player</th><th class="num">Points</th><th class="num">Naive</th><th class="num">Submitted</th></tr></thead><tbody>' +
       rows.map(r => '<tr' + (r.name === me ? ' class="mine"' : '') + '><td>' + pos(r) + '</td><td>' + esc(r.name) + '</td><td class="num">' + (r.points === null ? '–' : r.points + ' of 5') + '</td><td class="num">' + (r.naive_points === null ? '–' : r.naive_points) + '</td><td class="num">' + esc(new Date(r.submitted_at).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})) + '</td></tr>').join('') + '</tbody></table>'
       : '<p class="ph-sub">No forecasts for ' + esc(fmtDay(day)) + '.</p>';
-    msg.textContent = (c.err ? c.err + ' ' : '') + 'Forecasts for delivery day ' + fmtDay(day) + ', made by 11:30 CET the day before. Submitted: your time.';
+    msg.textContent = (c.err ? c.err + ' ' : '') + 'Forecasts for delivery day ' + fmtDay(day) + ', made by 11:00 CET the day before. Submitted: your time.';
     return;
   }
   const [a] = lbRange(LB.period);
@@ -2322,7 +2322,7 @@ function fcHistory() {
 function fcStatsHtml() {
   if (!FC_ON) return '';
   const h = fcHistory(), sc = h.filter(o => o.r);
-  if (!h.length) return '<div class="skill"><h3>Forecast challenge</h3><p class="sub">No forecasts yet. Finish a daily puzzle before 11:30 CET to make one.</p></div>';
+  if (!h.length) return '<div class="skill"><h3>Forecast challenge</h3><p class="sub">No forecasts yet. Finish a daily puzzle before 11:00 CET to make one.</p></div>';
   const tot = sc.reduce((p, o) => p + o.r.pts, 0), beat = sc.filter(o => o.r.naive !== null && o.r.pts > o.r.naive).length;
   return '<div class="skill"><h3>Forecast challenge</h3><p class="sub">Your forecasts of the next day\'s order, from this browser.</p><div class="stats">' +
     [['Made', h.length], ['Average', sc.length ? (tot / sc.length).toFixed(1) : '–'], ['Beat naive', sc.length ? beat + '/' + sc.length : '–'], ['5 of 5', sc.filter(o => o.r.pts === 5).length]]

@@ -95,8 +95,8 @@ and redeploys the site.
 
 - **Forecast challenge** (preview: open the site with `?fc=1`; `?fc=0` turns it off again; `FC_LIVE`
   in `site/index.html` turns it on for everyone). After the daily puzzle, the player ranks the same five
-  zones by their daily baseload price for the next delivery day, once, before 11:30 Brussels time (the
-  SDAC auction closes at 12:00). The zones start in today's order, the naive forecast. Points: one per zone
+  zones by their daily baseload price for the next delivery day, once, before 11:00 Brussels time (the
+  Swiss auction closes then and publishes its price from 11:10; the SDAC auction closes at 12:00). The zones start in today's order, the naive forecast. Points: one per zone
   in the right place, where a zone counts as right when its price is within €1 of the price that belongs
   in its place (so near-ties count either way). The card shows today's price, tomorrow's demand change and
   wind + solar share as far as published, and the latest fuel and CO2 prices. It opens only after the daily
