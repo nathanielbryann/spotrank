@@ -3,11 +3,16 @@ name: Forecast data availability check
 # Test runs for the planned Forecast challenge: which zones already have tomorrow's
 # load, wind and solar forecasts (and prices) on ENTSO-E before the 12:00 CET auction.
 # Times are UTC; in November 08:30 UTC = 09:30 CET = 10:30 Helsinki.
+# GitHub didn't start the scheduled runs on 16 Nov, so the checks are also started by a push
+# that changes .github/forecast-check.txt (made at the right times by a reminder in the chat).
 on:
+  push:
+    branches: [main]
+    paths: [".github/forecast-check.txt"]
   schedule:
-    - cron: "30 8 16,17 11 *"    # 09:30 CET
-    - cron: "30 9 16,17 11 *"    # 10:30 CET
-    - cron: "15 10 16,17 11 *"   # 11:15 CET
+    - cron: "30 8 17,18 11 *"    # 09:30 CET
+    - cron: "30 9 17,18 11 *"    # 10:30 CET
+    - cron: "15 10 17,18 11 *"   # 11:15 CET
   workflow_dispatch:
 
 permissions:
