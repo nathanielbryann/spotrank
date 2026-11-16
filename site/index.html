@@ -353,6 +353,27 @@ table.lb tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 
 .gm-ctrl { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
 
+/* Market data page */
+.md-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.md-tabs button { appearance: none; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink-2); font: inherit; font-size: 14px; font-weight: 600;
+  padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+.md-tabs button[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.btn.dl { font-size: 13px; padding: 6px 12px; min-height: 0; }
+.pmo-act { display: flex; gap: 8px; align-items: center; }
+.cv-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 8px 0 14px; }
+.cv-stat { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--surface-2); }
+.cv-stat .l { font-size: 12.5px; color: var(--ink-2); }
+.cv-stat .v { font-family: var(--f-mono); font-size: 22px; font-weight: 700; color: var(--ink); margin-top: 2px; }
+.cv-stat .s { font-size: 12.5px; color: var(--muted); }
+.fu-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 20px; margin-top: 18px; }
+@media (max-width: 900px) { .fu-grid { grid-template-columns: minmax(0, 1fr); } }
+table.click tbody tr { cursor: pointer; }
+.pmenu { margin-bottom: 18px; }
+.pmenu .row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.pmenu .dates { display: flex; align-items: center; gap: 6px; }
+.pmenu .step { appearance: none; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); border-radius: 8px; width: 32px; height: 32px; font-size: 18px; cursor: pointer; }
+.pmenu input[type="date"] { font: inherit; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+
 /* Views */
 .view { display: grid; gap: 20px; }
 .view[hidden] { display: none; }
@@ -457,7 +478,7 @@ footer a, .data a { color: var(--accent); }
     </div>
     <div class="actions">
       <button class="btn" id="btn-board" type="button">Leaderboard</button>
-      <button class="btn" id="btn-prices" type="button">Prices</button>
+      <button class="btn" id="btn-prices" type="button">Market data</button>
       <button class="btn" id="btn-help" type="button">How to play</button>
       <button class="btn" id="btn-stats" type="button">Stats</button>
       <button class="btn" id="btn-mode" type="button">Practice round</button>
@@ -465,6 +486,24 @@ footer a, .data a { color: var(--accent); }
   </header>
 
   <div class="view" id="game-view">
+  <section class="panel pmenu" id="pmenu" hidden aria-labelledby="pm-title">
+    <div class="lb-head" style="margin-bottom:8px">
+      <h2 id="pm-title" style="margin:0">Practice round</h2>
+      <button class="linkish" type="button" id="pm-close">Close</button>
+    </div>
+    <div class="row">
+      <button class="btn primary" type="button" id="pm-random">Random day</button>
+      <span class="ph-sub">or choose a day:</span>
+      <div class="dates">
+        <button type="button" class="step" id="pm-prev" aria-label="Previous day">‹</button>
+        <input type="date" id="pm-date" aria-label="Day to play">
+        <button type="button" class="step" id="pm-next" aria-label="Next day">›</button>
+      </div>
+      <button class="btn" type="button" id="pm-play">Play this day</button>
+    </div>
+    <p class="status-line" id="pm-msg" role="status"></p>
+    <p class="hint" style="margin:4px 0 0">Any day from 1 Jan 2021 to yesterday. Practice rounds don't count on the leaderboard.</p>
+  </section>
   <div class="meta" id="meta"></div>
   <p class="rule">Order the five zones from cheapest to most expensive <b>daily baseload price</b>. You get 4 attempts. After each one, zones in the right place turn <span class="k g">✓</span>green and lock; the rest turn <span class="k x">✕</span>grey.</p>
 
@@ -565,10 +604,10 @@ footer a, .data a { color: var(--accent); }
   </div>
 
   <div class="view" id="prices-view" hidden>
-    <section class="panel" aria-labelledby="ph-title">
+    <section class="panel md-bar" aria-labelledby="md-title">
       <div class="ph-head">
         <div>
-          <h2 id="ph-title" style="margin-bottom:4px">Price history</h2>
+          <h2 id="md-title" style="margin-bottom:4px">Market data</h2>
           <p class="ph-sub" id="ph-sub"></p>
         </div>
       </div>
@@ -580,16 +619,44 @@ footer a, .data a { color: var(--accent); }
         </div>
       </div>
       <p class="ph-period" id="ph-period"></p>
-      <div class="ph-legend" id="ph-legend"></div>
-      <div class="chart-wrap" id="ph-chart"></div>
       <div class="ph-overview-wrap">
         <div id="ph-overview"></div>
-        <p class="hint" style="margin:6px 0 0">Drag across this strip to pick a period. The shaded part is the period shown above.</p>
+        <p class="hint" style="margin:6px 0 0">Drag across this strip to pick a period. The shaded part is the period every tab uses.</p>
       </div>
-      <h3 class="ph-h3">Zones <span id="ph-count"></span></h3>
-      <div class="zone-picker" id="ph-zones"></div>
-      <p class="status-line" id="ph-msg" role="status"></p>
+      <div class="md-tabs" role="tablist" aria-label="Market data views">
+        <button type="button" role="tab" data-tab="prices">Prices</button>
+        <button type="button" role="tab" data-tab="gen">Generation</button>
+        <button type="button" role="tab" data-tab="mo">Merit order</button>
+        <button type="button" role="tab" data-tab="fuel">Fuel &amp; CO2</button>
+        <button type="button" role="tab" data-tab="borders">Borders</button>
+      </div>
     </section>
+
+    <div class="md-tab" id="tab-prices" role="tabpanel">
+      <section class="panel" aria-labelledby="ph-title">
+        <div class="lb-head">
+          <h2 id="ph-title" style="margin:0">Price history</h2>
+          <button class="btn dl" type="button" data-dl="prices">Download CSV</button>
+        </div>
+        <div class="ph-legend" id="ph-legend"></div>
+        <div class="chart-wrap" id="ph-chart"></div>
+        <h3 class="ph-h3">Zones <span id="ph-count"></span></h3>
+        <div class="zone-picker" id="ph-zones"></div>
+        <p class="status-line" id="ph-msg" role="status"></p>
+      </section>
+      <section class="panel" aria-labelledby="pt-title">
+        <div class="lb-head">
+          <div>
+            <h2 id="pt-title" style="margin-bottom:4px">Period average, all zones</h2>
+            <p class="ph-sub" id="pt-sub"></p>
+          </div>
+          <button class="btn dl" type="button" data-dl="period">Download CSV</button>
+        </div>
+        <div class="tbl-scroll"><table id="ph-table"></table></div>
+      </section>
+    </div>
+
+    <div class="md-tab" id="tab-gen" role="tabpanel" hidden>
     <section class="panel" aria-labelledby="gm-h">
       <div class="lb-head">
         <div>
@@ -598,6 +665,7 @@ footer a, .data a { color: var(--accent); }
         </div>
         <div class="gm-ctrl">
           <label class="mo-pick">Zone <select id="gm-zone" aria-label="Zone for the generation mix"></select></label>
+          <button class="btn dl" type="button" data-dl="mix">Download CSV</button>
           <div class="seg" role="group" aria-label="Unit">
             <button type="button" data-gm-unit="gw" aria-pressed="true">GW</button>
             <button type="button" data-gm-unit="pct" aria-pressed="false">% share</button>
@@ -609,6 +677,37 @@ footer a, .data a { color: var(--accent); }
       <details class="tableview"><summary>Period average as a table</summary><div class="tbl-scroll" id="gm-table"></div></details>
       <p class="map-note" id="gm-note" style="max-width:none;margin-left:0"></p>
     </section>
+      <section class="panel" aria-labelledby="cv-h">
+        <div class="lb-head">
+          <div>
+            <h2 id="cv-h" style="margin-bottom:4px">Wind and solar value</h2>
+            <p class="ph-sub">The average price wind and solar earned, weighted by how much they produced each day, against the baseload average.</p>
+          </div>
+          <button class="btn dl" type="button" data-dl="value">Download CSV</button>
+        </div>
+        <div class="cv-stats" id="cv-stats"></div>
+        <div class="chart-wrap" id="cv-chart"></div>
+        <div class="key mo-key" id="cv-key"></div>
+        <details class="tableview"><summary>By month as a table</summary><div class="tbl-scroll" id="cv-table"></div></details>
+        <p class="map-note" id="cv-note" style="max-width:none;margin-left:0"></p>
+      </section>
+      <section class="panel" aria-labelledby="cap-h">
+        <div class="lb-head">
+          <div>
+            <h2 id="cap-h" style="margin-bottom:4px">Installed capacity by year</h2>
+            <p class="ph-sub">Installed capacity per technology as reported to ENTSO-E for each year, and capacity factors: average output ÷ installed capacity.</p>
+          </div>
+          <button class="btn dl" type="button" data-dl="capacity">Download CSV</button>
+        </div>
+        <div class="chart-wrap" id="cap-chart"></div>
+        <div class="key mo-key" id="cap-key"></div>
+        <h3 class="ph-h3">Capacity factor</h3>
+        <div class="tbl-scroll" id="cap-table"></div>
+        <p class="map-note" id="cap-note" style="max-width:none;margin-left:0"></p>
+      </section>
+    </div>
+
+    <div class="md-tab" id="tab-mo" role="tabpanel" hidden>
     <section class="panel" aria-labelledby="pmo-h">
       <h2 id="pmo-h" style="margin-bottom:4px">Merit order</h2>
       <p class="ph-sub">What ran on a day, ordered by estimated running cost, with demand and the day's price. Pick a zone and a date.</p>
@@ -620,6 +719,7 @@ footer a, .data a { color: var(--accent); }
           <input type="date" id="pmo-date">
           <button type="button" class="step" id="pmo-next" aria-label="Next day">›</button>
         </div>
+        <div class="pmo-act"><button class="btn" type="button" id="pmo-play">Play this day</button> <button class="btn dl" type="button" data-dl="mo">Download CSV</button></div>
       </div>
       <h3 class="pmo-day" id="pmo-title"></h3>
       <p class="mo-sum" id="pmo-sum"></p>
@@ -628,11 +728,52 @@ footer a, .data a { color: var(--accent); }
       <details class="tableview"><summary>Merit order as a table</summary><div class="tbl-scroll" id="pmo-table"></div></details>
       <p class="map-note" id="pmo-note" style="max-width:none;margin-left:0"></p>
     </section>
-    <section class="panel" aria-labelledby="pt-title">
-      <h2 id="pt-title" style="margin-bottom:4px">Period average, all zones</h2>
-      <p class="ph-sub" id="pt-sub"></p>
-      <div class="tbl-scroll"><table id="ph-table"></table></div>
-    </section>
+    </div>
+
+    <div class="md-tab" id="tab-fuel" role="tabpanel" hidden>
+      <section class="panel" aria-labelledby="fu-h">
+        <div class="lb-head">
+          <div>
+            <h2 id="fu-h" style="margin-bottom:4px">Fuel and CO2</h2>
+            <p class="ph-sub">Daily TTF gas, EUA carbon and coal (CIF ARA) prices, and what they mean for the running cost of gas and coal plants.</p>
+          </div>
+          <button class="btn dl" type="button" data-dl="fuel">Download CSV</button>
+        </div>
+        <h3 class="ph-h3">Running cost: gas vs coal plant, €/MWh</h3>
+        <p class="mo-sum" id="fu-sum"></p>
+        <div class="chart-wrap" id="fu-cost"></div>
+        <div class="key mo-key" id="fu-key"></div>
+        <div class="fu-grid">
+          <div><h3 class="ph-h3">TTF gas, €/MWh</h3><div class="chart-wrap" id="fu-ttf"></div></div>
+          <div><h3 class="ph-h3">EUA carbon, €/t</h3><div class="chart-wrap" id="fu-eua"></div></div>
+          <div><h3 class="ph-h3">Coal CIF ARA, €/t</h3><div class="chart-wrap" id="fu-coal"></div></div>
+        </div>
+        <p class="map-note" id="fu-note" style="max-width:none;margin-left:0"></p>
+      </section>
+    </div>
+
+    <div class="md-tab" id="tab-borders" role="tabpanel" hidden>
+      <section class="panel" aria-labelledby="bd-h">
+        <div class="lb-head">
+          <div>
+            <h2 id="bd-h" style="margin-bottom:4px">Border spreads</h2>
+            <p class="ph-sub">The price gap between neighbouring zones. While a border isn't congested, market coupling gives both sides the same price.</p>
+          </div>
+          <div class="gm-ctrl">
+            <label class="mo-pick">Border <select id="bd-pick" aria-label="Border"></select></label>
+            <button class="btn dl" type="button" data-dl="border">Download CSV</button>
+          </div>
+        </div>
+        <p class="mo-sum" id="bd-sum"></p>
+        <div class="chart-wrap" id="bd-chart"></div>
+        <div class="lb-head" style="margin-top:18px">
+          <h3 class="ph-h3" style="margin:0">All borders in this period</h3>
+          <button class="btn dl" type="button" data-dl="borders">Download CSV</button>
+        </div>
+        <div class="tbl-scroll" id="bd-table"></div>
+        <p class="map-note" id="bd-note" style="max-width:none;margin-left:0"></p>
+      </section>
+    </div>
   </div>
 
   <div class="view" id="board-view" hidden>
@@ -689,6 +830,7 @@ footer a, .data a { color: var(--accent); }
       <li>Rank them by <b>daily baseload price</b>, the time-weighted average of every hour or quarter-hour of the delivery day. The cheapest goes at the top.</li>
       <li>You have <b>4 attempts</b>. After each one, <span class="k g">✓</span> green means right place (it locks in) and <span class="k x">✕</span> grey means wrong place.</li>
       <li>Before you rank, the <b>market briefing</b> shows what drove each zone that day: wind and solar, demand, the main power source, imports or exports, and any congested border. No prices.</li>
+      <li>Practice rounds: a random day, or any day since 2021 you choose. They don't count on the leaderboard.</li>
       <li>Every miss unlocks a clue with numbers: first the price range of the five, then a record or an unusual rank, then one zone's actual price.</li>
       <li>Drag a zone to where it belongs and the others slide out of the way (on a phone, press and hold it first). You can also tap two zones to swap them, or use the arrow buttons. With a zone focused, ↑/↓ moves it and Enter selects it for a swap.</li>
       <li>The daily puzzle is the same for everyone and counts toward your streak. Practice rounds don't count.</li>
@@ -755,7 +897,8 @@ function isoLocal(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).p
 function parseISO(s) { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); }
 function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
 function daysBetween(a, b) { return Math.round((parseISO(b) - parseISO(a)) / 86400000); }
-function fmtDay(s) { return parseISO(s).toLocaleDateString('en-GB', {weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'}); }
+const WDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], MONS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];   // fixed names: some browsers write Sept
+function fmtDay(s) { const d = parseISO(s); return WDAYS[d.getDay()] + ', ' + d.getDate() + ' ' + MONS[d.getMonth()] + ' ' + d.getFullYear(); }
 function fmtP(v, dp = 2) { return (v < 0 ? '−' : '') + '€' + Math.abs(v).toFixed(dp); }
 
 /* ---------- data ---------- */
@@ -1150,7 +1293,7 @@ function ordinal(n) { const s = ['th', 'st', 'nd', 'rd'], v = n % 100; return n 
 function pctS(x) { const v = Math.round(x * 100); return (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v) + '%'; }
 function pct0(x) { return Math.round(x * 100) + '%'; }
 function fmtPower(mw) { return mw >= 1000 ? (mw / 1000).toFixed(1) + ' GW' : Math.round(mw) + ' MW'; }
-function fmtShortDay(s) { return parseISO(s).toLocaleDateString('en-GB', {day: 'numeric', month: 'short', year: 'numeric'}); }
+function fmtShortDay(s) { const d = parseISO(s); return d.getDate() + ' ' + MONS[d.getMonth()] + ' ' + d.getFullYear(); }
 const N$ = v => '<b class="n">' + v + '</b>';
 
 /* ---------- story seeds: which zones tell this day's story ---------- */
@@ -1850,13 +1993,13 @@ function phTicks(from, to) {
   const span = daysBetween(from, to), out = [], a = parseISO(from), b = parseISO(to);
   if (span <= 45) {
     let d = new Date(a); while (d.getDay() !== 1) d = addDays(d, 1);
-    for (; d <= b; d = addDays(d, 7)) out.push([isoLocal(d), d.toLocaleDateString('en-GB', {day: 'numeric', month: 'short'})]);
+    for (; d <= b; d = addDays(d, 7)) out.push([isoLocal(d), d.getDate() + ' ' + MONS[d.getMonth()]]);
   } else {
     const every = span <= 200 ? 1 : span <= 800 ? 3 : 6;
     let d = new Date(a.getFullYear(), a.getMonth() + (a.getDate() > 1 ? 1 : 0), 1);
     while (d.getMonth() % every) d = new Date(d.getFullYear(), d.getMonth() + 1, 1);
     for (; d <= b; d = new Date(d.getFullYear(), d.getMonth() + every, 1)) {
-      const lab = d.toLocaleDateString('en-GB', {month: 'short'}) + (d.getMonth() === 0 || every > 1 ? ' ' + d.getFullYear() : '');
+      const lab = MONS[d.getMonth()] + (d.getMonth() === 0 || every > 1 ? ' ' + d.getFullYear() : '');
       out.push([isoLocal(d), lab]);
     }
   }
@@ -1866,25 +2009,34 @@ function renderPrices() {
   phInit();
   $('#ph-msg').textContent = '';
   const first = DS.days[0][0], last = DS.days[DS.days.length - 1][0];
-  $('#ph-sub').textContent = 'Daily baseload, €/MWh, SDAC day-ahead. Data from ' + (DS.meta.source_short || 'the loaded file') + ', ' + fmtShortDay(first) + ' to ' + fmtShortDay(last) + '.';
+  $('#ph-sub').textContent = 'Daily data from ' + (DS.meta.source_short || 'ENTSO-E') + ', ' + fmtShortDay(first) + ' to ' + fmtShortDay(last) + '. Choose a period, then a view; the period applies to every tab.';
   $('#ph-presets').innerHTML = PRESETS.map(([k, l]) => '<button type="button" data-preset="' + k + '" aria-pressed="' + (PH.preset === k) + '">' + l + '</button>').join('');
   const fi = $('#ph-from'), ti = $('#ph-to');
   fi.min = ti.min = first; fi.max = ti.max = last; fi.value = PH.from; ti.value = PH.to;
   const days = daysBetween(PH.from, PH.to) + 1;
   $('#ph-period').innerHTML = 'Period: <b>' + esc(fmtShortDay(PH.from)) + ' – ' + esc(fmtShortDay(PH.to)) + '</b> · ' + days + ' day' + (days === 1 ? '' : 's');
-  // legend with period averages
-  $('#ph-legend').innerHTML = PH.sel.length ? PH.sel.map(({z, slot}) => {
-    const a = phAvg(z, PH.from, PH.to);
-    return '<span class="lg"><i style="background:' + phColor(slot) + '"></i><b>' + esc(z) + '</b><span class="nm">' + esc(zm(z).c) + '</span><span class="avg">' + (a ? fmtP(a.avg) : 'no data') + '</span><button type="button" data-remove="' + esc(z) + '" aria-label="Remove ' + esc(z) + '">×</button></span>';
-  }).join('') : '<span class="ph-sub">Pick up to ' + PH_MAX + ' zones below.</span>';
-  $('#ph-count').textContent = PH.sel.length + ' of ' + PH_MAX + ' selected';
-  renderPhChart(); renderPhOverview(); renderPhPicker(); renderPhTable(); renderGenMix(); renderPMO();
+  document.querySelectorAll('.md-tabs [data-tab]').forEach(t => t.setAttribute('aria-selected', String(t.dataset.tab === MD.tab)));
+  for (const t of ['prices', 'gen', 'mo', 'fuel', 'borders']) $('#tab-' + t).hidden = t !== MD.tab;
+  renderPhOverview();
+  if (MD.tab === 'prices') {
+    $('#ph-legend').innerHTML = PH.sel.length ? PH.sel.map(({z, slot}) => {
+      const a = phAvg(z, PH.from, PH.to);
+      return '<span class="lg"><i style="background:' + phColor(slot) + '"></i><b>' + esc(z) + '</b><span class="nm">' + esc(zm(z).c) + '</span><span class="avg">' + (a ? fmtP(a.avg) : 'no data') + '</span><button type="button" data-remove="' + esc(z) + '" aria-label="Remove ' + esc(z) + '">×</button></span>';
+    }).join('') : '<span class="ph-sub">Pick up to ' + PH_MAX + ' zones below.</span>';
+    $('#ph-count').textContent = PH.sel.length + ' of ' + PH_MAX + ' selected';
+    renderPhChart(); renderPhPicker(); renderPhTable();
+  } else if (MD.tab === 'gen') renderGenTab();
+  else if (MD.tab === 'mo') renderPMO();
+  else if (MD.tab === 'fuel') renderFuel();
+  else renderBorders();
 }
 function renderPhChart() {
   const box = $('#ph-chart');
   const W = Math.max(300, box.clientWidth || 800), H = W < 520 ? 240 : 320;
   const padL = 46, padR = 14, padT = 10, padB = 28;
   const series = PH.sel.map(o => ({...o, pts: phSeries(o.z, PH.from, PH.to), a: phAvg(o.z, PH.from, PH.to)}));
+  DL.prices = {name: 'spotrank-prices-' + PH.from + '-' + PH.to, header: ['date'].concat(series.map(sr => sr.z + '_eur_mwh')),
+    rows: (series[0] ? series[0].pts : []).map((p, k) => [p[0]].concat(series.map(sr => sr.pts[k][1])))};
   const all = series.flatMap(s => s.pts.map(p => p[1])).filter(v => v !== null);
   if (!all.length) { box.innerHTML = '<p class="map-msg">No prices for this selection.</p>'; return; }
   let lo = Math.min(0, ...all), hi = Math.max(...all);
@@ -1980,6 +2132,8 @@ function renderPhPicker() {
 }
 function renderPhTable() {
   const rows = DS.zones.map(z => ({z, a: phAvg(z, PH.from, PH.to)})).filter(o => o.a).sort((a, b) => a.a.avg - b.a.avg);
+  DL.period = {name: 'spotrank-period-average-' + PH.from + '-' + PH.to, header: ['rank', 'zone', 'name', 'average_eur_mwh', 'days'],
+    rows: rows.map((o, k) => [k + 1, o.z, zm(o.z).c + (zm(o.z).a ? ' · ' + zm(o.z).a : ''), R2(o.a.avg), o.a.n])};
   const used = new Map(PH.sel.map(o => [o.z, o.slot]));
   $('#pt-sub').textContent = fmtShortDay(PH.from) + ' – ' + fmtShortDay(PH.to) + '. Mean of the daily baseload prices, cheapest first. Click a row to add or remove it from the chart.';
   $('#ph-table').innerHTML = '<thead><tr><th>#</th><th>Zone</th><th>Name</th><th class="num">Average €/MWh</th><th class="num">Days</th></tr></thead><tbody>' +
@@ -2000,7 +2154,7 @@ function route() {
   $('#game-view').hidden = view !== 'game';
   $('#prices-view').hidden = view !== 'prices';
   $('#board-view').hidden = view !== 'board';
-  $('#btn-prices').textContent = view === 'prices' ? 'Back to the game' : 'Prices';
+  $('#btn-prices').textContent = view === 'prices' ? 'Back to the game' : 'Market data';
   $('#btn-board').textContent = view === 'board' ? 'Back to the game' : 'Leaderboard';
   $('#btn-mode').hidden = view !== 'game';
   if (view === 'prices') renderPrices();
@@ -2185,7 +2339,7 @@ async function loadGen(z) {
   } catch (e) { GEN.set(z, {state: 'none'}); }
   if (z === MO_Z || z === PMO.z) rerenderMerits();
   if (G && G.answer.includes(z)) renderBrief();
-  if (z === GM.z && !$('#prices-view').hidden) renderGenMix();
+  if (z === GM.z && !$('#prices-view').hidden && MD.tab === 'gen') renderGenTab();
 }
 /* latest fuel and CO2 prices on or before the day (markets don't trade on weekends and holidays) */
 function fuelAt(date) {
@@ -2291,7 +2445,8 @@ function moZoneOptions(sel) {
 }
 function rerenderMerits() {
   if (!$('#game-view').hidden) renderMerit();
-  if (!$('#prices-view').hidden) renderPMO();
+  if (!$('#prices-view').hidden && MD.tab === 'mo') renderPMO();
+  if (!$('#prices-view').hidden && MD.tab === 'fuel') renderFuel();
 }
 function drawMerit(p, z, date, title) {
   const q = id => $('#' + p + '-' + id);
@@ -2380,6 +2535,8 @@ function drawMerit(p, z, date, title) {
   });
   key.innerHTML = M.blocks.map(b => '<span><i style="background:' + col(b.g) + '"></i>' + esc(MO_GROUPS[b.g].n) + '</span>').join('') +
     (imports ? '<span><i class="hatch"></i>Net imports</span>' : '') + '<span><i class="ln"></i>Day\'s price</span>' + (M.load ? '<span><i class="dl"></i>Demand</span>' : '');
+  if (p === 'pmo') DL.mo = {name: 'spotrank-merit-order-' + z + '-' + date, header: ['technology', 'ran_gw', 'installed_gw', 'running_cost_eur_mwh'],
+    rows: M.blocks.map(b => [MO_GROUPS[b.g].n, R2(b.mw / 1000), b.cap ? R2(b.cap / 1000) : null, R2(b.cost)]).concat(imports ? [['Net imports', R2(imports / 1000), null, null]] : [], [['Demand (day-ahead forecast)', M.load ? R2(M.load / 1000) : null, null, null], ['Day\'s price', null, null, R2(M.price)]])};
   tbl.innerHTML = '<table><thead><tr><th>Technology</th><th class="num">Ran, GW</th><th class="num">Installed, GW</th><th class="num">Running cost, €/MWh</th></tr></thead><tbody>' +
     M.blocks.map(b => '<tr><td>' + esc(MO_GROUPS[b.g].n) + '</td><td class="num">' + (b.mw / 1000).toFixed(2) + '</td><td class="num">' + (b.cap ? (b.cap / 1000).toFixed(1) : '–') + '</td><td class="num">' + (b.g === 'hydro_storage' ? '≈ ' : '') + b.cost.toFixed(0) + '</td></tr>').join('') +
     (imports ? '<tr><td>Net imports</td><td class="num">' + (imports / 1000).toFixed(2) + '</td><td class="num">–</td><td class="num">–</td></tr>' : '') +
@@ -2391,6 +2548,309 @@ function drawMerit(p, z, date, title) {
     (asof && asof < date ? ' (latest before the day: ' + fmtShortDay(asof) + ')' : '') + '. ' +
     'Efficiency: gas ' + pct0(A.gas_ccgt.eff) + ', coal ' + pct0(A.coal.eff) + ', lignite ' + pct0(A.lignite.eff) + '. Nuclear, biomass and "other" use fixed costs (' +
     fmtP(A.fixed.nuclear, 0) + ', ' + fmtP(A.fixed.biomass, 0) + ', ' + fmtP(A.fixed.other, 0) + ').' + (z === 'IT' ? ' Italy is its North zone (IT-NORD).' : '');
+}
+/* ---------- Market data page: tabs, downloads and the extra views ---------- */
+const MD = {tab: lsGet('md-tab', 'prices')};
+if (!['prices', 'gen', 'mo', 'fuel', 'borders'].includes(MD.tab)) MD.tab = 'prices';
+function setTab(t) { MD.tab = t; lsSet('md-tab', t); renderPrices(); }
+function renderGenTab() { renderGenMix(); renderValue(); renderCapacity(); }
+
+/* CSV downloads: what each section shows. Separators follow the browser's number format,
+   so Excel opens the file in columns (a comma decimal means semicolon-separated). */
+const DL = {};
+const CSV_DEC = (1.5).toLocaleString().indexOf(',') >= 0 ? ',' : '.', CSV_SEP = CSV_DEC === ',' ? ';' : ',';
+function csvCell(v) {
+  if (v === null || v === undefined || (typeof v === 'number' && !isFinite(v))) return '';
+  if (typeof v === 'number') return String(Math.round(v * 10000) / 10000).replace('.', CSV_DEC);
+  const t = String(v);
+  return /["\n;,]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+}
+function downloadCSV(kind) {
+  const d = DL[kind];
+  if (!d || !d.rows.length) return;
+  const text = '﻿' + [d.header].concat(d.rows).map(r => r.map(csvCell).join(CSV_SEP)).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], {type: 'text/csv;charset=utf-8'}));
+  a.download = d.name.replace(/[^\w.-]+/g, '_') + '.csv';
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1500);
+}
+const R2 = v => v === null || v === undefined ? null : Math.round(v * 100) / 100;
+
+/* buckets of the period (daily, weekly or monthly) with x positions and labels */
+function periodBuckets(from, to) {
+  const {res, buckets} = gmBuckets(from, to);
+  for (const b of buckets) { b.x = daysBetween(from, b.days[0]) + (b.days.length - 1) / 2; b.label = gmLabel(b, res); }
+  return {res, buckets};
+}
+const avgOf = a => { const v = a.filter(x => x !== null && x !== undefined && isFinite(x)); return v.length ? v.reduce((p, c) => p + c, 0) / v.length : null; };
+
+/* a time-series line chart: one y axis, optional shaded bands, crosshair tooltip */
+function drawLines(box, o) {
+  const W = Math.max(300, box.clientWidth || 600), H = o.H || (W < 520 ? 200 : 260);
+  const padL = 46, padR = 12, padT = 18, padB = 26, n = Math.max(1, daysBetween(o.from, o.to));
+  const all = o.series.flatMap(sr => sr.vals).filter(v => v !== null && v !== undefined && isFinite(v)).concat(o.refs || []);
+  if (!all.length) { box.innerHTML = '<p class="map-msg" style="padding:24px 0">No data for this period.</p>'; return; }
+  let lo = Math.min(...all), hi = Math.max(...all);
+  if (o.zeroBase !== false) lo = Math.min(0, lo);
+  if (hi - lo < 1e-9) hi = lo + 1;
+  const step = niceStep(hi - lo, H < 220 ? 3 : 5);
+  lo = Math.floor(lo / step) * step; hi = Math.ceil(hi / step) * step;
+  const x = k => padL + k / n * (W - padL - padR), y = v => padT + (hi - v) / (hi - lo) * (H - padT - padB);
+  let s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + esc(o.aria || 'Chart') + '">';
+  for (const [a, b] of o.bands || []) s += '<rect x="' + x(a).toFixed(1) + '" y="' + padT + '" width="' + Math.max(1, x(b) - x(a)).toFixed(1) + '" height="' + (H - padT - padB) + '" fill="var(--accent-soft)"/>';
+  for (let t = lo; t <= hi + 1e-9; t += step) {
+    const yy = y(t).toFixed(1);
+    s += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + yy + '" y2="' + yy + '" stroke="' + (Math.abs(t) < 1e-9 ? 'var(--line-strong)' : 'var(--line)') + '"/>';
+    s += '<text x="' + (padL - 8) + '" y="' + (+yy + 4) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + (t < 0 ? '−' : '') + (+Math.abs(t).toFixed(step < 1 ? 1 : 0)) + '</text>';
+  }
+  if (o.unit) s += '<text x="' + (padL - 8) + '" y="' + (padT - 6) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + esc(o.unit) + '</text>';
+  for (const r of o.refs || []) s += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(r).toFixed(1) + '" y2="' + y(r).toFixed(1) + '" stroke="var(--ink-2)" stroke-width="1" stroke-dasharray="4 3"/>';
+  { let lastX = -Infinity;
+    for (const [d, lab] of phTicks(o.from, o.to)) { const tx = x(daysBetween(o.from, d)), need = lab.length * 6.6 + 10; if (tx - lastX < need || tx > W - padR - need / 2 + 6) continue; lastX = tx;
+      s += '<text x="' + tx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + esc(lab) + '</text>'; } }
+  for (const sr of o.series) {
+    let d = '', pen = false;
+    sr.vals.forEach((v, i) => { if (v === null || v === undefined || !isFinite(v)) { pen = false; return; } d += (pen ? 'L' : 'M') + x(o.xs[i]).toFixed(1) + ',' + y(v).toFixed(1); pen = true; });
+    s += '<path d="' + d + '" fill="none" stroke="' + sr.color + '" stroke-width="' + (sr.width || 2) + '" stroke-linejoin="round" stroke-linecap="round"/>';
+  }
+  s += '<line class="xh" x1="0" x2="0" y1="' + padT + '" y2="' + (H - padB) + '" stroke="var(--ink-2)" visibility="hidden" pointer-events="none"/>';
+  s += '<rect class="hit" x="' + padL + '" y="' + padT + '" width="' + (W - padL - padR) + '" height="' + (H - padT - padB) + '" fill="transparent"' + (o.onClick ? ' style="cursor:pointer"' : '') + '/></svg><div class="tip"></div>';
+  box.innerHTML = s;
+  const hit = box.querySelector('.hit'), xh = box.querySelector('.xh'), tip = box.querySelector('.tip');
+  const near = e => { const px = e.clientX - box.getBoundingClientRect().left; let bi = 0, bd = Infinity; o.xs.forEach((k, i) => { const dd = Math.abs(x(k) - px); if (dd < bd) { bd = dd; bi = i; } }); return bi; };
+  hit.addEventListener('pointermove', e => {
+    const i = near(e), xx = x(o.xs[i]);
+    xh.setAttribute('x1', xx); xh.setAttribute('x2', xx); xh.setAttribute('visibility', 'visible');
+    tip.innerHTML = '<b>' + esc(o.labels[i]) + '</b>' + o.series.map(sr => sr.vals[i] === null || sr.vals[i] === undefined ? '' : '<br><span style="display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px;background:' + sr.color + '"></span>' + esc(sr.name) + ' <b>' + (o.fmt ? o.fmt(sr.vals[i]) : sr.vals[i].toFixed(1)) + '</b>').join('') + (o.extra ? o.extra(i) : '');
+    tip.style.display = 'block'; tip.style.left = Math.min(Math.max(xx, 100), W - 100) + 'px'; tip.style.top = (padT + 4) + 'px'; tip.style.transform = 'translate(-50%, 0)';
+  });
+  hit.addEventListener('pointerleave', () => { tip.style.display = 'none'; xh.setAttribute('visibility', 'hidden'); });
+  if (o.onClick) hit.addEventListener('click', e => o.onClick(near(e)));
+}
+const keyHtml = items => items.map(([c, t, cls]) => '<span><i class="' + (cls || '') + '"' + (c ? ' style="background:' + c + '"' : '') + '></i>' + esc(t) + '</span>').join('');
+
+/* ---------- Fuel & CO2 ---------- */
+function renderFuel() {
+  const sum = $('#fu-sum'), note = $('#fu-note');
+  if (FUEL_STATE === 'idle') loadFuel();
+  if (FUEL_STATE !== 'ok') { $('#fu-cost').innerHTML = '<p class="map-msg" style="padding:24px 0">' + (FUEL_STATE === 'none' ? 'The fuel and CO2 prices couldn\'t be loaded.' : 'Loading…') + '</p>'; return; }
+  const A = FUEL.meta.assumptions, from = PH.from, to = PH.to;
+  const raw = (k, d) => { const i = daysBetween(FUEL.start, d), a = FUEL[k]; return i >= 0 && i < a.length ? a[i] : null; };
+  const gasCost = (t, e) => t / A.gas_ccgt.eff + e * A.gas_ccgt.ef / A.gas_ccgt.eff + A.gas_ccgt.vom;
+  const coalCost = (c, e) => c / A.coal.mwh_per_t / A.coal.eff + e * A.coal.ef / A.coal.eff + A.coal.vom;
+  const days = [], last = {}, lastAt = {};
+  for (let i = -7; i <= daysBetween(from, to); i++) {
+    const d = isoLocal(addDays(parseISO(from), i)), t = raw('ttf', d), e = raw('eua', d), c = raw('coal', d);
+    // the charts carry the last price over weekends and holidays (up to a week); counts use trading days only
+    for (const [f, v] of [['t', t], ['e', e], ['c', c]]) { if (v !== null) { last[f] = v; lastAt[f] = i; } else if (lastAt[f] !== undefined && i - lastAt[f] > 7) last[f] = null; }
+    if (i < 0) continue;
+    const ft = v => v === undefined ? null : v, T = ft(last.t), E = ft(last.e), C = ft(last.c);
+    days.push({d, t, e, c, g: t !== null && e !== null ? gasCost(t, e) : null, k: c !== null && e !== null ? coalCost(c, e) : null,
+      ft: T, fe: E, fc: C, fg: T !== null && E !== null ? gasCost(T, E) : null, fk: C !== null && E !== null ? coalCost(C, E) : null});
+  }
+  const {res, buckets} = periodBuckets(from, to), byDay = new Map(days.map(o => [o.d, o]));
+  for (const b of buckets) { const v = b.days.map(d => byDay.get(d)); for (const f of ['t', 'e', 'c', 'g', 'k']) b[f] = avgOf(v.map(o => o['f' + f])); }
+  const xs = buckets.map(b => b.x), labels = buckets.map(b => b.label), half = res === 'day' ? 0.5 : res === 'week' ? 3.5 : 15;
+  const bands = [];
+  for (const b of buckets) if (b.g !== null && b.k !== null && b.k < b.g) {
+    const a = b.x - half, z = b.x + half, last = bands[bands.length - 1];
+    if (last && a - last[1] < 1.01) last[1] = z; else bands.push([a, z]);
+  }
+  const gasC = 'var(--t-gas)', coalC = 'var(--t-coal)';
+  drawLines($('#fu-cost'), {from, to, xs, labels, aria: 'Running cost of gas and coal plants', unit: '€/MWh', fmt: v => fmtP(v, 0), bands,
+    series: [{name: 'Gas CCGT', color: gasC, vals: buckets.map(b => b.g)}, {name: 'Coal plant', color: coalC, vals: buckets.map(b => b.k)}],
+    extra: i => buckets[i].g !== null && buckets[i].k !== null ? '<br>' + (buckets[i].k < buckets[i].g ? 'Coal' : 'Gas') + ' cheaper by <b>' + fmtP(Math.abs(buckets[i].g - buckets[i].k), 0) + '</b>' : ''});
+  $('#fu-key').innerHTML = keyHtml([[gasC, 'Gas CCGT (' + pct0(A.gas_ccgt.eff) + ' efficient)'], [coalC, 'Hard coal plant (' + pct0(A.coal.eff) + ')'], ['var(--accent-soft)', 'Coal cheaper to run']]);
+  const small = (id, f, name, unit, color) => drawLines($('#' + id), {from, to, xs, labels, H: 150, aria: name, unit, fmt: v => fmtP(v, 1), series: [{name, color, vals: buckets.map(b => b[f])}]});
+  small('fu-ttf', 't', 'TTF gas', '€/MWh', 'var(--t-gas)');
+  small('fu-eua', 'e', 'EUA carbon', '€/t', 'var(--s3)');
+  small('fu-coal', 'c', 'Coal CIF ARA', '€/t', 'var(--t-coal)');
+  // how often coal was cheaper, and the lasting switches (a new order that held for 10 trading days)
+  const td = days.filter(o => o.g !== null && o.k !== null);
+  if (td.length) {
+    const coalDays = td.filter(o => o.k < o.g).length, flips = [];
+    let cur = td[0].k < td[0].g ? 'coal' : 'gas';
+    for (let i = 1; i < td.length; i++) {
+      const now = td[i].k < td[i].g ? 'coal' : 'gas';
+      if (now !== cur && td.slice(i, i + 10).every(o => (o.k < o.g ? 'coal' : 'gas') === now)) { flips.push({d: td[i].d, to: now}); cur = now; }
+    }
+    sum.innerHTML = 'Coal was cheaper to run than gas on <b>' + coalDays + '</b> of ' + td.length + ' trading days in this period (' + pct0(coalDays / td.length) + ').' +
+      (flips.length ? ' Lasting switches: ' + flips.slice(-4).map(f => '<b>' + f.to + '</b> became cheaper on ' + esc(fmtShortDay(f.d))).join('; ') + '.' : ' The cheaper fuel didn\'t switch for long in this period.');
+  } else sum.textContent = 'No fuel prices in this period.';
+  DL.fuel = {name: 'spotrank-fuel-co2-' + from + '-' + to, header: ['date', 'ttf_eur_mwh', 'eua_eur_t', 'coal_cif_ara_eur_t', 'gas_ccgt_cost_eur_mwh', 'coal_plant_cost_eur_mwh', 'cheaper'],
+    rows: days.filter(o => o.t !== null || o.e !== null || o.c !== null).map(o => [o.d, o.t, o.e, o.c, R2(o.g), R2(o.k), o.g !== null && o.k !== null ? (o.k < o.g ? 'coal' : 'gas') : ''])};
+  note.textContent = (res === 'day' ? 'Daily values' : res === 'week' ? 'Weekly averages' : 'Monthly averages') + ' over trading days. Prices: ' + FUEL.meta.series.ttf.name + ', ' + FUEL.meta.series.eua.name + ', ' + FUEL.meta.series.coal.name + '. ' +
+    'Running cost = fuel ÷ efficiency + CO2 × emissions ÷ efficiency + operating cost (gas ' + A.gas_ccgt.ef + ' and coal ' + A.coal.ef + ' t CO2 per MWh of fuel; coal ' + A.coal.mwh_per_t + ' MWh per tonne).';
+}
+
+/* ---------- Borders ---------- */
+const BD = {pair: null};
+function bdPairs() { return NEIGHBOURS.filter(([a, b]) => DS.zones.includes(a) && DS.zones.includes(b)); }
+function bdStats(a, b, from, to) {
+  const ia = DS.zones.indexOf(a), ib = DS.zones.indexOf(b), days = [];
+  for (const [d, v] of DS.days) if (d >= from && d <= to && v[ia] !== null && v[ib] !== null) days.push({d, pa: v[ia], pb: v[ib], g: v[ia] - v[ib]});
+  const n = days.length, split = days.filter(o => Math.abs(o.g) >= 1), aD = split.filter(o => o.g > 0).length, bD = split.length - aD;
+  const max = days.reduce((m, o) => (!m || Math.abs(o.g) > Math.abs(m.g) ? o : m), null);
+  return {a, b, days, n, split: split.length, aD, bD, meanAbs: n ? days.reduce((s, o) => s + Math.abs(o.g), 0) / n : null, mean: n ? days.reduce((s, o) => s + o.g, 0) / n : null, max};
+}
+function renderBorders() {
+  const pairs = bdPairs(), from = PH.from, to = PH.to, sel = $('#bd-pick');
+  const key = p => p[0] + '|' + p[1];
+  if (!BD.pair || !pairs.some(p => key(p) === key(BD.pair))) {
+    const z0 = PH.sel[0] ? PH.sel[0].z : null;
+    BD.pair = pairs.find(p => p.includes(z0)) || pairs[0];
+  }
+  if (sel.options.length !== pairs.length) sel.innerHTML = pairs.map(p => '<option value="' + esc(key(p)) + '">' + esc(p[0] + ' – ' + p[1]) + '</option>').join('');
+  sel.value = key(BD.pair);
+  const [a, b] = BD.pair, st = bdStats(a, b, from, to);
+  if (!st.n) { $('#bd-sum').textContent = 'No days with prices on both sides in this period.'; $('#bd-chart').innerHTML = ''; }
+  else {
+    const dear = st.aD === st.bD ? null : st.aD > st.bD ? a : b;
+    $('#bd-sum').innerHTML = '<b>' + esc(a) + '</b> and <b>' + esc(b) + '</b> had different daily prices (a gap of €1 or more) on <b>' + st.split + '</b> of ' + st.n + ' days (' + pct0(st.split / st.n) + '). ' +
+      (st.split ? (dear ? '<b>' + esc(dear) + '</b> was the dearer side on ' + Math.max(st.aD, st.bD) + ' of them. ' : 'Each side was dearer equally often. ') : '') +
+      'Average gap ' + N$(fmtP(st.meanAbs)) + '; on average ' + esc(st.mean >= 0 ? a : b) + ' was ' + N$(fmtP(Math.abs(st.mean))) + ' dearer. ' +
+      (st.max && Math.abs(st.max.g) >= 1 ? 'Largest gap: ' + N$(fmtP(Math.abs(st.max.g))) + ' on ' + esc(fmtShortDay(st.max.d)) + ', when ' + esc(st.max.g > 0 ? a : b) + ' was dearer.' : '');
+    const {buckets} = periodBuckets(from, to), byDay = new Map(st.days.map(o => [o.d, o]));
+    for (const bk of buckets) { const v = bk.days.map(d => byDay.get(d)).filter(Boolean); bk.g = avgOf(v.map(o => o.g)); bk.s = v.length ? v.filter(o => Math.abs(o.g) >= 1).length / v.length : null; }
+    drawLines($('#bd-chart'), {from, to, xs: buckets.map(bk => bk.x), labels: buckets.map(bk => bk.label), aria: 'Price gap ' + a + ' minus ' + b, unit: '€/MWh', fmt: v => (v < 0 ? '−' : '') + fmtP(Math.abs(v)), zeroBase: true,
+      series: [{name: a + ' − ' + b, color: 'var(--s1)', vals: buckets.map(bk => bk.g)}],
+      extra: i => buckets[i].s === null ? '' : buckets[i].days.length > 1 ? '<br>Split on <b>' + pct0(buckets[i].s) + '</b> of days' : ''});
+  }
+  DL.border = {name: 'spotrank-border-' + a + '-' + b + '-' + from + '-' + to, header: ['date', a + '_eur_mwh', b + '_eur_mwh', 'gap_' + a + '_minus_' + b], rows: st.days.map(o => [o.d, o.pa, o.pb, R2(o.g)])};
+  const rows = pairs.map(p => bdStats(p[0], p[1], from, to)).filter(r => r.n).sort((p, q) => q.meanAbs - p.meanAbs);
+  $('#bd-table').innerHTML = '<table class="click"><thead><tr><th>Border</th><th class="num">Days split</th><th class="num">Average gap, €/MWh</th><th>Dearer side when split</th><th class="num">Largest gap</th></tr></thead><tbody>' +
+    rows.map(r => { const dear = r.aD === r.bD ? '–' : (r.aD > r.bD ? r.a : r.b) + ' (' + pct0(Math.max(r.aD, r.bD) / Math.max(1, r.split)) + ')';
+      return '<tr data-pair="' + esc(r.a + '|' + r.b) + '"' + (r.a === a && r.b === b ? ' class="mine"' : '') + '><td>' + esc(r.a + ' – ' + r.b) + '</td><td class="num">' + pct0(r.split / r.n) + '</td><td class="num">' + r.meanAbs.toFixed(2) + '</td><td>' + esc(r.split ? dear : '–') + '</td><td class="num">' + (r.max ? Math.abs(r.max.g).toFixed(0) + ' · ' + esc(fmtShortDay(r.max.d)) : '–') + '</td></tr>'; }).join('') + '</tbody></table>';
+  DL.borders = {name: 'spotrank-borders-' + from + '-' + to, header: ['border', 'days', 'days_split', 'share_split', 'average_gap_eur_mwh', 'dearer_side', 'dearer_share_of_split_days', 'largest_gap_eur_mwh', 'largest_gap_date'],
+    rows: rows.map(r => [r.a + '-' + r.b, r.n, r.split, R2(r.split / r.n), R2(r.meanAbs), r.aD === r.bD ? '' : r.aD > r.bD ? r.a : r.b, r.split ? R2(Math.max(r.aD, r.bD) / r.split) : null, r.max ? R2(Math.abs(r.max.g)) : null, r.max ? r.max.d : ''])};
+  $('#bd-note').textContent = 'Daily baseload prices, so a day counts as split when the daily averages differ by €1 or more; single hours can split even on days that look coupled. Click a row to show that border. Neighbours: borders with a direct interconnector between bidding zones in the game.';
+}
+
+/* ---------- Wind and solar value ---------- */
+function renderValue() {
+  const box = $('#cv-chart'), stats = $('#cv-stats'), note = $('#cv-note'), tbl = $('#cv-table'), key = $('#cv-key');
+  const gs = GEN.get(GM.z);
+  if (!gs || gs.state !== 'ok' || !gs.d.start) { stats.innerHTML = ''; box.innerHTML = ''; tbl.innerHTML = ''; key.innerHTML = ''; note.textContent = gs && gs.state === 'loading' ? 'Loading…' : 'No generation data for this zone.'; return; }
+  const gd = gs.d, zi = DS.zones.indexOf(GM.z), from = PH.from, to = PH.to;
+  const genAt = (k, d) => { const a = gd.gen && gd.gen[k], i = daysBetween(gd.start, d); return a && i >= 0 && i < a.length ? a[i] : null; };
+  const months = new Map();
+  const add = (m, f, v) => { m[f] = (m[f] || 0) + v; };
+  const tot = {};
+  for (let i = 0; i <= daysBetween(from, to); i++) {
+    const d = isoLocal(addDays(parseISO(from), i)), row = DS.byDate.get(d), p = row ? row[zi] : null;
+    if (p === null || p === undefined) continue;
+    const mk = d.slice(0, 7), m = months.get(mk) || {}; months.set(mk, m);
+    for (const o of [m, tot]) { add(o, 'ps', p); add(o, 'n', 1); }
+    for (const k of ['wind', 'solar']) { const w = genAt(k, d); if (w !== null && w > 0) for (const o of [m, tot]) { add(o, k + 'pw', p * w); add(o, k + 'w', w); add(o, k + 'n', 1); } }
+  }
+  const val = o => {
+    const base = o.n ? o.ps / o.n : null, r = {base, n: o.n || 0};
+    for (const k of ['wind', 'solar']) { r[k] = o[k + 'w'] ? o[k + 'pw'] / o[k + 'w'] : null; r[k + 'Rate'] = r[k] !== null && base > 0 ? r[k] / base : null; r[k + 'Gw'] = o[k + 'n'] ? o[k + 'w'] / o[k + 'n'] / 1000 : null; }
+    return r;
+  };
+  const T = val(tot);
+  if (!T.n) { stats.innerHTML = ''; box.innerHTML = ''; tbl.innerHTML = ''; key.innerHTML = ''; note.textContent = 'No prices in this period.'; return; }
+  const tile = (l, v, sub) => '<div class="cv-stat"><div class="l">' + l + '</div><div class="v">' + v + '</div><div class="s">' + sub + '</div></div>';
+  stats.innerHTML = tile('Baseload average', fmtP(T.base), T.n + ' days') +
+    tile('Wind-weighted price', T.wind === null ? '–' : fmtP(T.wind), T.wind === null ? 'no wind output reported' : 'capture rate <b>' + pct0(T.windRate) + '</b> · wind averaged ' + T.windGw.toFixed(1) + ' GW') +
+    tile('Solar-weighted price', T.solar === null ? '–' : fmtP(T.solar), T.solar === null ? 'no solar output reported' : 'capture rate <b>' + pct0(T.solarRate) + '</b> · solar averaged ' + T.solarGw.toFixed(1) + ' GW');
+  const ms = [...months.entries()].map(([k, o]) => ({k, ...val(o)}));
+  if (ms.length >= 2) {
+    const xs = ms.map(m => daysBetween(from, m.k + '-15' < from ? from : m.k + '-15' > to ? to : m.k + '-15'));
+    drawLines(box, {from, to, xs, labels: ms.map(m => MONTHS[+m.k.slice(5) - 1] + ' ' + m.k.slice(0, 4)), aria: 'Monthly capture rates of wind and solar', unit: '%', H: 220, refs: [100], zeroBase: true,
+      fmt: v => Math.round(v) + '%', series: [{name: 'Wind capture rate', color: 'var(--t-wind)', vals: ms.map(m => m.windRate === null ? null : m.windRate * 100)}, {name: 'Solar capture rate', color: 'var(--t-solar)', vals: ms.map(m => m.solarRate === null ? null : m.solarRate * 100)}],
+      extra: i => '<br>Baseload <b>' + fmtP(ms[i].base) + '</b>' + (ms[i].wind !== null ? ' · wind <b>' + fmtP(ms[i].wind) + '</b>' : '') + (ms[i].solar !== null ? ' · solar <b>' + fmtP(ms[i].solar) + '</b>' : '')});
+    key.innerHTML = keyHtml([['var(--t-wind)', 'Wind capture rate'], ['var(--t-solar)', 'Solar capture rate'], [null, '100% = baseload price', 'dl']]);
+  } else { box.innerHTML = ''; key.innerHTML = ''; }
+  tbl.innerHTML = '<table><thead><tr><th>Month</th><th class="num">Baseload €/MWh</th><th class="num">Wind-weighted</th><th class="num">Wind capture</th><th class="num">Solar-weighted</th><th class="num">Solar capture</th></tr></thead><tbody>' +
+    ms.map(m => '<tr><td>' + MONTHS[+m.k.slice(5) - 1] + ' ' + m.k.slice(0, 4) + '</td><td class="num">' + m.base.toFixed(2) + '</td><td class="num">' + (m.wind === null ? '–' : m.wind.toFixed(2)) + '</td><td class="num">' + (m.windRate === null ? '–' : pct0(m.windRate)) + '</td><td class="num">' + (m.solar === null ? '–' : m.solar.toFixed(2)) + '</td><td class="num">' + (m.solarRate === null ? '–' : pct0(m.solarRate)) + '</td></tr>').join('') + '</tbody></table>';
+  DL.value = {name: 'spotrank-wind-solar-value-' + GM.z + '-' + from + '-' + to, header: ['month', 'baseload_eur_mwh', 'wind_weighted_eur_mwh', 'wind_capture_rate', 'solar_weighted_eur_mwh', 'solar_capture_rate', 'days'],
+    rows: ms.map(m => [m.k, R2(m.base), R2(m.wind), m.windRate === null ? null : R2(m.windRate), R2(m.solar), m.solarRate === null ? null : R2(m.solarRate), m.n]).concat([['whole period', R2(T.base), R2(T.wind), T.windRate === null ? null : R2(T.windRate), R2(T.solar), T.solarRate === null ? null : R2(T.solarRate), T.n]])};
+  note.textContent = 'An approximation from daily data: each day\'s baseload price weighted by that day\'s wind or solar output (ENTSO-E actual generation). True capture prices are weighted hour by hour; they come out lower, above all for solar, whose midday output pushes down the very hours it sells in.';
+}
+
+/* ---------- Installed capacity by year ---------- */
+function renderCapacity() {
+  const box = $('#cap-chart'), key = $('#cap-key'), tbl = $('#cap-table'), note = $('#cap-note');
+  const gs = GEN.get(GM.z);
+  if (!gs || gs.state !== 'ok') { box.innerHTML = ''; key.innerHTML = ''; tbl.innerHTML = ''; note.textContent = gs && gs.state === 'loading' ? 'Loading…' : 'No data for this zone.'; return; }
+  const gd = gs.d, caps = gd.cap || {}, years = Object.keys(caps).sort();
+  if (!years.length) { box.innerHTML = '<p class="map-msg" style="padding:24px 0">ENTSO-E has no installed capacity for ' + esc(GM.z) + '.</p>'; key.innerHTML = ''; tbl.innerHTML = ''; note.textContent = ''; DL.capacity = null; return; }
+  const groups = GM_STACK.filter(g => years.some(y => caps[y][g]));
+  const css = getComputedStyle(document.documentElement), col = g => css.getPropertyValue(MO_GROUPS[g].c).trim();
+  // capacity factor: average daily output in the year ÷ installed capacity
+  const cf = {};
+  for (const y of years) {
+    cf[y] = {};
+    for (const g of groups) {
+      const c = caps[y][g], a = gd.gen && gd.gen[g];
+      if (!c || !a || !gd.start) continue;
+      let s = 0, n = 0;
+      for (let i = Math.max(0, daysBetween(gd.start, y + '-01-01')); i <= Math.min(a.length - 1, daysBetween(gd.start, y + '-12-31')); i++) if (a[i] !== null) { s += a[i]; n++; }
+      if (n) cf[y][g] = {v: s / n / c, n};
+    }
+  }
+  const W = Math.max(300, box.clientWidth || 600), H = W < 520 ? 240 : 300, padL = 46, padR = 12, padT = 22, padB = 26;
+  const totals = years.map(y => groups.reduce((s, g) => s + (caps[y][g] || 0), 0) / 1000);
+  const step = niceStep(Math.max(...totals) || 1, 5), top = Math.ceil(Math.max(...totals) / step) * step || step;
+  const slot = (W - padL - padR) / years.length, bw = Math.min(64, slot * 0.6), y = v => padT + (top - v) / top * (H - padT - padB);
+  let s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Installed capacity by technology and year in ' + esc(GM.z) + '">';
+  for (let t = 0; t <= top + 1e-9; t += step) s += '<line x1="' + padL + '" x2="' + (W - padR) + '" y1="' + y(t).toFixed(1) + '" y2="' + y(t).toFixed(1) + '" stroke="var(--line)"/><text x="' + (padL - 8) + '" y="' + (y(t) + 4).toFixed(1) + '" text-anchor="end" font-size="11" fill="var(--muted)">' + (+t.toFixed(1)) + '</text>';
+  s += '<text x="' + (padL - 8) + '" y="' + (padT - 8) + '" text-anchor="end" font-size="11" fill="var(--muted)">GW</text>';
+  years.forEach((yr, j) => {
+    const cx = padL + slot * (j + 0.5), x0 = cx - bw / 2;
+    let base = 0;
+    for (const g of groups) {
+      const v = (caps[yr][g] || 0) / 1000; if (!v) continue;
+      const y0 = y(base), y1 = y(base + v);
+      s += '<rect class="cseg" data-y="' + yr + '" data-g="' + g + '" x="' + x0.toFixed(1) + '" y="' + y1.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(0.5, y0 - y1 - 1).toFixed(1) + '" fill="' + col(g) + '"/>';
+      base += v;
+    }
+    s += '<text x="' + cx.toFixed(1) + '" y="' + (y(base) - 5).toFixed(1) + '" text-anchor="middle" font-size="11" font-weight="600" fill="var(--ink-2)">' + base.toFixed(base >= 10 ? 0 : 1) + '</text>';
+    s += '<text x="' + cx.toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="11" fill="var(--muted)">' + yr + '</text>';
+  });
+  s += '</svg><div class="tip"></div>';
+  box.innerHTML = s;
+  const tip = box.querySelector('.tip');
+  box.querySelectorAll('.cseg').forEach(r => {
+    r.addEventListener('pointermove', e => {
+      const yr = r.dataset.y, g = r.dataset.g, c = caps[yr][g], f = cf[yr][g], rb = box.getBoundingClientRect();
+      tip.innerHTML = '<b>' + esc(MO_GROUPS[g].n) + ', ' + yr + '</b><br>Installed <b>' + fmtPower(c) + '</b>' + (f ? '<br>Capacity factor <b>' + (f.v > 1.05 ? 'over 100%' : pct0(f.v)) + '</b>' : '');
+      tip.style.display = 'block'; tip.style.left = Math.min(Math.max(e.clientX - rb.left, 100), rb.width - 100) + 'px'; tip.style.top = (e.clientY - rb.top - 12) + 'px';
+    });
+    r.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+  });
+  key.innerHTML = keyHtml(groups.slice().reverse().map(g => [col(g), MO_GROUPS[g].n]));
+  const thisYear = String(new Date().getFullYear());
+  let over = false;
+  tbl.innerHTML = '<table><thead><tr><th>Technology</th>' + years.map(yr => '<th class="num">' + yr + (yr === thisYear ? ' (so far)' : '') + '</th>').join('') + '</tr></thead><tbody>' +
+    groups.slice().reverse().map(g => '<tr><td>' + esc(MO_GROUPS[g].n) + '</td>' + years.map(yr => { const f = cf[yr][g]; if (!f) return '<td class="num">–</td>'; if (f.v > 1.05) { over = true; return '<td class="num">over 100%*</td>'; } return '<td class="num">' + pct0(f.v) + '</td>'; }).join('') + '</tr>').join('') + '</tbody></table>';
+  DL.capacity = {name: 'spotrank-capacity-' + GM.z, header: ['technology'].concat(years.flatMap(yr => ['installed_mw_' + yr, 'capacity_factor_' + yr])),
+    rows: groups.slice().reverse().map(g => [MO_GROUPS[g].n].concat(years.flatMap(yr => [caps[yr][g] || null, cf[yr][g] ? R2(cf[yr][g].v) : null])))};
+  note.textContent = 'Capacity: ENTSO-E installed generation capacity per production type, as reported for each year; it doesn\'t follow the period above. Capacity factor: average daily output in that year (ENTSO-E actual generation) ÷ installed capacity. ' +
+    'Pumped storage counts only its generation.' + (over ? ' * Output above the reported capacity means the capacity figure is incomplete for that year.' : '') + (GM.z === 'IT' ? ' Italy is its North zone (IT-NORD).' : '');
+}
+
+/* ---------- practice on any past day ---------- */
+function startPracticeOn(date) {
+  const rng = mulberry32((Math.random() * 4294967296) >>> 0);
+  let pz = null;
+  for (let k = 0; k < 20 && !pz; k++) pz = pickPuzzle(DS, rng, date, storySeeds(date));
+  if (!pz) { $('#pm-msg').textContent = 'Not enough zones have prices on ' + fmtShortDay(date) + '. Try another day.'; return false; }
+  if (G && G.mode === 'daily') DAILY = G;
+  G = newGame('practice', {...pz, live: false}, null);
+  selected = null; $('#pmenu').hidden = true;
+  if (location.hash === '#prices' || location.hash === '#board') location.hash = 'game';
+  render(); window.scrollTo({top: 0, behavior: 'smooth'});
+  return true;
+}
+function pmBounds() { const first = DS.days[0][0], yest = isoLocal(addDays(new Date(), -1)), last = lastDate(DS) < yest ? lastDate(DS) : yest; return {first, last}; }
+function openPracticeMenu() {
+  const m = $('#pmenu'), {first, last} = pmBounds(), di = $('#pm-date');
+  di.min = first; di.max = last; if (!di.value || di.value > last || di.value < first) di.value = last;
+  $('#pm-msg').textContent = '';
+  m.hidden = !m.hidden;
 }
 /* generation mix on the Prices page: one zone, over the price chart's period */
 const GM = {z: null, unit: lsGet('gm-unit', 'gw')};
@@ -2414,14 +2874,14 @@ function gmLabel(b, res) {
 function renderGenMix() {
   const box = $('#gm-chart');
   if (!box || !DS || !PH) return;
-  if (!GM.z) { const saved = lsGet('gm-z', null); GM.z = saved && DS.zones.includes(saved) ? saved : PH.sel[0] ? PH.sel[0].z : DS.zones.includes('DE-LU') ? 'DE-LU' : DS.zones[0]; }
+  if (!GM.z) GM.z = PH.sel[0] ? PH.sel[0].z : DS.zones.includes('DE-LU') ? 'DE-LU' : DS.zones[0];
   const sel = $('#gm-zone'); moZoneOptions(sel); sel.value = GM.z;
   document.querySelectorAll('[data-gm-unit]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.gmUnit === GM.unit)));
   const key = $('#gm-key'), tbl = $('#gm-table'), note = $('#gm-note');
   const msg = t => { box.innerHTML = '<p class="map-msg" style="padding:36px 0">' + t + '</p>'; key.innerHTML = ''; tbl.innerHTML = ''; note.textContent = ''; };
   if (!HOSTED) { msg('The generation mix needs the hosted data files.'); return; }
   if (!GEN.has(GM.z)) loadGen(GM.z);
-  if (DRV_STATE === 'idle') loadDrivers().then(() => { if (!$('#prices-view').hidden) renderGenMix(); });
+  if (DRV_STATE === 'idle') loadDrivers().then(() => { if (!$('#prices-view').hidden && MD.tab === 'gen') renderGenMix(); });
   const gs = GEN.get(GM.z);
   if (!gs || gs.state === 'loading') { msg('Loading…'); return; }
   if (gs.state === 'none' || !gs.d.start) { msg('No generation data for ' + esc(GM.z) + '.'); return; }
@@ -2530,6 +2990,8 @@ function renderGenMix() {
   key.innerHTML = groups.slice().reverse().map(k => '<span><i style="background:' + col(k) + '"></i>' + esc(k === 'other' && fold.length ? 'Other (incl. ' + fold.map(f => MO_GROUPS[f].n.toLowerCase()).join(', ') + ')' : MO_GROUPS[k].n) + '</span>').join('') +
     (pct ? '' : '<span><i class="dl"></i>Demand (day-ahead forecast)</span>') + '<span><i class="ln"></i>Price</span>';
   const days = buckets.reduce((a, b) => a + b.vals.filter(v => v.g).length, 0);
+  DL.mix = {name: 'spotrank-generation-' + GM.z + '-' + from + '-' + to, header: [res === 'day' ? 'date' : res === 'week' ? 'week_from' : 'month'].concat(groups.slice().reverse().map(k => (k === 'other' && fold.length ? 'other_incl_small' : k) + '_gw'), ['total_gw', 'demand_gw', 'price_eur_mwh']),
+    rows: buckets.map(b => [res === 'week' ? b.days[0] : b.key].concat(groups.slice().reverse().map(k => b.f ? R2((b.f[k] || 0) / 1000) : null), [b.f ? R2(b.tot / 1000) : null, b.load ? R2(b.load / 1000) : null, R2(b.price)]))};
   tbl.innerHTML = '<table><thead><tr><th>Technology</th><th class="num">Average, GW</th><th class="num">Share</th><th class="num">TWh in the period</th></tr></thead><tbody>' +
     groups.slice().reverse().map(k => { const t = k === 'other' ? (periodTot.other || 0) + fold.reduce((a, f) => a + periodTot[f], 0) : periodTot[k]; return '<tr><td>' + esc(k === 'other' && fold.length ? 'Other (incl. small)' : MO_GROUPS[k].n) + '</td><td class="num">' + (t / days / 1000).toFixed(2) + '</td><td class="num">' + (100 * t / grand).toFixed(1) + '%</td><td class="num">' + (t * 24 / 1e6).toFixed(2) + '</td></tr>'; }).join('') +
     '<tr><td><b>Total</b></td><td class="num"><b>' + (grand / days / 1000).toFixed(2) + '</b></td><td class="num">100%</td><td class="num"><b>' + (grand * 24 / 1e6).toFixed(2) + '</b></td></tr></tbody></table>';
@@ -2741,7 +3203,18 @@ $('#btn-submit').addEventListener('click', submit);
 $('#view-map').addEventListener('click', () => setView('map'));
 $('#mo-zone').addEventListener('change', e => selectMeritZone(e.target.value, false));
 $('#pmo-zone').addEventListener('change', e => pmoSet(e.target.value, null));
-$('#gm-zone').addEventListener('change', e => { GM.z = e.target.value; lsSet('gm-z', GM.z); renderGenMix(); });
+$('#gm-zone').addEventListener('change', e => { GM.z = e.target.value; renderGenTab(); });
+document.querySelectorAll('.md-tabs [data-tab]').forEach(t => t.addEventListener('click', () => setTab(t.dataset.tab)));
+document.addEventListener('click', e => { const b = e.target.closest('[data-dl]'); if (b) downloadCSV(b.dataset.dl); });
+$('#bd-pick').addEventListener('change', e => { BD.pair = e.target.value.split('|'); renderBorders(); });
+$('#bd-table').addEventListener('click', e => { const r = e.target.closest('tr[data-pair]'); if (r) { BD.pair = r.dataset.pair.split('|'); renderBorders(); $('#bd-h').scrollIntoView({behavior: 'smooth', block: 'start'}); } });
+$('#pmo-play').addEventListener('click', () => startPracticeOn(PMO.date));
+$('#pm-random').addEventListener('click', () => { $('#pmenu').hidden = true; startPractice(); });
+$('#pm-play').addEventListener('click', () => { const v = $('#pm-date').value; if (v) startPracticeOn(v); });
+$('#pm-close').addEventListener('click', () => { $('#pmenu').hidden = true; });
+const pmStep = k => { const di = $('#pm-date'), {first, last} = pmBounds(); const d = isoLocal(addDays(parseISO(di.value || last), k)); di.value = d < first ? first : d > last ? last : d; };
+$('#pm-prev').addEventListener('click', () => pmStep(-1));
+$('#pm-next').addEventListener('click', () => pmStep(1));
 document.querySelectorAll('[data-gm-unit]').forEach(b => b.addEventListener('click', () => { GM.unit = b.dataset.gmUnit; lsSet('gm-unit', GM.unit); renderGenMix(); }));
 $('#pmo-date').addEventListener('change', e => { if (e.target.value) pmoSet(null, e.target.value); });
 $('#pmo-prev').addEventListener('click', () => pmoSet(null, isoLocal(addDays(parseISO(PMO.date), -1))));
@@ -2765,7 +3238,7 @@ $('#ph-legend').addEventListener('click', e => { const b = e.target.closest('[da
 $('#ph-table').addEventListener('click', e => { const r = e.target.closest('tr[data-zone]'); if (r) phToggle(r.dataset.zone); });
 $('#view-rank').addEventListener('click', () => setView('rank'));
 function startPractice() { const pz = practicePuzzle(DS); if (pz) { if (G && G.mode === 'daily') DAILY = G; G = newGame('practice', pz, null); selected = null; render(); window.scrollTo({top: 0, behavior: 'smooth'}); } }
-$('#btn-mode').addEventListener('click', () => { if (G.mode === 'daily') startPractice(); else { G = (DAILY && DAILY.dsId === DS.id) ? DAILY : loadDaily(); selected = null; render(); } });
+$('#btn-mode').addEventListener('click', () => { if (G.mode === 'daily') openPracticeMenu(); else { G = (DAILY && DAILY.dsId === DS.id) ? DAILY : loadDaily(); selected = null; $('#pmenu').hidden = true; render(); } });
 function openOv(id) { $(id).classList.add('open'); const b = $(id + ' [data-close]'); if (b) b.focus(); }
 document.querySelectorAll('.overlay').forEach(ov => {
   ov.addEventListener('click', e => { if (e.target === ov || e.target.closest('[data-close]')) ov.classList.remove('open'); });

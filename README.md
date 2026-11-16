@@ -49,6 +49,18 @@ and redeploys the site.
 - **Prices page** (`#prices`): daily baseload history for up to six zones, a period picker (presets,
   dates, or drag on the overview strip) and the period average per zone, for the chart's zones and
   for all zones in a table. The average is the mean of the daily baseload prices in the period.
+- **Market data page** (`#prices`, header button "Market data"): one period bar (presets, dates,
+  drag strip) for five tabs, each section with a **Download CSV** button (semicolons and decimal
+  commas when the browser uses decimal commas, so Excel opens it in columns):
+  - **Prices:** price history for up to 6 zones and the period average of all zones.
+  - **Generation:** generation mix; wind- and solar-weighted price with capture rates (a daily
+    approximation); installed capacity by year with capacity factors.
+  - **Merit order:** any zone and day, with "Play this day".
+  - **Fuel & CO2:** TTF, EUA and coal, and gas vs coal running cost with the periods coal was cheaper
+    and the lasting switches.
+  - **Borders:** the price gap across any interconnected border, days split (daily averages €1 or
+    more apart), and a table of all borders.
+- **Practice:** a random day, or any day from 2021 to yesterday.
 - **Generation mix (Prices page):** for one zone over the period chosen in the price chart, a
   stacked chart of generation by technology (GW or % share) with demand (day-ahead forecast) and the
   zone's price underneath on the same time axis. Daily up to 400 days, then weekly, then monthly
