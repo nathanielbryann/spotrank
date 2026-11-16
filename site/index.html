@@ -1530,7 +1530,9 @@ async function joinWithCode(code) {
   const rows = await sb('whoami', {p_secret: c});
   if (!rows || !rows.length) throw new Error(SB_MSG.unknown_player);
   PLAYER = {id: rows[0].player_id, name: rows[0].name, secret: c}; lsSet('player', PLAYER);
-  LB.cache = {}; submitDaily();
+  LB.cache = {};
+  await syncMine();   // rounds already played on another device
+  submitDaily();
 }
 /* a name field and a Join button, used in the game and on the leaderboard page */
 function joinFormHtml(id, lead) {
@@ -1550,6 +1552,58 @@ function wireJoin(id, after) {
   });
 }
 
+/* bring this player's saved daily rounds to this browser (another device, or cleared storage) */
+async function syncMine() {
+  if (!PLAYER || !HOSTED || !DS) return 0;
+  let rows;
+  try { rows = await sb('my_results', {p_secret: PLAYER.secret}); } catch (e) { return 0; }
+  let added = 0;
+  for (const r of rows || []) {
+    const key = dailyKey(r.puzzle_no, r.price_date), have = lsGet(key, null);
+    if (have && have.status !== 'playing') { if (!have.sbSaved) { have.sbSaved = true; lsSet(key, have); } continue; }
+    const row = DS.byDate.get(r.price_date);
+    if (!row || !Array.isArray(r.answer) || r.answer.length !== N || !Array.isArray(r.attempts) || !r.attempts.length) continue;
+    const prices = {};
+    let ok = true;
+    for (const z of r.answer) { const v = row[DS.zones.indexOf(z)]; if (v === null || v === undefined) ok = false; prices[z] = v; }
+    if (!ok) continue;
+    const att = r.attempts.map(a => a.map((z, i) => ({z, r: z === r.answer[i] ? 'g' : 'x'})));
+    const last = att[att.length - 1];
+    const g = {v: 2, mode: 'daily', puzzleNo: r.puzzle_no, dsId: DS.id, date: r.price_date, live: false, answer: r.answer.slice(), prices,
+      order: last.map(t => t.z), attempts: att, locked: last.map(t => t.r === 'g'), status: r.solved ? 'won' : 'lost',
+      clues: null, counted: true, sbSaved: true, restored: true};
+    g.clues = buildClues(g);
+    lsSet(key, g); added++;
+  }
+  if (!added) return 0;
+  rebuildStats();
+  const today = loadDaily();
+  if (today && today.status !== 'playing') {
+    if (G && G.mode === 'daily' && G.status === 'playing') G = today;
+    if (DAILY && DAILY.status === 'playing') DAILY = today;
+  }
+  render();
+  return added;
+}
+/* stats from every finished daily round kept in this browser */
+function rebuildStats() {
+  const rounds = new Map();
+  try {
+    for (let k = 0; k < localStorage.length; k++) {
+      const key = localStorage.key(k);
+      if (!key || key.indexOf(LSK + 'daily:') !== 0) continue;
+      const g = JSON.parse(localStorage.getItem(key));
+      if (g && g.mode === 'daily' && g.status !== 'playing' && Array.isArray(g.attempts) && g.attempts.length) rounds.set(g.puzzleNo, g);
+    }
+  } catch (e) { return; }
+  const s = {played: 0, wins: 0, streak: 0, best: 0, lastWin: null, dist: {1: 0, 2: 0, 3: 0, 4: 0, X: 0}};
+  for (const g of [...rounds.values()].sort((a, b) => a.puzzleNo - b.puzzleNo)) {
+    s.played++;
+    if (g.status === 'won') { s.wins++; s.streak = s.lastWin === g.puzzleNo - 1 ? s.streak + 1 : 1; s.lastWin = g.puzzleNo; s.best = Math.max(s.best, s.streak); s.dist[g.attempts.length]++; }
+    else { s.streak = 0; s.dist.X++; }
+  }
+  lsSet('stats', s);
+}
 /* today among players, under the game once the daily round is over */
 const CROWD = {rows: null, at: 0, err: null, loading: false};
 async function loadCrowd(force) {
@@ -2558,7 +2612,7 @@ async function boot(snap) {
   render();
   route();
   loadDrivers();   // wind/solar/demand data for clues and insights
-  if (PLAYER && HOSTED) submitDaily();   // a finished round that wasn't saved yet (offline, closed tab)
+  if (PLAYER && HOSTED) syncMine().then(() => submitDaily());   // rounds from other devices; then a finished round that wasn't saved yet
 }
 window.claude?.hot?.snapshot?.(() => ({G}));
 window.claude?.hot?.ready ? window.claude.hot.ready(boot) : boot(window.claude?.hot?.data ?? {});

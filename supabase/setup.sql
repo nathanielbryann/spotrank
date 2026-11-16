@@ -144,13 +144,23 @@ language sql stable security definer set search_path = public as $$
   where spotrank_play_date(r.puzzle_no) between p_from and p_to
 $$;
 
+-- A player's own saved rounds (by secret code), so another device can show them.
+create or replace function public.my_results(p_secret uuid)
+returns table (puzzle_no int, price_date date, solved boolean, tries smallint, first_greens smallint, answer text[], attempts jsonb, at timestamptz)
+language sql stable security definer set search_path = public as $$
+  select r.puzzle_no, r.price_date, r.solved, r.tries, r.first_greens, r.answer, r.attempts, r.created_at
+  from results r join players p on p.id = r.player_id
+  where p.secret = p_secret
+  order by r.puzzle_no
+$$;
+
 -- Tiny call the nightly GitHub job makes, so the free project is never idle for a week.
 create or replace function public.ping() returns int
 language sql stable security definer set search_path = public as $$ select count(*)::int from players $$;
 
 revoke all on function public.register_player(text), public.whoami(uuid),
   public.submit_result(uuid, int, date, text[], jsonb), public.day_results(int),
-  public.leaderboard(date, date), public.first_attempts(date, date), public.ping() from public;
+  public.leaderboard(date, date), public.first_attempts(date, date), public.ping(), public.my_results(uuid) from public;
 grant execute on function public.register_player(text), public.whoami(uuid),
   public.submit_result(uuid, int, date, text[], jsonb), public.day_results(int),
-  public.leaderboard(date, date), public.first_attempts(date, date), public.ping() to anon, authenticated;
+  public.leaderboard(date, date), public.first_attempts(date, date), public.ping(), public.my_results(uuid) to anon, authenticated;
