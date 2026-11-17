@@ -49,6 +49,11 @@ and redeploys the site.
 - **Month tab:** a third view next to Map and Ranking. Every zone is coloured and labelled with its
   average so far in the delivery day's month (from the 1st up to the delivery day); hovering shows the
   two previous calendar months.
+- **Year tab:** the same for the year so far (1 January up to the delivery day); hovering shows the two
+  previous full calendar years.
+- **Ranking:** sorts all zones by the day's price, the month so far or the year so far (switch above the
+  bars; the hover also shows the day's price and rank). The table view under the map always lists
+  what's on screen.
 - **Prices page** (`#prices`): daily baseload history for up to six zones, a period picker (presets,
   dates, or drag on the overview strip) and the period average per zone, for the chart's zones and
   for all zones in a table. The average is the mean of the daily baseload prices in the period.
