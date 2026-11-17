@@ -113,6 +113,18 @@ and redeploys the site.
   table, which the daily workflow fills with `scripts/push_day_prices.py` using the `SUPABASE_SECRET_KEY`
   GitHub secret (the page's publishable key can't write it). Leaderboard page: Daily puzzle / Forecast
   switch. Stats: the player's forecasts.
+- **Forecast clues.** The card's table shows, per zone: today's price, tomorrow's demand forecast against
+  today's (ENTSO-E; usually all in by 10:30 CET), a weather guide for wind and sun (Open-Meteo, free
+  for non-commercial use, CC BY 4.0: mean 100 m wind speed and total solar radiation over the CET day,
+  averaged over up to 8 points per zone from `scripts/weather_points.json`, made by
+  `scripts/make_weather_points.py`), and ENTSO-E's wind + solar forecast as a share of demand (most
+  grid operators publish it after the 11:00 cut-off; they have until 18:00). `scripts/build_clues.py`
+  writes `site/data/clues.json` and adds tomorrow's ENTSO-E forecasts to the drivers file; it never
+  fetches prices, so Switzerland's 11:10 price can't reach the page before the cut-off.
+  `.github/workflows/morning-clues.yml` starts a light "clues" run of the update workflow at 07:50,
+  08:45 and 09:35 UTC (like `daily-start.yml`, its schedule only runs after Nathaniel has edited a cron
+  line there himself); push a change to `.github/clues-now.txt` to start one by hand. The page fetches
+  the clues again every 10 minutes while a forecast is open.
 
 The drivers history is backfilled a few months per run, newest first. A run can be given more time
 with **Run workflow**, using the "Minutes to spend on wind/solar/load data" field. Generation data works the same way

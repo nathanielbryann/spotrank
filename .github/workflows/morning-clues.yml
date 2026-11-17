@@ -1,0 +1,34 @@
+# Starts a light update three times each morning, before the Forecast challenge closes at 11:00 CET:
+# tomorrow's demand, wind and solar forecasts from ENTSO-E (as far as published) and the weather clue.
+# It never fetches prices.
+#
+# GitHub only runs a schedule for the person who last edited its cron lines, and edits made through
+# Claude's app connection don't count. So this file is Nathaniel's: Claude doesn't change it.
+#
+# To start it by hand: "Run workflow" on this workflow's Actions page, or push a change to .github/clues-now.txt.
+name: Morning clues
+
+on:
+  schedule:
+    # UTC. Winter (CET): 08:50, 09:45, 10:35. Summer (CEST) an hour later, so the last run is after the cut-off; harmless.
+    - cron: "50 7 * * *"
+    - cron: "45 8 * * *"
+    - cron: "35 9 * * *"
+  push:
+    branches: [main]
+    paths: [".github/clues-now.txt"]
+  workflow_dispatch:
+
+permissions:
+  actions: write             # allowed to start another workflow
+
+jobs:
+  start:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start "Update prices and deploy" in clues mode
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh workflow run update-and-deploy.yml --repo "${{ github.repository }}" --ref main -f mode=clues
+          echo "Started the morning clues (event: ${{ github.event_name }})"

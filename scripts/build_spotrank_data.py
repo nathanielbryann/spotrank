@@ -47,7 +47,7 @@ ZONES = {
 ITALY_ZONES = ["IT_NORD", "IT_CNOR", "IT_CSUD", "IT_SUD", "IT_CALA", "IT_SICI", "IT_SARD"]
 
 
-def daily_baseload(s: pd.Series) -> pd.Series:
+def daily_baseload(s: pd.Series, prices: bool = False) -> pd.Series:
     """Time-weighted daily mean on the CET delivery day.
 
     Each price applies from its timestamp until the next one, capped at
@@ -67,9 +67,13 @@ def daily_baseload(s: pd.Series) -> pd.Series:
     minutes = dur.groupby(day).sum()
     nonzero = (s != 0).groupby(day).sum()
     out = weighted / minutes
-    # drop days with less than 20 h of prices, and days where every price is exactly 0.00: that is a
-    # placeholder before the real prices are in (EE, 17 Nov 2026), so the next run fetches the day again
-    out = out[(minutes >= 20 * 60) & (nonzero > 0)]
+    # drop days with less than 20 h of data. For prices, also days where every price is exactly 0.00: that
+    # is a placeholder before the real prices are in (EE, 17 Nov 2026), so the next run fetches the day
+    # again. Forecasts and generation can be 0 all day for real (solar in a polar night, a coal fleet off).
+    keep = minutes >= 20 * 60
+    if prices:
+        keep &= nonzero > 0
+    out = out[keep]
     out.index = out.index.strftime("%Y-%m-%d")
     return out
 
@@ -258,10 +262,10 @@ def fetch_zone(make_client, z, start, end, italy):
         for a in ITALY_ZONES:
             s = fetch(client, a, start, end)
             if s is not None:
-                parts.append(daily_baseload(s).rename(a))
+                parts.append(daily_baseload(s, prices=True).rename(a))
         return pd.concat(parts, axis=1).mean(axis=1) if parts else pd.Series(dtype=float)
     s = fetch(client, ZONES.get(z) or EXTRA_ZONES[z], start, end)
-    return daily_baseload(s) if s is not None else pd.Series(dtype=float)
+    return daily_baseload(s, prices=True) if s is not None else pd.Series(dtype=float)
 
 
 def fetch_all(make_client, zones, start, end, italy, budget_s=None, workers=8):

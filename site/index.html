@@ -481,9 +481,9 @@ footer a, .data a { color: var(--accent); }
 .fc-prev { margin: 8px 0 0; font-size: 13.5px; color: var(--ink-2); }
 .fc-prev b { color: var(--ink); }
 .fc-grid { display: grid; gap: 18px 28px; grid-template-columns: minmax(0, 1fr); align-items: start; }
-@media (min-width: 840px) { .fc-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+@media (min-width: 1080px) { .fc-grid { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); } }
 .fc .plate { min-height: 58px; }
-.fc .code { font-size: 30px; }
+.fc .code { font-size: 26px; }
 .fc .today { font-family: var(--f-mono); font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; text-align: right; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .fc .today .price { font-size: 15px; }
 .fc .today small { display: block; font-family: var(--f-body); font-weight: 500; font-size: 11px; color: var(--muted); }
@@ -492,8 +492,10 @@ footer a, .data a { color: var(--accent); }
 .fc-tag { display: inline-block; font-size: 12px; font-weight: 700; border-radius: 6px; padding: 2px 8px; margin-left: 8px; background: var(--good); color: var(--good-ink); white-space: nowrap; }
 .fc-tag.even { background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line-strong); }
 .fc-tag.lost { background: var(--miss); color: var(--miss-ink); }
-table.fc-clues th, table.fc-clues td { padding: 6px 8px; }
+table.fc-clues th, table.fc-clues td { padding: 6px 7px; }
 table.fc-clues td { white-space: nowrap; }
+table.fc-clues th { white-space: normal; vertical-align: bottom; }
+table.fc-clues th small { display: block; font-weight: 500; text-transform: none; }
 table.fc-clues small { color: var(--muted); font-family: var(--f-body); font-size: 11.5px; }
 .fc-clues .nm { color: var(--ink-2); font-size: 12.5px; margin-left: 6px; }
 .fc-clues .na { color: var(--muted); font-family: var(--f-body); font-size: 12.5px; }
@@ -2189,26 +2191,57 @@ function fcFuelHtml(bx) {
   }
   return '<p class="fc-note">Fuel and CO2, latest in the data (' + esc(fmtShortDay(f.ttf.date)) + '): ' + parts.join(' · ') + '.' + cost + '</p>';
 }
+/* the clue file: weather proxy (Open-Meteo) for today and the next days, and when the clues were refreshed */
+let CLUES = null, CLUES_STATE = 'idle', CLUES_AT = 0;
+async function loadClues() {
+  CLUES_STATE = 'loading'; CLUES_AT = Date.now();
+  try {
+    if (!HOSTED) throw new Error('not hosted');
+    const r = await fetch('data/clues.json?v=' + Date.now(), {cache: 'no-cache'});
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    CLUES = await r.json(); CLUES_STATE = 'ok';
+  } catch (e) { CLUES_STATE = 'none'; }
+  if (FC_ON && !$('#fc').hidden) renderForecast();
+}
+// while a forecast is open, fetch the clues again every 10 minutes: the morning updates add tomorrow's forecasts
+function fcRefreshClues() {
+  if (!FCI || FCI.state !== 'open' || (FCS && FCS.ranking) || Date.now() - CLUES_AT < 10 * 60 * 1000) return;
+  loadClues(); loadDriversNow();
+}
 function fcCluesHtml(zones, bx, del) {
   if (DRV_STATE === 'idle') loadDrivers();
-  const today = priceMap(bx, zones) || {};
+  if (CLUES_STATE === 'idle') loadClues();
+  const today = priceMap(bx, zones) || {}, open = FCI && FCI.state === 'open';
+  const W = d => (CLUES && CLUES.days && CLUES.days[d]) || {};
+  const wT = W(del), wB = W(bx), wait = '<span class="na">…</span>';
+  const vs = (a, b, dp) => a === undefined || a === null ? (CLUES_STATE === 'loading' ? wait : '–')
+    : a.toFixed(dp) + (b === undefined || b === null ? '' : ' <small>(' + b.toFixed(dp) + ')</small>');
   const rows = zones.slice().sort(byCode).map(z => {
     const m = zm(z), a = drvOn(z, del), b = drvOn(z, bx);
-    const na = '<span class="na">not yet</span>';
-    let dem = na, res = na;
+    let dem = '<span class="na">not yet</span>', res = '<span class="na">' + (open ? 'after cut-off' : 'not yet') + '</span>';
     if (a) {
       dem = b ? (a.load >= b.load ? '+' : '−') + Math.abs(Math.round(100 * (a.load / b.load - 1))) + '%' : fmtPower(a.load);
-      if (a.hasRes) res = pct0(a.res) + (a.wind === null ? ' <small>solar only</small>' : '') + (b && b.hasRes ? ' <small>(today ' + pct0(b.res) + ')</small>' : '');
-    } else if (DRV_STATE === 'loading') dem = res = '<span class="na">…</span>';
-    return '<tr><td><b>' + esc(z) + '</b><span class="nm">' + esc(m.c) + '</span></td><td class="num">' + (today[z] === undefined ? '–' : fmtP(today[z])) + '</td><td class="num">' + dem + '</td><td class="num">' + res + '</td></tr>';
+      if (a.hasRes) res = pct0(a.res) + (a.wind === null ? ' <small>solar</small>' : '') + (b && b.hasRes ? ' <small>(' + pct0(b.res) + ')</small>' : '');
+    } else if (DRV_STATE === 'loading') dem = res = wait;
+    const tw = wT[z] || {}, bw = wB[z] || {};
+    return '<tr><td title="' + esc(m.c + (m.a ? ' · ' + m.a : '')) + '"><b>' + esc(z) + '</b></td><td class="num">' + (today[z] === undefined ? '–' : fmtP(today[z], 0)) + '</td><td class="num">' + dem + '</td>' +
+      '<td class="num">' + vs(tw.wind, bw.wind, 1) + '</td><td class="num">' + vs(tw.sun, bw.sun, 1) + '</td><td class="num">' + res + '</td></tr>';
   }).join('');
-  const any = zones.some(z => drvOn(z, del));
   const dt = d => (isWeekend(d) ? 'weekend day' : 'weekday');
   const dayNote = dt(del) !== dt(bx) ? '<p class="fc-note">Tomorrow is a <b>' + WDAYS[parseISO(del).getDay()] + '</b>, a ' + dt(del) + '; today is a ' + dt(bx) + '.</p>' : '';
+  const gen = CLUES && CLUES.meta && CLUES.meta.generated;
+  const upd = gen ? ' Clues last updated ' + esc(bxTime(Date.parse(gen))) + '.' : '';
   return '<h3 class="ph-h3" style="margin-top:0">Known so far for ' + esc(fmtShortDay(del)) + '</h3>' +
-    '<div class="tbl-scroll"><table class="fc-clues"><thead><tr><th>Zone</th><th class="num">Today</th><th class="num" title="Tomorrow\'s demand forecast against today\'s">Demand vs today</th><th class="num" title="Forecast wind and solar output as a share of forecast demand">Wind + solar</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    '<div class="tbl-scroll"><table class="fc-clues"><thead><tr><th>Zone</th><th class="num">Today</th>' +
+    '<th class="num" title="Tomorrow\'s demand forecast against today\'s (ENTSO-E)">Demand</th>' +
+    '<th class="num" title="Weather forecast: mean wind speed at 100 m, m/s (Open-Meteo); today in brackets">Wind <small>m/s</small></th>' +
+    '<th class="num" title="Weather forecast: total solar radiation over the day, kWh/m² (Open-Meteo); today in brackets">Sun <small>kWh/m²</small></th>' +
+    '<th class="num" title="ENTSO-E wind and solar forecast as a share of forecast demand; today in brackets">Wind + solar</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
     dayNote + fcFuelHtml(bx) +
-    '<p class="ins-foot">' + (any ? 'Demand, wind and solar: ENTSO-E day-ahead forecasts for tomorrow as published so far; wind + solar is their share of forecast demand.' : 'Tomorrow\'s demand, wind and solar forecasts aren\'t published yet. The grid operators send them to ENTSO-E during the morning.') + ' Today: daily baseload price.</p>';
+    '<p class="ins-foot">Today\'s values in brackets. Today: daily baseload price, €/MWh. Demand: ENTSO-E day-ahead forecast, change against today; usually all in by 10:30 CET. ' +
+    'Wind and sun: weather forecast for the zone (wind speed at 100 m and total solar radiation, averaged over up to 8 places in the zone), a guide to whether tomorrow is windier or sunnier than today rather than a generation forecast. ' +
+    'Wind + solar: ENTSO-E generation forecast as a share of demand; grid operators have until 18:00 to publish it, so for most zones it comes after the 11:00 cut-off.' + upd +
+    ' Weather data: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0).</p>';
 }
 function fcPlatesHtml(order, edit, today, res) {
   return order.map((z, i) => {
@@ -2262,7 +2295,7 @@ function renderForecast() {
   } else if (!s.ranking && FCI.state === 'closed') {
     lead = 'Forecasts for ' + esc(fmtDay(del)) + ' closed at ' + esc(bxTime(FCI.deadline)) + '. The next one opens at <b>' + esc(bxTime(FCI.opensNext)) + '</b>.';
   } else {
-    if (edit) lead = 'Put <b>' + esc(fmtDay(del)) + '</b> in order from cheapest to most expensive. The zones start in today\'s order, which is the <b>naive forecast</b>: move the ones you think will change places. One forecast a day, and it can\'t be changed.';
+    if (edit) lead = 'Put <b>' + esc(fmtDay(del)) + '</b> in order from cheapest to most expensive. The zones start in today\'s order, which is the <b>naive forecast</b>: move the ones you think will change places. One forecast a day, and it can\'t be changed. The clues fill in during the morning: demand forecasts are usually all in by 10:30 CET.';
     else if (res) lead = '<span class="fc-score">' + res.pts + ' of 5</span><br>in the right place.' + fcNaiveLine(res, s.delivery) + ' Zones less than €1 apart count either way.';
     else lead = 'Forecast in, ' + esc(new Date(s.at).toLocaleTimeString([], {hour: 'numeric', minute: '2-digit'})) + '.' + fcSavedLine(s) + ' Results come with the afternoon price update, usually by ' + esc(bxTime(FCI.results)) + '.';
     if (res) lead += '<br><span style="font-size:13.5px">' + fcSavedLine(s).trim() + '</span>';
@@ -2348,6 +2381,7 @@ function fcStatsHtml() {
 }
 function fcTick() {
   if (!FCI || $('#fc').hidden) return;
+  fcRefreshClues();
   const now = fcNow(), info = fcInfo(now);
   if (info.bx + '|' + info.state !== FCV.key) { renderForecast(); return; }
   $('#fc-clock').innerHTML = info.state === 'open' ? 'Closes in <b>' + fcLeft(info.deadline - now) + '</b> · ' + esc(bxTime(info.deadline)) : 'Closed at ' + esc(bxTime(info.deadline));

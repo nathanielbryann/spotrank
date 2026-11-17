@@ -29,7 +29,7 @@ for z in areas:
         s = s[~s.index.duplicated(keep="last")]
         ent[z] = s
         out.append(f"ENTSO-E {z}: {len(s)} points, min {s.min():.2f}, max {s.max():.2f}, "
-                   f"zeros {int((s == 0).sum())}, daily baseload {b.daily_baseload(s).iloc[0]:.2f}")
+                   f"zeros {int((s == 0).sum())}, daily baseload {b.daily_baseload(s, prices=True).iloc[0]:.2f}")
     except Exception as e:  # noqa: BLE001
         out.append(f"ENTSO-E {z}: error {type(e).__name__}: {e}")
 
@@ -48,7 +48,7 @@ if zone in ("EE", "FI", "LV", "LT"):
             s = pd.Series([p["price"] for p in pts], index=pd.to_datetime([p["timestamp"] for p in pts], unit="s", utc=True))
             ele[z] = s
             out.append(f"Elering {z}: {len(s)} points, min {s.min():.2f}, max {s.max():.2f}, "
-                       f"zeros {int((s == 0).sum())}, daily baseload {b.daily_baseload(s).iloc[0]:.2f}")
+                       f"zeros {int((s == 0).sum())}, daily baseload {b.daily_baseload(s, prices=True).iloc[0]:.2f}")
     except Exception as e:  # noqa: BLE001
         out.append(f"Elering: error {type(e).__name__}: {e}")
 

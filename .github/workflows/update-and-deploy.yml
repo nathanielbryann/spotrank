@@ -4,6 +4,11 @@ on:
   # the daily start comes from daily-start.yml (GitHub didn't run a schedule kept in this file)
   workflow_dispatch:        # "Run workflow" button in the Actions tab
     inputs:
+      mode:
+        description: "full: prices and everything else (afternoon). clues: only tomorrow's forecasts and weather for the Forecast challenge, never prices (morning)"
+        default: "full"
+        type: choice
+        options: [full, clues]
       drivers_minutes:
         description: "Minutes to spend on wind/solar/load data (the first backfill needs about 80)"
         default: "15"
@@ -43,7 +48,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Fetch latest ENTSO-E prices
-        if: github.event_name != 'push'   # code pushes only redeploy; prices are fetched on schedule or "Run workflow"
+        if: github.event_name != 'push' && inputs.mode != 'clues'   # code pushes only redeploy; prices are fetched on schedule or "Run workflow"
         timeout-minutes: 12
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
@@ -56,7 +61,7 @@ jobs:
           python scripts/build_spotrank_data.py --update --end tomorrow --no-csv --time-budget 540 --out site/data/spotrank_data.json
 
       - name: Fetch wind, solar and load forecasts
-        if: github.event_name != 'push'
+        if: github.event_name != 'push' && inputs.mode != 'clues'
         continue-on-error: true   # a slow ENTSO-E day never blocks the price update
         timeout-minutes: 100
         env:
@@ -69,7 +74,7 @@ jobs:
             --drivers-out site/data/spotrank_drivers.json --drivers-budget $((MINUTES * 60))
 
       - name: Fetch generation by technology and installed capacity
-        if: github.event_name != 'push'
+        if: github.event_name != 'push' && inputs.mode != 'clues'
         continue-on-error: true   # never blocks the price update
         timeout-minutes: 100
         env:
@@ -82,7 +87,7 @@ jobs:
             --gen-out site/data/gen --gen-budget $((MINUTES * 60))
 
       - name: Fetch the other Italian zones and Italy as a whole (Market data only)
-        if: github.event_name != 'push'
+        if: github.event_name != 'push' && inputs.mode != 'clues'
         continue-on-error: true
         timeout-minutes: 30
         env:
@@ -97,6 +102,18 @@ jobs:
           python scripts/build_spotrank_data.py --skip-prices --zones extra --end today --workers 8 \
             --gen-out site/data/gen --gen-budget 300 || true
 
+      - name: Clues for the Forecast challenge (tomorrow's forecasts and weather; never prices)
+        if: github.event_name != 'push'
+        continue-on-error: true
+        timeout-minutes: 8
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+          PYTHONUNBUFFERED: "1"
+          MODE: ${{ inputs.mode || 'full' }}
+        run: |
+          # the afternoon run already fetched tomorrow's ENTSO-E forecasts; the morning runs refresh them
+          if [ "$MODE" = "clues" ]; then python scripts/build_clues.py --entsoe --weather; else python scripts/build_clues.py --weather; fi
+
       - name: Keep the leaderboard database awake
         # Supabase pauses free projects after a week without activity; one small call a day prevents that
         continue-on-error: true
@@ -106,6 +123,7 @@ jobs:
 
       - name: Send prices to the leaderboard database (scores the Forecast challenge)
         # needs the SUPABASE_SECRET_KEY secret; without it this step only prints a notice
+        if: inputs.mode != 'clues'
         continue-on-error: true
         env:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
@@ -119,7 +137,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add site/data
-            git commit -m "Data updated $(date -u +%F)"
+            git commit -m "$([ '${{ inputs.mode }}' = clues ] && echo 'Clues updated' || echo 'Data updated') $(date -u +%F)"
             git pull --rebase
             git push
           fi
