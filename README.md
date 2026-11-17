@@ -46,14 +46,13 @@ and redeploys the site.
   A Map | Ranking switch shows the sorted bar chart instead. Zone borders come from entsoe-py (MIT)
   and surrounding countries from Natural Earth (public domain); `scripts/build_map.py` rebuilds
   `site/data/zones-map.json`.
-- **Month tab:** a third view next to Map and Ranking. Every zone is coloured and labelled with its
-  average so far in the delivery day's month (from the 1st up to the delivery day); hovering shows the
-  two previous calendar months.
-- **Year tab:** the same for the year so far (1 January up to the delivery day); hovering shows the two
-  previous full calendar years.
-- **Ranking:** sorts all zones by the day's price, the month so far or the year so far (switch above the
-  bars; the hover also shows the day's price and rank). The table view under the map always lists
-  what's on screen.
+- **All zones** (after a round): choose what to show, **Day**, **Month** or **Year**, and how,
+  **Map** or **Ranking**. Month and Year open on the current period so far (up to the puzzle's
+  delivery day) and have a dropdown back to Jan 2021 / 2021 for full past months and years. The
+  ranking always follows the choice. Hovering a zone shows the two previous months or years. An
+  asterisk marks an average that rests on fewer than 90% of the period's days. The month or year
+  picked resets to "so far" on a new puzzle day; Day/Month/Year and Map/Ranking are remembered. The
+  table view lists what's on screen.
 - **Prices page** (`#prices`): daily baseload history for up to six zones, a period picker (presets,
   dates, or drag on the overview strip) and the period average per zone, for the chart's zones and
   for all zones in a table. The average is the mean of the daily baseload prices in the period.

@@ -68,7 +68,7 @@ button { font: inherit; color: inherit; }
 
 /* Header */
 .top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 20px; }
-.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }   /* the tagline drops below on narrow phones */
 .wordmark {
   font-family: var(--f-display); font-weight: 800; font-size: 52px; line-height: .86;
   letter-spacing: .01em; text-transform: uppercase; margin: 0;
@@ -252,9 +252,14 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 @media (max-width: 520px) { .ins { grid-template-columns: minmax(0, 1fr); gap: 4px; } }
 
 /* Map */
-#all-zones .chart-head .seg { margin-left: auto; }
-.rank-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; margin-bottom: 10px; }
-.rank-head .seg { margin-left: auto; }   /* stays on the right even when it wraps */
+.az-ctrl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 12px; }
+#az-pick { font: inherit; font-size: 13.5px; font-weight: 600; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: 999px; padding: 6px 12px; max-width: 100%; }
+.az-ctrl > .az-how { margin-left: auto; }   /* Map / Ranking stays on the right, also when it wraps */
+#az-pick[hidden] { display: none; }
+@media (max-width: 520px) {   /* phones: Day/Month/Year and Map/Ranking on one row, the month or year below */
+  #az-pick { order: 3; font-size: 16px; padding: 5px 10px; }   /* 16px: no zoom on iPhone */
+  .az-ctrl .seg button { padding: 6px 10px; font-size: 13px; }
+}
 @media (min-width: 640px) { #all-zones .chart-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; } }
 .seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface-2); }
 .seg button { appearance: none; border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; font-weight: 600; font-size: 13.5px; color: var(--ink-2); cursor: pointer; }
@@ -608,11 +613,17 @@ table.fc-clues small { color: var(--muted); font-family: var(--f-body); font-siz
         <h2 id="all-title" style="margin-bottom:4px">All zones that day</h2>
         <p id="all-sub"></p>
       </div>
-      <div class="seg" role="group" aria-label="Choose a view">
-        <button type="button" id="view-map" aria-pressed="true">Map</button>
-        <button type="button" id="view-month" aria-pressed="false">Month</button>
-        <button type="button" id="view-year" aria-pressed="false">Year</button>
-        <button type="button" id="view-rank" aria-pressed="false">Ranking</button>
+    </div>
+    <div class="az-ctrl">
+      <div class="seg" role="group" aria-label="Show prices for">
+        <button type="button" id="az-day" aria-pressed="true">Day</button>
+        <button type="button" id="az-month" aria-pressed="false">Month</button>
+        <button type="button" id="az-year" aria-pressed="false">Year</button>
+      </div>
+      <select id="az-pick" hidden></select>
+      <div class="seg az-how" role="group" aria-label="Show as">
+        <button type="button" id="az-map" aria-pressed="true">Map</button>
+        <button type="button" id="az-rank" aria-pressed="false">Ranking</button>
       </div>
     </div>
     <div id="mapview">
@@ -621,16 +632,10 @@ table.fc-clues small { color: var(--muted); font-family: var(--f-body); font-siz
       <p class="map-note" id="map-note">Your five zones are outlined. Grey areas aren't part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.</p>
     </div>
     <div id="rankview" hidden>
-      <div class="rank-head">
-        <div class="key"><span><i style="background:var(--accent)"></i>Today's five</span><span><i style="background:var(--bar-muted)"></i>Other zones</span></div>
-        <div class="seg seg-sm" role="group" aria-label="Rank by">
-          <button type="button" id="rank-day" aria-pressed="true">That day</button>
-          <button type="button" id="rank-month" aria-pressed="false">Month so far</button>
-          <button type="button" id="rank-year" aria-pressed="false">Year so far</button>
-        </div>
-      </div>
+      <div class="key" style="margin-bottom:8px"><span><i style="background:var(--accent)"></i>Today's five</span><span><i style="background:var(--bar-muted)"></i>Other zones</span></div>
       <div class="chart-wrap" id="chart"></div>
     </div>
+    <p class="map-note" id="az-foot" hidden>* Fewer than 90% of the days in this period have a price for this zone, so its average rests on fewer days.</p>
     <details class="tableview"><summary>Table view</summary><div class="tbl-scroll" id="table"></div></details>
     <div class="mo" id="mo">
       <div class="mo-head">
@@ -2572,72 +2577,119 @@ function barPath(x0, x1, y, h, r) {
   if (x1 >= x0) return 'M' + x0 + ',' + y + 'H' + (x1 - r) + 'A' + r + ',' + r + ' 0 0 1 ' + x1 + ',' + (y + r) + 'V' + (y + h - r) + 'A' + r + ',' + r + ' 0 0 1 ' + (x1 - r) + ',' + (y + h) + 'H' + x0 + 'Z';
   return 'M' + x0 + ',' + y + 'H' + (x1 + r) + 'A' + r + ',' + r + ' 0 0 0 ' + x1 + ',' + (y + r) + 'V' + (y + h - r) + 'A' + r + ',' + r + ' 0 0 0 ' + (x1 + r) + ',' + (y + h) + 'H' + x0 + 'Z';
 }
-/* month so far: mean of daily baseload from the 1st up to the delivery day, plus the two months before */
+/* ---------- all zones: the day, a month or a year, shown on a map or as a ranking ---------- */
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MS_CACHE = new Map();
-// a zone's average daily baseload so far this month or this year (up to `date`), and the two previous months or years
-function periodStats(z, date, kind) {
-  const key = DS.id + '|' + z + '|' + date + '|' + kind;
+function dayIdx(iso) {   // first position in DS.days on or after iso
+  const a = DS.days; let lo = 0, hi = a.length;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (a[mid][0] < iso) lo = mid + 1; else hi = mid; }
+  return lo;
+}
+// a month ('2022-03') or year ('2022'); the puzzle's own month or year runs up to the puzzle day ("so far")
+function spanOf(kind, key, date) {
+  const d = parseISO(date);
+  if (kind === 'year') {
+    const y = +(key || d.getFullYear()), so = y === d.getFullYear();
+    return {kind, key: String(y), from: y + '-01-01', to: so ? date : y + '-12-31', so, label: String(y), y};
+  }
+  const k = key || date.slice(0, 7), [y, m] = k.split('-').map(Number), so = k === date.slice(0, 7);
+  return {kind, key: k, from: k + '-01', to: so ? date : isoLocal(new Date(y, m, 0)), so, label: MONTHS[m - 1] + ' ' + y, y, m};
+}
+function spanRange(sp) {   // "1–16 Nov", "1 Jan – 16 Nov"
+  const d = parseISO(sp.to), dm = d.getDate() + ' ' + MONTHS[d.getMonth()];
+  if (sp.kind === 'year') return d.getMonth() === 0 && d.getDate() === 1 ? '1 Jan' : '1 Jan – ' + dm;
+  return d.getDate() === 1 ? dm : '1–' + dm;
+}
+function spanTitle(sp) { return sp.so ? sp.label + ' so far: ' + spanRange(sp) : sp.label; }   // "Nov 2026 so far: 1–16 Nov", "Mar 2022"
+function spanWhen(sp) {   // hover text: "1–16 Nov", "2026 1 Jan – 16 Nov", "Mar 2022, full month", "2022, full year"
+  if (sp.so) return (sp.kind === 'year' ? sp.label + ' ' : '') + spanRange(sp);
+  return sp.label + ', full ' + (sp.kind === 'year' ? 'year' : 'month');
+}
+function zoneAvg(i, from, to) {
+  let sum = 0, n = 0;
+  for (let k = dayIdx(from); k < DS.days.length && DS.days[k][0] <= to; k++) { const v = DS.days[k][1][i]; if (v !== null && v !== undefined) { sum += v; n++; } }
+  return n ? {avg: sum / n, n} : null;
+}
+// a zone's average over a period, how many days it rests on, and the two months or years before
+function periodStats(z, sp) {
+  const key = DS.id + '|' + z + '|' + sp.kind + '|' + sp.from + '|' + sp.to;
   if (MS_CACHE.has(key)) return MS_CACHE.get(key);
-  const i = DS.zones.indexOf(z), d = parseISO(date), y = d.getFullYear(), m = d.getMonth();
-  const avg = (a, b) => { let s = 0, n = 0; for (const [dd, v] of DS.days) { if (dd >= a && dd <= b && v[i] !== null && v[i] !== undefined) { s += v[i]; n++; } } return n ? {avg: s / n, n} : null; };
-  const out = kind === 'year'
-    ? {mtd: avg(y + '-01-01', date), label: String(y), range: periodRange('year', date),
-       prev: [2, 1].map(k => { const r = avg((y - k) + '-01-01', (y - k) + '-12-31'); return r ? {label: String(y - k), ...r} : null; }).filter(Boolean)}
-    : {mtd: avg(isoLocal(new Date(y, m, 1)), date), label: MONTHS[m], range: periodRange('month', date),
-       prev: [2, 1].map(k => { const s = new Date(y, m - k, 1), e = new Date(y, m - k + 1, 0), r = avg(isoLocal(s), isoLocal(e)); return r ? {label: MONTHS[s.getMonth()], ...r} : null; }).filter(Boolean)};
+  const i = DS.zones.indexOf(z), r = zoneAvg(i, sp.from, sp.to), days = daysBetween(sp.from, sp.to) + 1;
+  const prev = [2, 1].map(k => {
+    const p = sp.kind === 'year' ? spanOf('year', String(sp.y - k), sp.to) : spanOf('month', isoLocal(new Date(sp.y, sp.m - 1 - k, 1)).slice(0, 7), sp.to);
+    const pr = zoneAvg(i, p.from, p.to);
+    return pr ? {label: sp.kind === 'year' ? p.label : MONTHS[p.m - 1], ...pr} : null;
+  }).filter(Boolean);
+  const out = {avg: r ? r.avg : null, n: r ? r.n : 0, days, partial: !!r && r.n < 0.9 * days, prev};
   MS_CACHE.set(key, out);
   return out;
 }
-const monthStats = (z, date) => periodStats(z, date, 'month');
-function periodRange(kind, date) {   // "1–16 Nov", "1 Jan – 16 Nov"
-  const d = parseISO(date), dm = d.getDate() + ' ' + MONTHS[d.getMonth()];
-  if (kind === 'year') return d.getMonth() === 0 && d.getDate() === 1 ? '1 Jan' : '1 Jan – ' + dm;
-  return d.getDate() === 1 ? dm : '1–' + dm;
+// what's shown: {vals: {zone: €/MWh}, partial: zones whose average rests on fewer than 90% of the days}
+function measure(sp) {
+  const vals = {}, partial = new Set();
+  if (!sp) {
+    const row = DS.byDate.get(G.date) || [];
+    DS.zones.forEach((z, i) => { if (row[i] !== null && row[i] !== undefined) vals[z] = row[i]; });
+  } else {
+    for (const z of DS.zones) { const ps = periodStats(z, sp); if (ps.avg !== null) { vals[z] = ps.avg; if (ps.partial) partial.add(z); } }
+  }
+  return {vals, partial};
 }
-function periodTitle(kind, date) {   // "Nov 2026 so far: 1–16 Nov", "2026 so far: 1 Jan – 16 Nov"
-  const d = parseISO(date);
-  return (kind === 'year' ? '' : MONTHS[d.getMonth()] + ' ') + d.getFullYear() + ' so far: ' + periodRange(kind, date);
+const AZ_WHATS = ['day', 'month', 'year'], AZ_HOWS = ['map', 'rank'];
+const AZ = (function () {   // what is shown (day, month, year) and how (map, ranking); the earlier single switch carries over
+  const old = lsGet('view', null), oldBy = lsGet('rank-by', 'day');
+  let what = lsGet('az-what', null), how = lsGet('az-how', null);
+  if (!AZ_WHATS.includes(what)) what = old === 'month' || old === 'year' ? old : old === 'rank' && AZ_WHATS.includes(oldBy) ? oldBy : 'day';
+  if (!AZ_HOWS.includes(how)) how = old === 'rank' ? 'rank' : 'map';
+  return {what, how, pick: lsGet('az-pick', null)};   // pick: a chosen month or year, for that puzzle day only
+})();
+function azPick(kind) { const p = AZ.pick; return p && p.date === G.date ? p[kind] || null : null; }
+function azSpan() { return AZ.what === 'day' ? null : spanOf(AZ.what, azPick(AZ.what), G.date); }
+function setAzWhat(w) { AZ.what = w; lsSet('az-what', w); renderAllZones(); }
+function setAzHow(h) { AZ.how = h; lsSet('az-how', h); renderAllZones(); }
+function setAzPick(v) {
+  const p = AZ.pick && AZ.pick.date === G.date ? AZ.pick : {date: G.date};
+  p[AZ.what] = v || null; AZ.pick = p; lsSet('az-pick', p); renderAllZones();
 }
-// {zone: value} for a measure: the day's price, or the month or year average so far
-function measureValues(kind, date) {
-  const out = {}, vals = DS.byDate.get(date) || [];
-  DS.zones.forEach((z, i) => {
-    if (kind === 'day') { if (vals[i] !== null && vals[i] !== undefined) out[z] = vals[i]; }
-    else { const ps = periodStats(z, date, kind); if (ps.mtd) out[z] = ps.mtd.avg; }
-  });
-  return out;
+function azOptions(sp) {   // the month or year list, newest first, back to the first day in the data
+  const sel = $('#az-pick');
+  sel.hidden = !sp;
+  if (!sp) return;
+  const d = parseISO(G.date), first = DS.days[0][0], fy = +first.slice(0, 4), opts = [];
+  if (sp.kind === 'year') {
+    for (let y = d.getFullYear(); y >= fy; y--) opts.push([y === d.getFullYear() ? '' : String(y), String(y), y + (y === d.getFullYear() ? ' (so far)' : '')]);
+  } else {
+    const fm = +first.slice(5, 7) - 1;
+    for (let y = d.getFullYear(), m = d.getMonth(); y > fy || (y === fy && m >= fm); m === 0 ? (m = 11, y--) : m--) {
+      const k = y + '-' + String(m + 1).padStart(2, '0'), so = k === G.date.slice(0, 7);
+      opts.push([so ? '' : k, k, MONTHS[m] + ' ' + y + (so ? ' (so far)' : '')]);
+    }
+  }
+  sel.innerHTML = opts.map(([v, k, t]) => '<option value="' + v + '"' + (k === sp.key ? ' selected' : '') + '>' + esc(t) + '</option>').join('');
+  sel.setAttribute('aria-label', sp.kind === 'year' ? 'Choose a year' : 'Choose a month');
 }
-
-const VIEWS = ['map', 'month', 'year', 'rank'];
-const RANK_BYS = ['day', 'month', 'year'];
-let RANK_BY = RANK_BYS.includes(lsGet('rank-by', 'day')) ? lsGet('rank-by', 'day') : 'day';
-let VIEW = VIEWS.includes(lsGet('view', 'map')) ? lsGet('view', 'map') : 'map';
 function renderAllZones() {
   const sec = $('#all-zones');
   if (G.status === 'playing') { sec.hidden = true; return; }
   sec.hidden = false;
-  for (const v of VIEWS) $('#view-' + v).setAttribute('aria-pressed', String(VIEW === v));
-  $('#mapview').hidden = VIEW === 'rank';
-  $('#rankview').hidden = VIEW !== 'rank';
-  for (const k of RANK_BYS) $('#rank-' + k).setAttribute('aria-pressed', String(RANK_BY === k));
+  for (const w of AZ_WHATS) $('#az-' + w).setAttribute('aria-pressed', String(AZ.what === w));
+  for (const h of AZ_HOWS) $('#az-' + h).setAttribute('aria-pressed', String(AZ.how === h));
+  const sp = azSpan(), M = measure(sp), n = Object.keys(M.vals).length;
+  azOptions(sp);
+  $('#mapview').hidden = AZ.how !== 'map';
+  $('#rankview').hidden = AZ.how !== 'rank';
+  const kw = sp && sp.kind === 'year' ? 'year' : 'month';
+  $('#all-title').textContent = sp ? spanTitle(sp) : 'All ' + n + ' zones on ' + fmtDay(G.date);
+  $('#all-sub').textContent = (sp
+    ? 'Average of the daily baseload prices ' + (sp.so ? (sp.kind === 'year' ? 'from 1 January' : 'from the 1st of the month') + ' up to the delivery day' : 'over the whole ' + kw) + ', €/MWh'
+    : 'Daily baseload average, €/MWh') +
+    (AZ.how === 'rank' ? ', cheapest at the top.' : '. Hover a zone for ' + (sp ? 'the two previous ' + kw + 's.' : 'its price and rank.')) +
+    (DS.placeholder ? ' Placeholder prices.' : '');
+  $('#az-foot').hidden = !M.partial.size;
   renderBars();
   renderMerit();
-  const n = Object.keys(measureValues('day', G.date)).length;
-  if (VIEW === 'map') {
-    $('#all-title').textContent = 'All ' + n + ' zones on ' + fmtDay(G.date);
-    $('#all-sub').textContent = 'Daily baseload average, €/MWh. Hover a zone for its price and rank.';
-    renderMap();
-  } else if (VIEW === 'month' || VIEW === 'year') {
-    $('#all-title').textContent = periodTitle(VIEW, G.date);
-    $('#all-sub').textContent = VIEW === 'month'
-      ? 'Average of the daily baseload prices from the 1st of the month up to the delivery day, €/MWh. Hover a zone for the two previous months.'
-      : 'Average of the daily baseload prices from 1 January up to the delivery day, €/MWh. Hover a zone for the two previous years.';
-    renderMap();
-  }
+  if (AZ.how === 'map') renderMap();
 }
-function setRankBy(k) { RANK_BY = k; lsSet('rank-by', k); renderAllZones(); }
-function setView(v) { VIEW = v; lsSet('view', v); renderAllZones(); }
 
 let MAPDATA = null, MAP_STATE = 'idle';
 const MAP_VERSION = '2026-11-15-ch';   // change when site/data/zones-map.json changes
@@ -2649,7 +2701,7 @@ async function loadMap() {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     MAPDATA = await r.json(); MAP_STATE = 'ok';
   } catch (e) { MAP_STATE = 'none'; }
-  if (G && G.status !== 'playing' && VIEW !== 'rank') renderMap();   // both the day map and the month map
+  if (G && G.status !== 'playing' && AZ.how === 'map') renderMap();   // the day, month or year map
 }
 function inkFor(hex) {   // white or near-black text on a fill, by its luminance
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim()); if (!m) return '#0f1722';
@@ -2663,8 +2715,7 @@ function renderMap() {
     box.innerHTML = '<p class="map-msg">' + (MAP_STATE === 'none' ? 'The map couldn\'t be loaded. Switch to Ranking to see all prices.' : 'Loading map…') + '</p>';
     legend.innerHTML = ''; return;
   }
-  const month = VIEW === 'month' || VIEW === 'year';   // a period average: month or year so far
-  const price = measureValues(month ? VIEW : 'day', G.date);
+  const sp = azSpan(), month = !!sp, M = measure(sp), price = M.vals;   // month: a month or year average
   const sorted = Object.entries(price).sort((a, b) => a[1] - b[1]);
   const rank = Object.fromEntries(sorted.map(([z], k) => [z, k + 1]));
   const lo = sorted[0][1], hi = sorted[sorted.length - 1][1];
@@ -2681,7 +2732,7 @@ function renderMap() {
   const [, , VW, VH] = MAPDATA.viewBox;
   const cw = box.clientWidth || 800, u = VW / cw;   // viewBox units per screen pixel
   const mine = month ? new Set() : new Set(G.answer), small = cw < 560;
-  let s = '<svg viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="' + esc(month ? 'Map of average day-ahead prices by bidding zone, ' + periodTitle(VIEW, G.date) : 'Map of day-ahead prices by bidding zone on ' + fmtDay(G.date)) + '">';
+  let s = '<svg viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="' + esc(month ? 'Map of average day-ahead prices by bidding zone, ' + spanTitle(sp) : 'Map of day-ahead prices by bidding zone on ' + fmtDay(G.date)) + '">';
   for (const c of MAPDATA.context) s += '<path d="' + c.d + '" fill="var(--map-land)" stroke="var(--line-strong)" stroke-width="0.6" vector-effect="non-scaling-stroke"/>';
   for (const [z, g] of Object.entries(MAPDATA.zones)) {
     const v = price[z];
@@ -2695,7 +2746,7 @@ function renderMap() {
       const ink = inkFor(ramp[bucket(v)]);
       s += '<g pointer-events="none" font-family="var(--f-mono)" text-anchor="middle" fill="' + ink + '">' +
         (small ? '' : '<text x="' + g.x + '" y="' + (g.y - 2 * u) + '" font-size="' + (9.5 * u) + '" opacity=".85">' + esc(z) + '</text>') +
-        '<text x="' + g.x + '" y="' + (g.y + (small ? 3 : 9.5) * u) + '" font-size="' + ((small ? 9 : 11) * u) + '" font-weight="700">' + fmtP(v, 0) + '</text></g>';
+        '<text x="' + g.x + '" y="' + (g.y + (small ? 3 : 9.5) * u) + '" font-size="' + ((small ? 9 : 11) * u) + '" font-weight="700">' + fmtP(v, 0) + (M.partial.has(z) ? '*' : '') + '</text></g>';
     } else if (mine.has(z)) {
       const fs = (small ? 11 : 13) * u;
       s += '<g pointer-events="none" font-family="var(--f-mono)" font-weight="700" text-anchor="middle" paint-order="stroke" stroke="var(--surface)" stroke-width="' + (3.2 * u) + '" stroke-linejoin="round" fill="var(--ink)">' +
@@ -2713,9 +2764,10 @@ function renderMap() {
       const z = el.dataset.z, v = price[z], m = zm(z), r = box.getBoundingClientRect();
       if (v === undefined) return;
       if (month) {
-        const ms = periodStats(z, G.date, VIEW);
-        tip.innerHTML = '<b>' + esc(z) + '</b> ' + esc(m.c) + (m.a ? ' · ' + esc(m.a) : '') + '<br>' + (VIEW === 'year' ? ms.label + ' ' + ms.range : ms.range) + ' avg <b>' + fmtP(v) + '</b> · rank ' + rank[z] + ' of ' + sorted.length +
-          (ms.prev.length ? '<br>' + (VIEW === 'year' ? 'Full year ' : '') + ms.prev.map(p => p.label + ' ' + fmtP(p.avg)).join(' · ') : '');
+        const ms = periodStats(z, sp);
+        tip.innerHTML = '<b>' + esc(z) + '</b> ' + esc(m.c) + (m.a ? ' · ' + esc(m.a) : '') + '<br>' + esc(spanWhen(sp)) + ' avg <b>' + fmtP(v) + (ms.partial ? '*' : '') + '</b> · rank ' + rank[z] + ' of ' + sorted.length +
+          (ms.partial ? '<br>* ' + ms.n + ' of ' + ms.days + ' days have a price' : '') +
+          (ms.prev.length ? '<br>' + (sp.kind === 'year' ? 'Full year ' : '') + ms.prev.map(p => p.label + ' ' + fmtP(p.avg)).join(' · ') : '');
       } else tip.innerHTML = '<b>' + esc(z) + '</b> ' + esc(m.c) + (m.a ? ' · ' + esc(m.a) : '') + '<br><b>' + fmtP(v) + '</b> /MWh · rank ' + rank[z] + ' of ' + sorted.length;
       tip.style.display = 'block';
       tip.style.left = Math.min(Math.max(e.clientX - r.left, 120), r.width - 120) + 'px';
@@ -2725,7 +2777,7 @@ function renderMap() {
     el.addEventListener('click', () => { if (price[el.dataset.z] !== undefined) selectMeritZone(el.dataset.z, true); });
   });
   $('#map-note').textContent = month
-    ? 'Each zone shows its average so far this ' + (VIEW === 'year' ? 'year' : 'month') + '. Click a zone for its merit order. Grey areas aren\'t part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.'
+    ? 'Each zone shows its average ' + (sp.so ? 'so far this ' + (sp.kind === 'year' ? 'year' : 'month') : 'for ' + sp.label) + '. Click a zone for its merit order. Grey areas aren\'t part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.'
     : 'Your five zones are outlined; click any zone for its merit order. Grey areas aren\'t part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.';
   legend.innerHTML = ramp.map((c, k) => '<div class="sw"><i style="background:' + c + '"></i><span>' + (k === 0 ? fmtP(b0, 0) : (b0 + k * step).toFixed(0)) + (k === nb - 1 ? '–' + (b0 + nb * step).toFixed(0) : '') + '</span></div>').join('');
 }
@@ -2809,7 +2861,7 @@ function moDefaultZone() {
 }
 function selectMeritZone(z, scroll) {
   MO_Z = z; renderMerit();
-  if (VIEW !== 'rank') renderMap();
+  if (AZ.how === 'map') renderMap();
   if (scroll) { const el = $('#mo'), r = el.getBoundingClientRect(); if (r.top > window.innerHeight - 120) el.scrollIntoView({behavior: 'smooth', block: 'start'}); }
 }
 function moModel(z, date) {
@@ -3443,14 +3495,10 @@ function renderPMO() {
 }
 function pmoSet(z, date) { if (z) PMO.z = z; if (date) PMO.date = date; lsSet('pmo', {z: PMO.z}); renderPMO(); }
 function renderBars() {
-  const byDay = measureValues('day', G.date), cur = measureValues(RANK_BY, G.date);
+  const sp = azSpan(), per = !!sp, M = measure(sp), cur = M.vals, byDay = per ? measure(null).vals : cur;
   const rows = Object.entries(cur).map(([z, p]) => ({z, p})).sort((a, b) => a.p - b.p);
   const dayRank = Object.fromEntries(Object.entries(byDay).sort((a, b) => a[1] - b[1]).map(([z], k) => [z, k + 1]));
-  const mine = new Set(G.answer), per = RANK_BY !== 'day';
-  if (VIEW === 'rank') {
-    $('#all-title').textContent = per ? 'All ' + rows.length + ' zones, ' + periodTitle(RANK_BY, G.date) : 'All ' + rows.length + ' zones on ' + fmtDay(G.date);
-    $('#all-sub').textContent = (per ? 'Average of the daily baseload prices, ' + periodRange(RANK_BY, G.date) + ', €/MWh' : 'Daily baseload average, €/MWh') + ', cheapest at the top.' + (DS.placeholder ? ' Placeholder prices.' : '');
-  }
+  const mine = new Set(G.answer), star = z => (M.partial.has(z) ? '*' : '');
   const box = $('#chart');
   const W = Math.max(300, box.clientWidth || 600);
   const labelW = 58, padR = 74, top = 6, rowH = 20, barH = 10, axisH = 24;
@@ -3459,7 +3507,7 @@ function renderBars() {
   const step = niceStep((hi - lo) || 1, W < 480 ? 4 : 6);
   const d0 = Math.floor(lo / step) * step, d1 = Math.ceil(hi / step) * step || step;
   const x = v => labelW + (v - d0) / (d1 - d0) * (W - labelW - padR);
-  let s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + (per ? 'Horizontal bar chart of average daily baseload prices for all zones, ' + esc(periodTitle(RANK_BY, G.date)) : 'Horizontal bar chart of daily baseload prices for all zones') + '">';
+  let s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + (per ? 'Horizontal bar chart of average daily baseload prices for all zones, ' + esc(spanTitle(sp)) : 'Horizontal bar chart of daily baseload prices for all zones') + '">';
   for (let t = d0; t <= d1 + 1e-9; t += step) {
     const xx = x(t).toFixed(1);
     s += '<line x1="' + xx + '" x2="' + xx + '" y1="' + top + '" y2="' + (H - axisH + 2) + '" stroke="var(--line)" stroke-width="1"/>';
@@ -3471,7 +3519,7 @@ function renderBars() {
     const y = top + k * rowH, by = y + (rowH - barH) / 2, isMine = mine.has(o.z);
     s += '<text x="' + (labelW - 8) + '" y="' + (y + rowH / 2 + 4) + '" text-anchor="end" font-size="11.5" font-weight="' + (isMine ? 700 : 500) + '" fill="' + (isMine ? 'var(--ink)' : 'var(--ink-2)') + '">' + esc(o.z) + '</text>';
     s += '<path d="' + barPath(x(0), x(o.p), by, barH, 4) + '" fill="' + (isMine ? 'var(--accent)' : 'var(--bar-muted)') + '"/>';
-    if (isMine) s += '<text x="' + (Math.max(x(o.p), x(0)) + 6) + '" y="' + (y + rowH / 2 + 4) + '" font-size="11.5" font-weight="700" fill="var(--ink)">' + fmtP(o.p, 1) + '</text>';
+    if (isMine) s += '<text x="' + (Math.max(x(o.p), x(0)) + 6) + '" y="' + (y + rowH / 2 + 4) + '" font-size="11.5" font-weight="700" fill="var(--ink)">' + fmtP(o.p, 1) + star(o.z) + '</text>';
     s += '<rect class="hit" data-k="' + k + '" x="0" y="' + y + '" width="' + W + '" height="' + rowH + '" fill="transparent"/>';
   });
   s += '</svg><div class="tip" id="tip"></div>';
@@ -3480,8 +3528,8 @@ function renderBars() {
   box.querySelectorAll('.hit').forEach(r => {
     r.addEventListener('mouseenter', () => {
       const o = rows[+r.dataset.k], m = zm(o.z);
-      tip.innerHTML = '<b>' + esc(o.z) + '</b> ' + esc(m.c) + (m.a ? ' · ' + esc(m.a) : '') + '<br>' + (per ? periodRange(RANK_BY, G.date) + ' avg ' : '') + '<b>' + fmtP(o.p) + '</b> /MWh · rank ' + (+r.dataset.k + 1) + ' of ' + rows.length +
-        (per && byDay[o.z] !== undefined ? '<br>On ' + esc(fmtShortDay(G.date)) + ': ' + fmtP(byDay[o.z]) + ' · rank ' + dayRank[o.z] : '');
+      tip.innerHTML = '<b>' + esc(o.z) + '</b> ' + esc(m.c) + (m.a ? ' · ' + esc(m.a) : '') + '<br>' + (per ? esc(spanWhen(sp)) + ' avg ' : '') + '<b>' + fmtP(o.p) + star(o.z) + '</b> /MWh · rank ' + (+r.dataset.k + 1) + ' of ' + rows.length +
+        (per && sp.so && byDay[o.z] !== undefined ? '<br>On ' + esc(fmtShortDay(G.date)) + ': ' + fmtP(byDay[o.z]) + ' · rank ' + dayRank[o.z] : '');
       tip.style.display = 'block';
       const ty = top + (+r.dataset.k) * rowH;
       tip.style.left = Math.min(Math.max(x(o.p), 140), W - 140) + 'px';
@@ -3490,10 +3538,8 @@ function renderBars() {
     });
     r.addEventListener('mouseleave', () => { tip.style.display = 'none'; r.setAttribute('fill', 'transparent'); });
   });
-  const tk = VIEW === 'rank' ? RANK_BY : VIEW === 'map' ? 'day' : VIEW;
-  const trows = Object.entries(tk === RANK_BY ? cur : measureValues(tk, G.date)).sort((a, b) => a[1] - b[1]);
-  $('#table').innerHTML = '<table><thead><tr><th>#</th><th>Zone</th><th>Name</th><th class="num">' + (tk === 'day' ? '€/MWh, ' + esc(fmtShortDay(G.date)) : 'Average €/MWh, ' + esc(periodTitle(tk, G.date))) + '</th></tr></thead><tbody>' +
-    trows.map(([z, p], k) => { const m = zm(z); return '<tr' + (mine.has(z) ? ' class="mine"' : '') + '><td>' + (k + 1) + '</td><td>' + esc(z) + '</td><td>' + esc(m.c + (m.a ? ' · ' + m.a : '')) + '</td><td class="num">' + p.toFixed(2) + '</td></tr>'; }).join('') +
+  $('#table').innerHTML = '<table><thead><tr><th>#</th><th>Zone</th><th>Name</th><th class="num">' + (per ? 'Average €/MWh, ' + esc(spanTitle(sp)) : '€/MWh, ' + esc(fmtShortDay(G.date))) + '</th></tr></thead><tbody>' +
+    rows.map((o, k) => { const m = zm(o.z); return '<tr' + (mine.has(o.z) ? ' class="mine"' : '') + '><td>' + (k + 1) + '</td><td>' + esc(o.z) + '</td><td>' + esc(m.c + (m.a ? ' · ' + m.a : '')) + '</td><td class="num">' + o.p.toFixed(2) + star(o.z) + '</td></tr>'; }).join('') +
     '</tbody></table>';
 }
 
@@ -3658,7 +3704,9 @@ $('#fc').addEventListener('keydown', e => {
   else if (e.key === 'ArrowDown') { e.preventDefault(); fcMove(i, 1); }
   else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fcTap(i); }
 });
-$('#view-map').addEventListener('click', () => setView('map'));
+for (const w of AZ_WHATS) $('#az-' + w).addEventListener('click', () => setAzWhat(w));
+for (const h of AZ_HOWS) $('#az-' + h).addEventListener('click', () => setAzHow(h));
+$('#az-pick').addEventListener('change', e => setAzPick(e.target.value));
 $('#mo-zone').addEventListener('change', e => selectMeritZone(e.target.value, false));
 $('#pmo-zone').addEventListener('change', e => pmoSet(e.target.value, null));
 $('#gm-zone').addEventListener('change', e => { GM.z = e.target.value; renderGenTab(); });
@@ -3677,9 +3725,6 @@ document.querySelectorAll('[data-gm-unit]').forEach(b => b.addEventListener('cli
 $('#pmo-date').addEventListener('change', e => { if (e.target.value) pmoSet(null, e.target.value); });
 $('#pmo-prev').addEventListener('click', () => pmoSet(null, isoLocal(addDays(parseISO(PMO.date), -1))));
 $('#pmo-next').addEventListener('click', () => pmoSet(null, isoLocal(addDays(parseISO(PMO.date), 1))));
-$('#view-month').addEventListener('click', () => setView('month'));
-$('#view-year').addEventListener('click', () => setView('year'));
-for (const k of ['day', 'month', 'year']) $('#rank-' + k).addEventListener('click', () => setRankBy(k));
 $('#btn-prices').addEventListener('click', () => { location.hash = location.hash === '#prices' ? 'game' : 'prices'; });
 let lastSync = Date.now();
 document.addEventListener('visibilitychange', () => {   // back to this tab: pick up attempts made on another device
@@ -3697,7 +3742,6 @@ $('#ph-to').addEventListener('change', e => { if (!e.target.value) return; PH.to
 $('#ph-zones').addEventListener('click', e => { const b = e.target.closest('[data-zone]'); if (b) phToggle(b.dataset.zone); });
 $('#ph-legend').addEventListener('click', e => { const b = e.target.closest('[data-remove]'); if (b) phToggle(b.dataset.remove); });
 $('#ph-table').addEventListener('click', e => { const r = e.target.closest('tr[data-zone]'); if (r) phToggle(r.dataset.zone); });
-$('#view-rank').addEventListener('click', () => setView('rank'));
 function startPractice() { const pz = practicePuzzle(DS); if (pz) { if (G && G.mode === 'daily') DAILY = G; G = newGame('practice', pz, null); selected = null; render(); window.scrollTo({top: 0, behavior: 'smooth'}); } }
 $('#btn-mode').addEventListener('click', () => { if (G.mode === 'daily') openPracticeMenu(); else { G = (DAILY && DAILY.dsId === DS.id) ? DAILY : loadDaily(); selected = null; $('#pmenu').hidden = true; render(); } });
 function openOv(id) { $(id).classList.add('open'); const b = $(id + ' [data-close]'); if (b) b.focus(); }
