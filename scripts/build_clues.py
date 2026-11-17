@@ -123,6 +123,17 @@ def weather(points, days):
                         out[d][z] = res[d]
             except Exception as e:  # noqa: BLE001
                 failed[z] = f"{type(e).__name__}: {e}"[:160]
+    if failed:   # one more pass for the zones that failed, one at a time after a pause
+        time.sleep(20)
+        for z in list(failed):
+            try:
+                _, res = one(z)
+                for d in days:
+                    if res.get(d):
+                        out[d][z] = res[d]
+                del failed[z]
+            except Exception as e:  # noqa: BLE001
+                failed[z] = f"{type(e).__name__}: {e}"[:160]
     print(f"Weather: {sum(len(v) for v in out.values())} zone-days for {days[0]} to {days[-1]}"
           + (f"; failed: {failed}" if failed else ""))
     return out, failed
@@ -156,9 +167,8 @@ def main():
         got, failed = weather(points, days)
         keep = (today - pd.Timedelta(days=7)).strftime("%Y-%m-%d")
         clues["days"] = {d: v for d, v in clues.get("days", {}).items() if d >= keep}
-        for d, v in got.items():
-            if v:
-                clues["days"][d] = v
+        for d, v in got.items():   # per zone, so a zone that failed this time keeps its earlier values
+            clues["days"].setdefault(d, {}).update(v)
         clues["meta"]["weather"] = {
             "checked": now.isoformat(timespec="seconds"),
             "source": "Open-Meteo.com, CC BY 4.0",
