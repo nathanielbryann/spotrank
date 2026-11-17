@@ -16,6 +16,7 @@ import json
 import os
 import sys
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
@@ -84,15 +85,19 @@ def weather(points, days):
             "timezone": "Europe/Berlin", "start_date": days[0], "end_date": days[-1],
         }
         url = OPEN_METEO + "?" + urllib.parse.urlencode(q)
-        for k in range(3):
+        for k in range(5):   # the free API refuses bursts (HTTP 429): back off and try again
             try:
                 with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "spotrank"}), timeout=40) as r:
                     data = json.load(r)
                 break
+            except urllib.error.HTTPError as e:
+                if k == 4 or e.code not in (429, 500, 502, 503, 504):
+                    raise RuntimeError(f"HTTP {e.code}: {e.read().decode('utf-8', 'replace')[:120]}") from e
+                time.sleep(5 * 2 ** k)
             except Exception:  # noqa: BLE001
-                if k == 2:
+                if k == 4:
                     raise
-                time.sleep(4)
+                time.sleep(5 * 2 ** k)
         data = data if isinstance(data, list) else [data]
         per_day = {d: {"wind": [], "sun": []} for d in days}
         for loc in data:
@@ -107,19 +112,20 @@ def weather(points, days):
                         per_day[d]["sun"].append(part["sun"].sum() / 1000)   # W/m² hourly means -> kWh/m² per day
         return z, {d: {k: round(sum(v) / len(v), 2) for k, v in per_day[d].items() if v} for d in days}
 
-    failed = []
-    with ThreadPoolExecutor(max_workers=6) as pool:
-        for fut in [pool.submit(one, z) for z in points]:
+    failed = {}
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futs = {pool.submit(one, z): z for z in points}
+        for fut, z in futs.items():
             try:
-                z, res = fut.result(timeout=200)
+                _, res = fut.result(timeout=400)
                 for d in days:
                     if res.get(d):
                         out[d][z] = res[d]
             except Exception as e:  # noqa: BLE001
-                failed.append(type(e).__name__)
+                failed[z] = f"{type(e).__name__}: {e}"[:160]
     print(f"Weather: {sum(len(v) for v in out.values())} zone-days for {days[0]} to {days[-1]}"
-          + (f"; {len(failed)} zones failed" if failed else ""))
-    return out
+          + (f"; failed: {failed}" if failed else ""))
+    return out, failed
 
 
 def main():
@@ -147,7 +153,7 @@ def main():
             points = json.load(f)["points"]
         today = pd.Timestamp.now(tz=b.TZ).normalize()
         days = [(today + pd.Timedelta(days=k)).strftime("%Y-%m-%d") for k in range(3)]
-        got = weather(points, days)
+        got, failed = weather(points, days)
         keep = (today - pd.Timedelta(days=7)).strftime("%Y-%m-%d")
         clues["days"] = {d: v for d, v in clues.get("days", {}).items() if d >= keep}
         for d, v in got.items():
@@ -159,6 +165,7 @@ def main():
             "wind": "mean wind speed at 100 m, m/s, CET day",
             "sun": "total solar radiation (shortwave), kWh/m², CET day",
             "points": "up to 8 points inside each zone (scripts/weather_points.json)",
+            "failed": failed,
         }
     clues["meta"]["generated"] = now.isoformat(timespec="seconds")
     os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
