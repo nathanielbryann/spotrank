@@ -121,6 +121,8 @@ and redeploys the site.
   grid operators publish it after the 11:00 cut-off; they have until 18:00). `scripts/build_clues.py`
   writes `site/data/clues.json` and adds tomorrow's ENTSO-E forecasts to the drivers file; it never
   fetches prices, so Switzerland's 11:10 price can't reach the page before the cut-off.
+  A wind or solar value of exactly 0 where the zone usually has well above 0 (Norway publishes 0 MW
+  first) counts as not published yet.
   `.github/workflows/morning-clues.yml` starts a light "clues" run of the update workflow at 07:50,
   08:45 and 09:35 UTC (like `daily-start.yml`, its schedule only runs after Nathaniel has edited a cron
   line there himself); push a change to `.github/clues-now.txt` to start one by hand. The page fetches

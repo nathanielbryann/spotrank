@@ -2208,6 +2208,14 @@ function fcRefreshClues() {
   if (!FCI || FCI.state !== 'open' || (FCS && FCS.ranking) || Date.now() - CLUES_AT < 10 * 60 * 1000) return;
   loadClues(); loadDriversNow();
 }
+// a day's forecasts for the clue table; a wind or solar value of exactly 0 where the zone usually has well
+// above 0 is a placeholder (Norway publishes 0 MW first and the real forecast later), so it counts as not in yet
+function fcDrv(z, date) {
+  const a = drvOn(z, date); if (!a) return null;
+  const n = drvNormal(z, date);
+  const ph = (a.wind === 0 && n && n.wind > 50) || (a.solar === 0 && n && n.solar > 50);
+  return ph ? {...a, hasRes: false} : a;   // a share without the real wind or solar would mislead
+}
 function fcCluesHtml(zones, bx, del) {
   if (DRV_STATE === 'idle') loadDrivers();
   if (CLUES_STATE === 'idle') loadClues();
@@ -2217,7 +2225,7 @@ function fcCluesHtml(zones, bx, del) {
   const vs = (a, b, dp) => a === undefined || a === null ? (CLUES_STATE === 'loading' ? wait : '–')
     : a.toFixed(dp) + (b === undefined || b === null ? '' : ' <small>(' + b.toFixed(dp) + ')</small>');
   const rows = zones.slice().sort(byCode).map(z => {
-    const m = zm(z), a = drvOn(z, del), b = drvOn(z, bx);
+    const m = zm(z), a = fcDrv(z, del), b = fcDrv(z, bx);
     let dem = '<span class="na">not yet</span>', res = '<span class="na">' + (open ? 'after cut-off' : 'not yet') + '</span>';
     if (a) {
       dem = b ? (a.load >= b.load ? '+' : '−') + Math.abs(Math.round(100 * (a.load / b.load - 1))) + '%' : fmtPower(a.load);

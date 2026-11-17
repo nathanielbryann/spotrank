@@ -52,12 +52,21 @@ def entsoe_tomorrow(drivers_path, key, workers):
                 failed.append(f"{z}: {type(e).__name__}")
     frames, fetched = b.load_drivers(drivers_path)
     counts = {m: 0 for m in b.METRICS}
+
+    def usual(m, z):   # median of the last 30 days; a 0 where it's usually well above 0 is a placeholder
+        fr = frames[m]
+        if z not in fr.columns:
+            return 0.0
+        v = fr[z].loc[fr.index < day].dropna().tail(30)
+        return float(v.median()) if len(v) else 0.0
     for z, daily in results.items():
         for m in b.METRICS:
             s = daily.get(m)
             if s is None or s.empty or day not in s.index:   # daily values are keyed "YYYY-MM-DD"
                 continue
             v = float(s.loc[day])
+            if m in ("wind", "solar") and v == 0 and usual(m, z) > 50:
+                continue   # e.g. Norway's wind is published as 0 MW first and filled in later
             fr = frames[m]
             if z not in fr.columns:
                 fr[z] = float("nan")
