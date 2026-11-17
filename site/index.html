@@ -2607,7 +2607,7 @@ async function loadMap() {
     if (!r.ok) throw new Error('HTTP ' + r.status);
     MAPDATA = await r.json(); MAP_STATE = 'ok';
   } catch (e) { MAP_STATE = 'none'; }
-  if (G && G.status !== 'playing' && VIEW === 'map') renderMap();
+  if (G && G.status !== 'playing' && VIEW !== 'rank') renderMap();   // both the day map and the month map
 }
 function inkFor(hex) {   // white or near-black text on a fill, by its luminance
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim()); if (!m) return '#0f1722';
