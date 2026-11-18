@@ -26,7 +26,10 @@ and redeploys the site.
 
 ## How the game picks puzzles and explains prices
 
-- **Daily puzzle:** yesterday's prices. The five zones are chosen to tell the day's story: a zone far
+- **Daily puzzle:** the day's own prices (from puzzle #5, 19 Nov 2026; known since the auction the day
+  before; puzzles #1–4 used the previous day). Without them it falls back to an archive day. The
+  briefing and merit order use the latest full day of actual generation (dated), since a day's own
+  is only complete once it's over. The five zones are chosen to tell the day's story: a zone far
   from its usual rank (median of the previous 90 days), a pair of neighbouring zones split by
   congestion, a long-time high or low, or a negative price. The rest are filled at random, with rules
   for minimum price gaps and regional variety.

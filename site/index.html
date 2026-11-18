@@ -1032,9 +1032,13 @@ function pickPuzzle(ds, rng, date, seeds = []) {
 }
 // The daily puzzle depends only on the puzzle number and the delivery day, so it stays the same
 // when the data file gains new days during the day.
+// From puzzle #5 (19 Nov 2026) the daily puzzle ranks the day's own prices, known since the auction the day before.
+// Puzzles #1-4 ranked the previous day. Without the day's prices it falls back to an archive day, never to the
+// previous day, which was the previous puzzle.
+const TODAY_PRICES_FROM = 5;
 function dailyDate(ds, puzzleNo, todayISO) {
-  const yest = isoLocal(addDays(parseISO(todayISO), -1));
-  if (ds.eligible.includes(yest)) return {date: yest, live: true};
+  const day = puzzleNo >= TODAY_PRICES_FROM ? todayISO : isoLocal(addDays(parseISO(todayISO), -1));
+  if (ds.eligible.includes(day)) return {date: day, live: true};
   const rng = mulberry32(hashStr('spotrank-archive|' + puzzleNo + '|' + ds.id));
   return {date: ds.eligible[Math.floor(rng() * ds.eligible.length)], live: false};
 }
@@ -1179,7 +1183,7 @@ function renderMeta() {
   m.push('<span class="chip day">Delivery day <b>' + esc(fmtDay(G.date)) + '</b></span>');
   if (G.mode === 'daily') {
     m.push('<span class="chip">Puzzle <b>#' + G.puzzleNo + '</b></span>');
-    m.push('<span class="chip">' + (G.live ? "Yesterday's prices" : 'From the archive') + '</span>');
+    m.push('<span class="chip">' + (!G.live ? 'From the archive' : G.date === TODAY ? "Today's prices" : "Yesterday's prices") + '</span>');
   } else m.push('<span class="chip practice">Practice round · <b>not counted</b></span>');
   if (DS.placeholder) m.push('<span class="chip warn">⚠ <span><b>Placeholder prices</b>, not real market data</span></span>');
   else m.push('<span class="chip">Source <b>' + esc(DS.meta.source_short || DS.meta.source || 'Loaded file') + '</b></span>');
@@ -1566,14 +1570,23 @@ function genDay(z, date) {
   for (const [g, a] of Object.entries(gd.gen || {})) { const v = i >= 0 && i < a.length ? a[i] : null; if (v !== null && v > 0) { out[g] = v; total += v; } }
   return total > 0 ? {total, g: out} : null;
 }
+// the latest full day of actual generation before `date`, for days so recent that their own isn't complete yet
+function genRecent(z, date) {
+  if (!HOSTED || date < isoAdd(TODAY, -2)) return null;
+  for (let k = 1; k <= 4; k++) { const d = isoAdd(date, -k), g = genDay(z, d); if (g === 'loading') return null; if (g) return {g, date: d}; }
+  return null;
+}
+const dayMon = iso => { const d = parseISO(iso); return d.getDate() + ' ' + MONTHS[d.getMonth()]; };
 function buildBriefing(g) {
   const H = hx(), idx = H.di.get(g.date), zones = g.answer.slice().sort();
   const di = DRV ? DRV.di.get(g.date) : undefined, dayType = isWeekend(g.date) ? 'weekend day' : 'weekday';
   const cards = zones.map(z => {
-    const f = [], d = di !== undefined ? drvAt(z, di) : null, nrm = d ? drvNormal(z, g.date) : null, gen = HOSTED ? genDay(z, g.date) : null;
+    const f = [], d = di !== undefined ? drvAt(z, di) : null, nrm = d ? drvNormal(z, g.date) : null;
+    let gen = HOSTED ? genDay(z, g.date) : null, when = '';
+    if (!gen) { const r = genRecent(z, g.date); if (r) { gen = r.g; when = ' on ' + dayMon(r.date); } }   // the day itself isn't over yet
     if (HYDRO.has(z)) {
       const sh = gen && gen !== 'loading' && gen.g.hydro_storage ? gen.g.hydro_storage / gen.total : null;
-      f.push(sh !== null && sh >= 0.3 ? 'Reservoir hydro made ' + N$(pct0(sh)) + ' of its power; it is priced by water value' : 'Mostly hydropower, priced by water value');
+      f.push(sh !== null && sh >= 0.3 ? 'Reservoir hydro made ' + N$(pct0(sh)) + ' of its power' + when + '; it is priced by water value' : 'Mostly hydropower, priced by water value');
     } else if (d && d.hasRes) {
       f.push('Wind and solar ' + (d.res > 1 ? 'equal to ' : 'covered ') + N$(pct0(d.res)) + ' of demand' + (nrm && nrm.res !== null ? ' (usually ' + N$(pct0(nrm.res)) + ')' : ''));
     }
@@ -1583,15 +1596,15 @@ function buildBriefing(g) {
     }
     if (gen && gen !== 'loading') {
       const top = Object.entries(gen.g).filter(([k]) => k !== 'wind' && k !== 'solar' && !(HYDRO.has(z) && k === 'hydro_storage')).sort((a, b) => b[1] - a[1])[0];
-      if (top && top[1] / gen.total >= 0.1) f.push(GEN_SHORT[top[0]] + ' made ' + N$(pct0(top[1] / gen.total)) + ' of its power');
-      if (top && top[0] !== 'gas' && gen.g.gas && gen.g.gas / gen.total >= 0.1) f.push('Gas made ' + N$(pct0(gen.g.gas / gen.total)));
-      if (d && d.load) {
+      if (top && top[1] / gen.total >= 0.1) f.push(GEN_SHORT[top[0]] + ' made ' + N$(pct0(top[1] / gen.total)) + ' of its power' + when);
+      if (top && top[0] !== 'gas' && gen.g.gas && gen.g.gas / gen.total >= 0.1) f.push('Gas made ' + N$(pct0(gen.g.gas / gen.total)) + when);
+      if (d && d.load && !when) {   // imports only when generation and demand are for the same day
         const net = (gen.total - d.load) / d.load;
         if (net <= -0.1) f.push('Imported about ' + N$(pct0(-net)) + ' of what it used');
         else if (net >= 0.1) f.push('Produced ' + N$(pct0(net)) + ' more than it used, so it exported');
       }
     }
-    return {z, f, loading: gen === 'loading'};
+    return {z, f, loading: gen === 'loading', earlier: !!when};
   });
   // congested borders: neighbours whose prices split far more than usual (no direction given)
   const borders = [];
@@ -1618,7 +1631,8 @@ function renderBrief() {
   const w = $('#brief-watch');
   w.hidden = !B.borders.length;
   w.innerHTML = B.borders.length ? 'Congested border' + (B.borders.length > 1 ? 's' : '') + ': ' + B.borders.map(o => '<b>' + esc(o.a) + '–' + esc(o.b) + '</b>').join(' and ') + '. Prices on the two sides split far more than usual.' : '';
-  $('#brief-foot').textContent = 'Wind, solar and demand: ENTSO-E day-ahead forecasts; "usual" is the average of the previous 30 days (same day type for demand). Power sources and imports: ENTSO-E actual generation.';
+  $('#brief-foot').textContent = 'Wind, solar and demand: ENTSO-E day-ahead forecasts; "usual" is the average of the previous 30 days (same day type for demand). Power sources and imports: ENTSO-E actual generation.' +
+    (B.cards.some(c => c.earlier) ? ' The day\'s own actual generation is only complete once it is over, so power sources come from the latest full day (date shown).' : '');
 }
 
 function renderInsights() {
@@ -2907,14 +2921,20 @@ function selectMeritZone(z, scroll) {
   if (scroll) { const el = $('#mo'), r = el.getBoundingClientRect(); if (r.top > window.innerHeight - 120) el.scrollIntoView({behavior: 'smooth', block: 'start'}); }
 }
 function moModel(z, date) {
-  const gs = GEN.get(z), gd = gs.d, gi = gd.start ? daysBetween(gd.start, date) : -1;
+  const gs = GEN.get(z), gd = gs.d;
   const vals = MX().byDate.get(date) || [], zi = MX().zones.indexOf(z), price = zi >= 0 ? vals[zi] : null;
-  const gen = {};
-  let any = false;
-  for (const g of MO_ORDER) {
-    const a = gd.gen && gd.gen[g]; const v = a && gi >= 0 && gi < a.length ? a[gi] : null;
-    if (v !== null && v !== undefined) { any = true; if (v > 0) gen[g] = v; }
-  }
+  const mixOn = dd => {
+    const gi = gd.start ? daysBetween(gd.start, dd) : -1, out = {}; let any = false;
+    for (const g of MO_ORDER) {
+      const a = gd.gen && gd.gen[g]; const v = a && gi >= 0 && gi < a.length ? a[gi] : null;
+      if (v !== null && v !== undefined) { any = true; if (v > 0) out[g] = v; }
+    }
+    return any ? out : null;
+  };
+  let genDate = date, gen = mixOn(date);
+  if (!gen) { const r = genRecent(z, date); if (r) { genDate = r.date; gen = mixOn(r.date); } }   // the day itself isn't over yet
+  const any = !!gen;
+  if (!gen) gen = {};
   if (!any || price === null || price === undefined) return {ok: false, price};
   const f = fuelAt(date) || {};
   if (!f.eua || !f.ttf) return {ok: false, price, nofuel: true};
@@ -2923,7 +2943,7 @@ function moModel(z, date) {
     .sort((a, b) => a.cost - b.cost || MO_ORDER.indexOf(a.g) - MO_ORDER.indexOf(b.g));
   let cum = 0; for (const b of blocks) { b.x0 = cum; cum += b.mw; b.x1 = cum; }
   const total = cum;
-  const dr = drvOn(z, date);
+  const dr = drvOn(z, genDate);   // demand for the same day as the generation mix
   const load = dr ? dr.load : null;
   // the dearest technology that ran at scale; "Other" and biomass carry assumed costs, so they are left out
   const floor = Math.max(300, 0.03 * (load || total));
@@ -2931,12 +2951,13 @@ function moModel(z, date) {
   let marg = null;
   if (hydro && hydro.mw >= 0.25 * total) marg = hydro;
   else for (const b of blocks) if (b.g !== 'other' && b.g !== 'biomass' && b.g !== 'hydro_storage' && b.mw >= floor && (!marg || b.cost >= marg.cost)) marg = b;
-  return {ok: true, blocks, total, load, price, f, cost, marg};
+  return {ok: true, blocks, total, load, price, f, cost, marg, genDate};
 }
 function moSummary(z, date, M) {
   const name = zoneLabel(z), parts = [];
   const gw = mw => (mw / 1000).toFixed(mw >= 10000 ? 0 : 1) + ' GW';
-  let s = 'On ' + fmtShortDay(date) + ', power plants in ' + esc(name) + ' produced <b>' + gw(M.total) + '</b> on average';
+  const early = M.genDate && M.genDate !== date;   // the mix comes from the latest full day
+  let s = (early ? 'Actual generation for ' + dayMon(date) + ' is only complete once the day is over, so this uses <b>' + dayMon(M.genDate) + '</b>, the latest full day. Then, power plants' : 'On ' + fmtShortDay(date) + ', power plants') + ' in ' + esc(name) + ' produced <b>' + gw(M.total) + '</b> on average';
   if (M.load) {
     const net = M.load - M.total;
     s += ' against demand of <b>' + gw(M.load) + '</b> (day-ahead forecast)';
@@ -2945,13 +2966,14 @@ function moSummary(z, date, M) {
   parts.push(s);
   const m = M.marg, p = M.price;
   if (!m) parts.push('Only zero-cost renewables ran at scale, so the price (<b>' + fmtP(p, 0) + '</b>) came from neighbours or from the few hours when other plants were needed.');
-  else if (m.g === 'hydro_storage') parts.push('Reservoir hydro produced <b>' + pct0(m.mw / M.total) + '</b> of it. Its price is a water value, the worth of keeping water for later, so it tends to set the price itself: <b>' + fmtP(p, 0) + '</b> that day.');
+  else if (m.g === 'hydro_storage') parts.push('Reservoir hydro produced <b>' + pct0(m.mw / M.total) + '</b> of it. Its price is a water value, the worth of keeping water for later, so it tends to set the price itself: <b>' + fmtP(p, 0) + '</b> ' + (early ? 'on ' + dayMon(date) : 'that day') + '.');
   else {
     const c = m.cost, tol = Math.max(12, 0.15 * Math.abs(c)), nm = MO_GROUPS[m.g].n.toLowerCase();
     let t = 'The dearest plants running at scale were <b>' + esc(nm) + '</b>, at an estimated running cost of <b>' + fmtP(c, 0) + '</b>/MWh. ';
-    if (Math.abs(p - c) <= tol) t += 'The day\'s price, <b>' + fmtP(p, 0) + '</b>, was close to that, so ' + esc(nm) + ' most likely set it.';
-    else if (p < c) t += 'The day\'s price, <b>' + fmtP(p, 0) + '</b>, was well below that, so in most hours something cheaper set the price, from lower down the stack or from neighbours. Those plants probably ran for the dearest hours, for heat or for grid needs.';
-    else t += 'The day\'s price, <b>' + fmtP(p, 0) + '</b>, was above that. Running costs alone don\'t explain it: dearer imports, tight peak hours or bids above cost pushed it up.';
+    const pd = early ? 'The price on ' + dayMon(date) : 'The day\'s price';
+    if (Math.abs(p - c) <= tol) t += pd + ', <b>' + fmtP(p, 0) + '</b>, was close to that, so ' + esc(nm) + ' most likely set it.';
+    else if (p < c) t += pd + ', <b>' + fmtP(p, 0) + '</b>, was well below that, so in most hours something cheaper set the price, from lower down the stack or from neighbours. Those plants probably ran for the dearest hours, for heat or for grid needs.';
+    else t += pd + ', <b>' + fmtP(p, 0) + '</b>, was above that. Running costs alone don\'t explain it: dearer imports, tight peak hours or bids above cost pushed it up.';
     parts.push(t);
   }
   return parts.join(' ');
