@@ -631,7 +631,7 @@ table.fc-clues small { color: var(--muted); font-family: var(--f-body); font-siz
     <div id="mapview">
       <div class="map-wrap" id="map"></div>
       <div class="legend-scale" id="map-legend" aria-label="Colour scale, €/MWh"></div>
-      <p class="map-note" id="map-note">Your five zones show their price. Grey areas aren't part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.</p>
+      <p class="map-note" id="map-note">Each zone shows its price that day. Grey areas aren't part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.</p>
     </div>
     <div id="rankview" hidden>
       <div class="key" style="margin-bottom:8px"><span><i style="background:var(--accent)"></i>Today's five</span><span><i style="background:var(--bar-muted)"></i>Other zones</span></div>
@@ -2790,7 +2790,7 @@ function renderMap() {
   const bucket = v => Math.max(0, Math.min(nb - 1, Math.floor((v - b0) / step)));
   const [, , VW, VH] = MAPDATA.viewBox;
   const cw = box.clientWidth || 800, u = VW / cw;   // viewBox units per screen pixel
-  const mine = month ? new Set() : new Set(G.answer), small = cw < 560;
+  const small = cw < 560;
   let s = '<svg viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="' + esc(month ? 'Map of average day-ahead prices by bidding zone, ' + spanTitle(sp) : 'Map of day-ahead prices by bidding zone on ' + fmtDay(azDate())) + '">';
   for (const c of MAPDATA.context) s += '<path d="' + c.d + '" fill="var(--map-land)" stroke="var(--line-strong)" stroke-width="0.6" vector-effect="non-scaling-stroke"/>';
   for (const [z, g] of Object.entries(MAPDATA.zones)) {
@@ -2799,19 +2799,11 @@ function renderMap() {
   }
   for (const [z, g] of Object.entries(MAPDATA.zones)) {
     const v = price[z]; if (v === undefined) continue;
-    if (month) {
-      const ink = inkFor(ramp[bucket(v)]);
-      s += '<g pointer-events="none" font-family="var(--f-mono)" text-anchor="middle" fill="' + ink + '">' +
-        (small ? '' : '<text x="' + g.x + '" y="' + (g.y - 2 * u) + '" font-size="' + (9.5 * u) + '" opacity=".85">' + esc(z) + '</text>') +
-        '<text x="' + g.x + '" y="' + (g.y + (small ? 3 : 9.5) * u) + '" font-size="' + ((small ? 9 : 11) * u) + '" font-weight="700">' + fmtP(v, 0) + (M.partial.has(z) ? '*' : '') + '</text></g>';
-    } else if (mine.has(z)) {
-      const fs = (small ? 11 : 13) * u;
-      s += '<g pointer-events="none" font-family="var(--f-mono)" font-weight="700" text-anchor="middle" paint-order="stroke" stroke="var(--surface)" stroke-width="' + (3.2 * u) + '" stroke-linejoin="round" fill="var(--ink)">' +
-        '<text x="' + g.x + '" y="' + (g.y - fs * 0.15) + '" font-size="' + fs + '">' + esc(z) + '</text>' +
-        '<text x="' + g.x + '" y="' + (g.y + fs * 1.05) + '" font-size="' + (fs * 0.92) + '">' + fmtP(v, 0) + '</text></g>';
-    } else if (!small) {
-      s += '<text x="' + g.x + '" y="' + (g.y + 3.5 * u) + '" font-size="' + (10 * u) + '" font-family="var(--f-mono)" text-anchor="middle" fill="' + inkFor(ramp[bucket(v)]) + '" pointer-events="none" opacity=".85">' + esc(z) + '</text>';
-    }
+    // every zone with its name and price, the same on the day, month and year maps
+    const ink = inkFor(ramp[bucket(v)]);
+    s += '<g pointer-events="none" font-family="var(--f-mono)" text-anchor="middle" fill="' + ink + '">' +
+      (small ? '' : '<text x="' + g.x + '" y="' + (g.y - 2 * u) + '" font-size="' + (9.5 * u) + '" opacity=".85">' + esc(z) + '</text>') +
+      '<text x="' + g.x + '" y="' + (g.y + (small ? 3 : 9.5) * u) + '" font-size="' + ((small ? 9 : 11) * u) + '" font-weight="700">' + fmtP(v, 0) + (M.partial.has(z) ? '*' : '') + '</text></g>';
   }
   s += '</svg><div class="tip" id="maptip"></div>';
   box.innerHTML = s;
@@ -2835,7 +2827,7 @@ function renderMap() {
   });
   $('#map-note').textContent = month
     ? 'Each zone shows its average ' + (sp.so ? 'so far this ' + (sp.kind === 'year' ? 'year' : 'month') : 'for ' + sp.label) + '. Click a zone for its merit order. Grey areas aren\'t part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.'
-    : 'Your five zones show their price; click any zone for its merit order. Grey areas aren\'t part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.';
+    : 'Each zone shows its price that day. Click a zone for its merit order. Grey areas aren\'t part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.';
   legend.innerHTML = ramp.map((c, k) => '<div class="sw"><i style="background:' + c + '"></i><span>' + (k === 0 ? fmtP(b0, 0) : (b0 + k * step).toFixed(0)) + (k === nb - 1 ? '–' + (b0 + nb * step).toFixed(0) : '') + '</span></div>').join('');
 }
 /* ---------- merit order: what ran that day, ordered by estimated running cost ---------- */
