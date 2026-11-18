@@ -1,1 +1,1 @@
-2026-11-17T12:06:30Z rerun: second pass
+clues run 2026-11-18T08:09:28Z after the timeout fix

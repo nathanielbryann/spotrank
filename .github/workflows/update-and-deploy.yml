@@ -105,7 +105,7 @@ jobs:
       - name: Clues for the Forecast challenge (tomorrow's forecasts and weather; never prices)
         if: github.event_name != 'push'
         continue-on-error: true
-        timeout-minutes: 8
+        timeout-minutes: 12
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
           PYTHONUNBUFFERED: "1"

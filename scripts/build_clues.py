@@ -83,8 +83,10 @@ def entsoe_tomorrow(drivers_path, key, workers):
     return {"date": day, "zones": len(zones), **counts, "failed": len(failed)}
 
 
-def weather(points, days):
+def weather(points, days, budget=240):
+    """Stops starting new zones after `budget` seconds and returns what it has; zones it missed keep earlier values."""
     out = {d: {} for d in days}
+    t0 = time.time()
 
     def one(z):
         pts = points[z]
@@ -94,19 +96,21 @@ def weather(points, days):
             "timezone": "Europe/Berlin", "start_date": days[0], "end_date": days[-1],
         }
         url = OPEN_METEO + "?" + urllib.parse.urlencode(q)
-        for k in range(5):   # the free API refuses bursts (HTTP 429): back off and try again
+        for k in range(3):   # the free API refuses bursts (HTTP 429): back off and try again
+            if time.time() - t0 > budget:
+                raise TimeoutError("out of time")
             try:
-                with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "spotrank"}), timeout=40) as r:
+                with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "spotrank"}), timeout=25) as r:
                     data = json.load(r)
                 break
             except urllib.error.HTTPError as e:
-                if k == 4 or e.code not in (429, 500, 502, 503, 504):
+                if k == 2 or e.code not in (429, 500, 502, 503, 504):
                     raise RuntimeError(f"HTTP {e.code}: {e.read().decode('utf-8', 'replace')[:120]}") from e
-                time.sleep(5 * 2 ** k)
+                time.sleep(4 * 2 ** k)
             except Exception:  # noqa: BLE001
-                if k == 4:
+                if k == 2:
                     raise
-                time.sleep(5 * 2 ** k)
+                time.sleep(4 * 2 ** k)
         data = data if isinstance(data, list) else [data]
         per_day = {d: {"wind": [], "sun": []} for d in days}
         for loc in data:
@@ -122,18 +126,18 @@ def weather(points, days):
         return z, {d: {k: round(sum(v) / len(v), 2) for k, v in per_day[d].items() if v} for d in days}
 
     failed = {}
-    with ThreadPoolExecutor(max_workers=2) as pool:
+    with ThreadPoolExecutor(max_workers=3) as pool:
         futs = {pool.submit(one, z): z for z in points}
         for fut, z in futs.items():
             try:
-                _, res = fut.result(timeout=400)
+                _, res = fut.result(timeout=max(5, budget + 90 - (time.time() - t0)))
                 for d in days:
                     if res.get(d):
                         out[d][z] = res[d]
             except Exception as e:  # noqa: BLE001
                 failed[z] = f"{type(e).__name__}: {e}"[:160]
-    if failed:   # one more pass for the zones that failed, one at a time after a pause
-        time.sleep(20)
+    if failed and time.time() - t0 < budget - 60:   # one more pass for the zones that failed, if there's time
+        time.sleep(10)
         for z in list(failed):
             try:
                 _, res = one(z)
@@ -155,6 +159,7 @@ def main():
     ap.add_argument("--drivers", default="site/data/spotrank_drivers.json")
     ap.add_argument("--out", default="site/data/clues.json")
     ap.add_argument("--workers", type=int, default=12)
+    ap.add_argument("--weather-budget", type=int, default=240, help="seconds for the weather part")
     a = ap.parse_args()
 
     clues = {"meta": {}, "days": {}}
@@ -173,7 +178,7 @@ def main():
             points = json.load(f)["points"]
         today = pd.Timestamp.now(tz=b.TZ).normalize()
         days = [(today + pd.Timedelta(days=k)).strftime("%Y-%m-%d") for k in range(3)]
-        got, failed = weather(points, days)
+        got, failed = weather(points, days, a.weather_budget)
         keep = (today - pd.Timedelta(days=7)).strftime("%Y-%m-%d")
         clues["days"] = {d: v for d, v in clues.get("days", {}).items() if d >= keep}
         for d, v in got.items():   # per zone, so a zone that failed this time keeps its earlier values
