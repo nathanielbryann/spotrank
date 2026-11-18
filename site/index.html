@@ -2797,7 +2797,6 @@ function renderMap() {
     const v = price[z];
     s += '<path class="zone" data-z="' + z + '" d="' + g.d + '" fill="' + (v === undefined ? 'var(--map-land)' : ramp[bucket(v)]) + '" stroke="var(--surface)" stroke-width="1" vector-effect="non-scaling-stroke"/>';
   }
-  if (MO_Z && MAPDATA.zones[MO_Z]) s += '<path d="' + MAPDATA.zones[MO_Z].d + '" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="5 3" stroke-linejoin="round" vector-effect="non-scaling-stroke" pointer-events="none"/>';
   for (const [z, g] of Object.entries(MAPDATA.zones)) {
     const v = price[z]; if (v === undefined) continue;
     if (month) {
@@ -2919,7 +2918,6 @@ function moDefaultZone() {
 }
 function selectMeritZone(z, scroll) {
   MO_Z = z; renderMerit();
-  if (AZ.how === 'map') renderMap();
   if (scroll) { const el = $('#mo'), r = el.getBoundingClientRect(); if (r.top > window.innerHeight - 120) el.scrollIntoView({behavior: 'smooth', block: 'start'}); }
 }
 function moModel(z, date) {
