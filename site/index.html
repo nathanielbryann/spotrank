@@ -631,7 +631,7 @@ table.fc-clues small { color: var(--muted); font-family: var(--f-body); font-siz
     <div id="mapview">
       <div class="map-wrap" id="map"></div>
       <div class="legend-scale" id="map-legend" aria-label="Colour scale, €/MWh"></div>
-      <p class="map-note" id="map-note">Your five zones are outlined. Grey areas aren't part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.</p>
+      <p class="map-note" id="map-note">Your five zones show their price. Grey areas aren't part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.</p>
     </div>
     <div id="rankview" hidden>
       <div class="key" style="margin-bottom:8px"><span><i style="background:var(--accent)"></i>Today's five</span><span><i style="background:var(--bar-muted)"></i>Other zones</span></div>
@@ -2797,7 +2797,6 @@ function renderMap() {
     const v = price[z];
     s += '<path class="zone" data-z="' + z + '" d="' + g.d + '" fill="' + (v === undefined ? 'var(--map-land)' : ramp[bucket(v)]) + '" stroke="var(--surface)" stroke-width="1" vector-effect="non-scaling-stroke"/>';
   }
-  for (const z of mine) if (MAPDATA.zones[z]) s += '<path d="' + MAPDATA.zones[z].d + '" fill="none" stroke="var(--ink)" stroke-width="2.4" stroke-linejoin="round" vector-effect="non-scaling-stroke" pointer-events="none"/>';
   if (MO_Z && MAPDATA.zones[MO_Z]) s += '<path d="' + MAPDATA.zones[MO_Z].d + '" fill="none" stroke="var(--accent)" stroke-width="3" stroke-dasharray="5 3" stroke-linejoin="round" vector-effect="non-scaling-stroke" pointer-events="none"/>';
   for (const [z, g] of Object.entries(MAPDATA.zones)) {
     const v = price[z]; if (v === undefined) continue;
@@ -2837,7 +2836,7 @@ function renderMap() {
   });
   $('#map-note').textContent = month
     ? 'Each zone shows its average ' + (sp.so ? 'so far this ' + (sp.kind === 'year' ? 'year' : 'month') : 'for ' + sp.label) + '. Click a zone for its merit order. Grey areas aren\'t part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.'
-    : 'Your five zones are outlined; click any zone for its merit order. Grey areas aren\'t part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.';
+    : 'Your five zones show their price; click any zone for its merit order. Grey areas aren\'t part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.';
   legend.innerHTML = ramp.map((c, k) => '<div class="sw"><i style="background:' + c + '"></i><span>' + (k === 0 ? fmtP(b0, 0) : (b0 + k * step).toFixed(0)) + (k === nb - 1 ? '–' + (b0 + nb * step).toFixed(0) : '') + '</span></div>').join('');
 }
 /* ---------- merit order: what ran that day, ordered by estimated running cost ---------- */
