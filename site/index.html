@@ -2684,7 +2684,7 @@ function periodStats(z, sp) {
 function measure(sp) {
   const vals = {}, partial = new Set();
   if (!sp) {
-    const row = DS.byDate.get(G.date) || [];
+    const row = DS.byDate.get(azDate()) || [];
     DS.zones.forEach((z, i) => { if (row[i] !== null && row[i] !== undefined) vals[z] = row[i]; });
   } else {
     for (const z of DS.zones) { const ps = periodStats(z, sp); if (ps.avg !== null) { vals[z] = ps.avg; if (ps.partial) partial.add(z); } }
@@ -2699,25 +2699,28 @@ const AZ = (function () {   // what is shown (day, month, year) and how (map, ra
   if (!AZ_HOWS.includes(how)) how = old === 'rank' ? 'rank' : 'map';
   return {what, how, pick: lsGet('az-pick', null)};   // pick: a chosen month or year, for that puzzle day only
 })();
-function azPick(kind) { const p = AZ.pick; return p && p.date === G.date ? p[kind] || null : null; }
-function azSpan() { return AZ.what === 'day' ? null : spanOf(AZ.what, azPick(AZ.what), G.date); }
+// the day the All zones section shows: today after the daily puzzle (from #5 that is the puzzle day too),
+// the puzzle's own day in practice games
+function azDate() { return G.mode === 'daily' && TODAY && DS.byDate.has(TODAY) ? TODAY : G.date; }
+function azPick(kind) { const p = AZ.pick; return p && p.date === azDate() ? p[kind] || null : null; }
+function azSpan() { return AZ.what === 'day' ? null : spanOf(AZ.what, azPick(AZ.what), azDate()); }
 function setAzWhat(w) { AZ.what = w; lsSet('az-what', w); renderAllZones(); }
 function setAzHow(h) { AZ.how = h; lsSet('az-how', h); renderAllZones(); }
 function setAzPick(v) {
-  const p = AZ.pick && AZ.pick.date === G.date ? AZ.pick : {date: G.date};
+  const p = AZ.pick && AZ.pick.date === azDate() ? AZ.pick : {date: azDate()};
   p[AZ.what] = v || null; AZ.pick = p; lsSet('az-pick', p); renderAllZones();
 }
 function azOptions(sp) {   // the month or year list, newest first, back to the first day in the data
   const sel = $('#az-pick');
   sel.hidden = !sp;
   if (!sp) return;
-  const d = parseISO(G.date), first = DS.days[0][0], fy = +first.slice(0, 4), opts = [];
+  const ad = azDate(), d = parseISO(ad), first = DS.days[0][0], fy = +first.slice(0, 4), opts = [];
   if (sp.kind === 'year') {
     for (let y = d.getFullYear(); y >= fy; y--) opts.push([y === d.getFullYear() ? '' : String(y), String(y), y + (y === d.getFullYear() ? ' (so far)' : '')]);
   } else {
     const fm = +first.slice(5, 7) - 1;
     for (let y = d.getFullYear(), m = d.getMonth(); y > fy || (y === fy && m >= fm); m === 0 ? (m = 11, y--) : m--) {
-      const k = y + '-' + String(m + 1).padStart(2, '0'), so = k === G.date.slice(0, 7);
+      const k = y + '-' + String(m + 1).padStart(2, '0'), so = k === ad.slice(0, 7);
       opts.push([so ? '' : k, k, MONTHS[m] + ' ' + y + (so ? ' (so far)' : '')]);
     }
   }
@@ -2735,7 +2738,7 @@ function renderAllZones() {
   $('#mapview').hidden = AZ.how !== 'map';
   $('#rankview').hidden = AZ.how !== 'rank';
   const kw = sp && sp.kind === 'year' ? 'year' : 'month';
-  $('#all-title').textContent = sp ? spanTitle(sp) : 'All ' + n + ' zones on ' + fmtDay(G.date);
+  $('#all-title').textContent = sp ? spanTitle(sp) : 'All ' + n + ' zones on ' + fmtDay(azDate());
   $('#all-sub').textContent = (sp
     ? 'Average of the daily baseload prices ' + (sp.so ? (sp.kind === 'year' ? 'from 1 January' : 'from the 1st of the month') + ' up to the delivery day' : 'over the whole ' + kw) + ', €/MWh'
     : 'Daily baseload average, €/MWh') +
@@ -2788,7 +2791,7 @@ function renderMap() {
   const [, , VW, VH] = MAPDATA.viewBox;
   const cw = box.clientWidth || 800, u = VW / cw;   // viewBox units per screen pixel
   const mine = month ? new Set() : new Set(G.answer), small = cw < 560;
-  let s = '<svg viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="' + esc(month ? 'Map of average day-ahead prices by bidding zone, ' + spanTitle(sp) : 'Map of day-ahead prices by bidding zone on ' + fmtDay(G.date)) + '">';
+  let s = '<svg viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="' + esc(month ? 'Map of average day-ahead prices by bidding zone, ' + spanTitle(sp) : 'Map of day-ahead prices by bidding zone on ' + fmtDay(azDate())) + '">';
   for (const c of MAPDATA.context) s += '<path d="' + c.d + '" fill="var(--map-land)" stroke="var(--line-strong)" stroke-width="0.6" vector-effect="non-scaling-stroke"/>';
   for (const [z, g] of Object.entries(MAPDATA.zones)) {
     const v = price[z];
@@ -2912,7 +2915,7 @@ function moCapacity(gd, g, date, ran) {
 function moDefaultZone() {
   if (!G) return null;
   let best = null, bp = -Infinity;
-  for (const z of G.answer) { const p = DS.zones.indexOf(z) >= 0 ? (DS.byDate.get(G.date) || [])[DS.zones.indexOf(z)] : null; if (p !== null && p !== undefined && p > bp) { bp = p; best = z; } }
+  for (const z of G.answer) { const p = DS.zones.indexOf(z) >= 0 ? (DS.byDate.get(azDate()) || [])[DS.zones.indexOf(z)] : null; if (p !== null && p !== undefined && p > bp) { bp = p; best = z; } }
   return best || G.answer[0];
 }
 function selectMeritZone(z, scroll) {
@@ -2980,11 +2983,11 @@ function moSummary(z, date, M) {
 }
 function renderMerit() {
   if (!G || G.status === 'playing' || !$('#mo-chart')) return;
-  const forKey = G.mode + '|' + G.date + '|' + G.answer.join(',');
+  const day = azDate(), forKey = G.mode + '|' + day + '|' + G.answer.join(',');
   if (MO_FOR !== forKey) { MO_FOR = forKey; MO_Z = moDefaultZone(); }
   moZoneOptions($('#mo-zone'));
   $('#mo-zone').value = MO_Z;
-  drawMerit('mo', MO_Z, G.date, 'Merit order: ' + zoneLabel(MO_Z) + ', ' + fmtShortDay(G.date));
+  drawMerit('mo', MO_Z, day, 'Merit order: ' + zoneLabel(MO_Z) + ', ' + fmtShortDay(day));
 }
 function moZoneOptions(sel, zones = DS.zones) {
   if (sel.dataset.n === String(zones.length)) return;
@@ -3593,7 +3596,7 @@ function renderBars() {
     r.addEventListener('mouseenter', () => {
       const o = rows[+r.dataset.k], m = zm(o.z);
       tip.innerHTML = '<b>' + esc(o.z) + '</b> ' + esc(m.c) + (m.a ? ' · ' + esc(m.a) : '') + '<br>' + (per ? esc(spanWhen(sp)) + ' avg ' : '') + '<b>' + fmtP(o.p) + star(o.z) + '</b> /MWh · rank ' + (+r.dataset.k + 1) + ' of ' + rows.length +
-        (per && sp.so && byDay[o.z] !== undefined ? '<br>On ' + esc(fmtShortDay(G.date)) + ': ' + fmtP(byDay[o.z]) + ' · rank ' + dayRank[o.z] : '');
+        (per && sp.so && byDay[o.z] !== undefined ? '<br>On ' + esc(fmtShortDay(azDate())) + ': ' + fmtP(byDay[o.z]) + ' · rank ' + dayRank[o.z] : '');
       tip.style.display = 'block';
       const ty = top + (+r.dataset.k) * rowH;
       tip.style.left = Math.min(Math.max(x(o.p), 140), W - 140) + 'px';
@@ -3602,7 +3605,7 @@ function renderBars() {
     });
     r.addEventListener('mouseleave', () => { tip.style.display = 'none'; r.setAttribute('fill', 'transparent'); });
   });
-  $('#table').innerHTML = '<table><thead><tr><th>#</th><th>Zone</th><th>Name</th><th class="num">' + (per ? 'Average €/MWh, ' + esc(spanTitle(sp)) : '€/MWh, ' + esc(fmtShortDay(G.date))) + '</th></tr></thead><tbody>' +
+  $('#table').innerHTML = '<table><thead><tr><th>#</th><th>Zone</th><th>Name</th><th class="num">' + (per ? 'Average €/MWh, ' + esc(spanTitle(sp)) : '€/MWh, ' + esc(fmtShortDay(azDate()))) + '</th></tr></thead><tbody>' +
     rows.map((o, k) => { const m = zm(o.z); return '<tr' + (mine.has(o.z) ? ' class="mine"' : '') + '><td>' + (k + 1) + '</td><td>' + esc(o.z) + '</td><td>' + esc(m.c + (m.a ? ' · ' + m.a : '')) + '</td><td class="num">' + o.p.toFixed(2) + star(o.z) + '</td></tr>'; }).join('') +
     '</tbody></table>';
 }
