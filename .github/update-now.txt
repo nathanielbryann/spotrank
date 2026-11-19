@@ -1,1 +1,1 @@
-2026-11-17T15:07:06Z today's update by hand (the schedule didn't start it)
+2026-11-19T18:20:51Z update by hand: ENTSO-E was down (HTTP 599) during the afternoon run, so 20 Nov prices are missing
