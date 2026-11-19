@@ -5,7 +5,7 @@ on:
   workflow_dispatch:        # "Run workflow" button in the Actions tab
     inputs:
       mode:
-        description: "full: prices and everything else (afternoon). clues: only tomorrow's forecasts and weather for the Forecast challenge, never prices (morning)"
+        description: "full: prices and everything else (afternoon). clues: tomorrow's forecasts and weather for the Forecast challenge, plus prices if tomorrow's are incomplete"
         default: "full"
         type: choice
         options: [full, clues]
@@ -47,8 +47,14 @@ jobs:
       - name: Install packages
         run: pip install -r requirements.txt
 
+      - name: Check for missing prices (a clues run fetches them again if tomorrow's are incomplete)
+        id: gap
+        if: github.event_name != 'push' && inputs.mode == 'clues'
+        run: python scripts/price_gap.py
+
       - name: Fetch latest ENTSO-E prices
-        if: github.event_name != 'push' && inputs.mode != 'clues'   # code pushes only redeploy; prices are fetched on schedule or "Run workflow"
+        # code pushes only redeploy; prices are fetched by the afternoon run, and by a clues run when some are missing
+        if: github.event_name != 'push' && (inputs.mode != 'clues' || steps.gap.outputs.missing == 'true')
         timeout-minutes: 12
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
@@ -102,7 +108,19 @@ jobs:
           python scripts/build_spotrank_data.py --skip-prices --zones extra --end today --workers 8 \
             --gen-out site/data/gen --gen-budget 300 || true
 
-      - name: Clues for the Forecast challenge (tomorrow's forecasts and weather; never prices)
+      - name: The other Italian zones' prices again (clues run, when prices are missing)
+        if: github.event_name != 'push' && inputs.mode == 'clues' && steps.gap.outputs.missing == 'true'
+        continue-on-error: true
+        timeout-minutes: 8
+        env:
+          ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
+          PYTHONUNBUFFERED: "1"
+        run: |
+          if [ -z "$ENTSOE_API_KEY" ]; then exit 0; fi
+          python scripts/build_spotrank_data.py --update --no-csv --zones extra --end tomorrow --workers 6 \
+            --time-budget 300 --out site/data/spotrank_data_extra.json || true
+
+      - name: Clues for the Forecast challenge (tomorrow's forecasts and weather)
         if: github.event_name != 'push'
         continue-on-error: true
         timeout-minutes: 12
@@ -123,13 +141,15 @@ jobs:
 
       - name: Send prices to the leaderboard database (scores the Forecast challenge)
         # needs the SUPABASE_SECRET_KEY secret; without it this step only prints a notice
-        if: inputs.mode != 'clues'
+        if: inputs.mode != 'clues' || steps.gap.outputs.missing == 'true'
         continue-on-error: true
         env:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python scripts/push_day_prices.py --days 10
 
       - name: Commit updated prices
+        env:
+          MSG: ${{ inputs.mode != 'clues' && 'Data updated' || steps.gap.outputs.missing == 'true' && 'Clues and prices updated' || 'Clues updated' }}
         run: |
           if [ -z "$(git status --porcelain site/data)" ]; then
             echo "No new prices."
@@ -137,7 +157,7 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add site/data
-            git commit -m "$([ '${{ inputs.mode }}' = clues ] && echo 'Clues updated' || echo 'Data updated') $(date -u +%F)"
+            git commit -m "$MSG $(date -u +%F)"
             git pull --rebase
             git push
           fi

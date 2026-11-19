@@ -123,13 +123,17 @@ and redeploys the site.
   `scripts/make_weather_points.py`), and ENTSO-E's wind + solar forecast as a share of demand (most
   grid operators publish it after the 11:00 cut-off; they have until 18:00). `scripts/build_clues.py`
   writes `site/data/clues.json` and adds tomorrow's ENTSO-E forecasts to the drivers file; it never
-  fetches prices, so Switzerland's 11:10 price can't reach the page before the cut-off.
+  fetches prices (morning runs never do; see Missing prices), so Switzerland's 11:10 price can't reach the page before the cut-off.
   A wind or solar value of exactly 0 where the zone usually has well above 0 (Norway publishes 0 MW
   first) counts as not published yet.
   `.github/workflows/morning-clues.yml` starts a light "clues" run of the update workflow at 07:50,
   08:45 and 09:35 UTC (like `daily-start.yml`, its schedule only runs after Nathaniel has edited a cron
   line there himself); push a change to `.github/clues-now.txt` to start one by hand. The page fetches
   the clues again every 10 minutes while a forecast is open.
+- **Missing prices.** A clues run after 13:00 Brussels time (the 20:45 Helsinki one) first runs
+  `scripts/price_gap.py`: if tomorrow's prices are missing for any of the 33 zones (ENTSO-E down or late
+  during the afternoon update), it fetches prices again and sends them to the leaderboard database.
+  Morning clues runs are before 13:00, so they never fetch prices before the 11:00 cut-off.
 
 The drivers history is backfilled a few months per run, newest first. A run can be given more time
 with **Run workflow**, using the "Minutes to spend on wind/solar/load data" field. Generation data works the same way
