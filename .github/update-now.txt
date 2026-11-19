@@ -1,1 +1,1 @@
-2026-11-19T18:20:51Z update by hand: ENTSO-E was down (HTTP 599) during the afternoon run, so 20 Nov prices are missing
+2026-11-19T19:11:38Z re-check: 20 Nov still missing for 8 zones after the 20:45 run

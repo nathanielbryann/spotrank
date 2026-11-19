@@ -1,2 +1,2 @@
-zone: EE
-day: 2026-11-17
+zone: DE-LU
+day: 2026-11-20

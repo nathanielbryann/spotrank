@@ -28,8 +28,11 @@ for z in areas:
         s = client.query_day_ahead_prices(b.ZONES[z], start=start, end=end)
         s = s[~s.index.duplicated(keep="last")]
         ent[z] = s
-        out.append(f"ENTSO-E {z}: {len(s)} points, min {s.min():.2f}, max {s.max():.2f}, "
-                   f"zeros {int((s == 0).sum())}, daily baseload {b.daily_baseload(s, prices=True).iloc[0]:.2f}")
+        step = s.index.to_series().diff().median() if len(s) > 1 else None
+        line = (f"ENTSO-E {z}: {len(s)} points ({s.index.min():%H:%M} to {s.index.max():%H:%M}, step {step}), "
+                f"min {s.min():.2f}, max {s.max():.2f}, zeros {int((s == 0).sum())}")
+        dbl = b.daily_baseload(s, prices=True)
+        out.append(line + (f", daily baseload {dbl.iloc[0]:.2f}" if len(dbl) else ", no daily baseload (under 20 h of data)"))
     except Exception as e:  # noqa: BLE001
         out.append(f"ENTSO-E {z}: error {type(e).__name__}: {e}")
 
