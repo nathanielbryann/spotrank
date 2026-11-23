@@ -1,13 +1,19 @@
 # New zones check
 
-Checked 2026-11-23 15:40 UTC.
+Checked 2026-11-23 16:12 UTC.
 
 
-## Great Britain: NESO, N2EX day-ahead prices
+## Western Balkans on ENTSO-E
 
-Dataset metadata_modified 2026-11-23T11:30:13.832919
-- 4f27eea5-7038-4f73-9740-e3e4ad47c26a |  N2EX GB Day-Ahead Price | datastore True | modified 2026-09-21T12:38:33.467657
-  45385 rows; fields [('_id', 'int'), ('Date', 'date'), ('Delivery Period', 'text'), ('Price', 'numeric')]
-  First rows: {"Date": "2026-09-22", "Delivery Period": "22:00 - 23:00", "Price": 170.97}; {"Date": "2026-09-22", "Delivery Period": "23:00 - 00:00", "Price": 159.39}; {"Date": "2026-09-23", "Delivery Period": "00:00 - 01:00", "Price": 152.05}
-  Latest by Date: {"Date": "2026-11-24", "Delivery Period": "22:00 - 23:00", "Price": 165.93}; {"Date": "2026-11-24", "Delivery Period": "21:00 - 22:00", "Price": 180.01}; {"Date": "2026-11-24", "Delivery Period": "20:00 - 21:00", "Price": 189.01}; {"Date": "2026-11-24", "Delivery Period": "19:00 - 20:00", "Price": 209.0}; {"Date": "2026-11-24", "Delivery Period": "18:00 - 19:00", "Price": 219.01}; {"Date": "2026-11-24", "Delivery Period": "17:00 - 18:00", "Price": 221.78}; {"Date": "2026-11-24", "Delivery Period": "16:00 - 17:00", "Price": 220.93}; {"Date": "2026-11-24", "Delivery Period": "15:00 - 16:00", "Price": 221.87}; {"Date": "2026-11-24", "Delivery Period": "14:00 - 15:00", "Price": 221.52}; {"Date": "2026-11-24", "Delivery Period": "13:00 - 14:00", "Price": 209.63}; {"Date": "2026-11-24", "Delivery Period": "12:00 - 13:00", "Price": 185.05}; {"Date": "2026-11-24", "Delivery Period": "11:00 - 12:00", "Price": 184.5}; {"Date": "2026-11-24", "Delivery Period": "10:00 - 11:00", "Price": 186.4}; {"Date": "2026-11-24", "Delivery Period": "09:00 - 10:00", "Price": 204.07}; {"Date": "2026-11-24", "Delivery Period": "08:00 - 09:00", "Price": 207.95}; {"Date": "2026-11-24", "Delivery Period": "07:00 - 08:00", "Price": 206.01}; {"Date": "2026-11-24", "Delivery Period": "06:00 - 07:00", "Price": 190.91}; {"Date": "2026-11-24", "Delivery Period": "05:00 - 06:00", "Price": 171.82}; {"Date": "2026-11-24", "Delivery Period": "04:00 - 05:00", "Price": 172.3}; {"Date": "2026-11-24", "Delivery Period": "03:00 - 04:00", "Price": 172.11}; {"Date": "2026-11-24", "Delivery Period": "02:00 - 03:00", "Price": 172.0}; {"Date": "2026-11-24", "Delivery Period": "01:00 - 02:00", "Price": 173.89}; {"Date": "2026-11-24", "Delivery Period": "00:00 - 01:00", "Price": 178.41}; {"Date": "2026-11-23", "Delivery Period": "23:00 - 00:00", "Price": 176.58}; {"Date": "2026-11-23", "Delivery Period": "22:00 - 23:00", "Price": 179.0}; {"Date": "2026-11-23", "Delivery Period": "21:00 - 22:00", "Price": 187.45}; {"Date": "2026-11-23", "Delivery Period": "20:00 - 21:00", "Price": 193.77}; {"Date": "2026-11-23", "Delivery Period": "19:00 - 20:00", "Price": 238.94}; {"Date": "2026-11-23", "Delivery Period": "18:00 - 19:00", "Price": 259.94}; {"Date": "2026-11-23", "Delivery Period": "17:00 - 18:00", "Price": 274.43}
-  Earliest by Date: {"Date": "2021-09-20", "Delivery Period": "22:00 - 23:00", "Price": 129.95}; {"Date": "2021-09-20", "Delivery Period": "23:00 - 00:00", "Price": 126.2}; {"Date": "2021-09-21", "Delivery Period": "00:00 - 01:00", "Price": 122.25}
+AL last 3 days and tomorrow: HTTPError 599 Server Error: status code 599 for url: https://web-api.tp.entsoe.eu/api?documentType=A44&in_Domain=10YAL-KESH-----5&
+AL Mar-May 2023: 1201 points, 2023-04-12 00:00:00+02:00 to 2023-06-01 00:00:00+02:00, 50 full days
+AL Jan-Mar 2024: 2184 points, 2024-01-01 00:00:00+01:00 to 2024-04-01 00:00:00+02:00, 91 full days
+XK last 3 days and tomorrow: 120 points, 2026-11-20 00:00:00+01:00 to 2026-11-24 23:00:00+01:00, 5 full days, last days 2026-11-21: 108.70, 2026-11-22: 86.09, 2026-11-23: 211.50, 2026-11-24: 174.31
+XK Mar-May 2023: NoMatchingDataError 
+XK Jan-Mar 2024: 1440 points, 2024-02-01 00:00:00+01:00 to 2024-04-01 00:00:00+02:00, 60 full days
+BA last 3 days and tomorrow: NoMatchingDataError 
+BA Mar-May 2023: NoMatchingDataError 
+BA Jan-Mar 2024: NoMatchingDataError 
+MK last 3 days and tomorrow: 120 points, 2026-11-20 00:00:00+01:00 to 2026-11-24 23:00:00+01:00, 5 full days, last days 2026-11-21: 129.98, 2026-11-22: 184.61, 2026-11-23: 171.03, 2026-11-24: 207.00
+MK Mar-May 2023: 505 points, 2023-05-11 00:00:00+02:00 to 2023-06-01 00:00:00+02:00, 20 full days
+MK Jan-Mar 2024: 2184 points, 2024-01-01 00:00:00+01:00 to 2024-04-01 00:00:00+02:00, 90 full days
