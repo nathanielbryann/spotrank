@@ -926,6 +926,9 @@ const ZONE_META = {
   // data only (Market data page, All zones map and ranking), never in the puzzle or the Forecast challenge
   IE:{c:'Ireland',a:'Ireland & Northern Ireland (SEM)',r:'Ireland & GB',x:1},
   GB:{c:'Great Britain',a:'N2EX day-ahead price (NESO), in €',r:'Ireland & GB',x:1},
+  RS:{c:'Serbia',a:'SEEPEX',r:'Western Balkans',x:1}, ME:{c:'Montenegro',a:'BELEN',r:'Western Balkans',x:1},
+  MK:{c:'North Macedonia',a:'MEMO',r:'Western Balkans',x:1}, AL:{c:'Albania',a:'ALPEX, coupled with Kosovo',r:'Western Balkans',x:1},
+  XK:{c:'Kosovo',a:'ALPEX, coupled with Albania',r:'Western Balkans',x:1},
   'IT-CNOR':{c:'Italy',a:'Centre-North',r:'Italy',f:'IT',x:1}, 'IT-CSUD':{c:'Italy',a:'Centre-South',r:'Italy',f:'IT',x:1}, 'IT-SUD':{c:'Italy',a:'South',r:'Italy',f:'IT',x:1},
   'IT-CALA':{c:'Italy',a:'Calabria',r:'Italy',f:'IT',x:1}, 'IT-SICI':{c:'Italy',a:'Sicily',r:'Italy',f:'IT',x:1}, 'IT-SARD':{c:'Italy',a:'Sardinia',r:'Italy',f:'IT',x:1},
   'IT-ALL':{c:'Italy',a:'Whole country',r:'Italy',f:'IT',x:1}
@@ -2761,7 +2764,7 @@ function renderAllZones() {
 }
 
 let MAPDATA = null, MAP_STATE = 'idle';
-const MAP_VERSION = '2026-11-23-ie-gb';   // change when site/data/zones-map.json changes
+const MAP_VERSION = '2026-11-23-balkans';   // change when site/data/zones-map.json changes
 async function loadMap() {
   if (MAP_STATE !== 'idle') return;
   MAP_STATE = 'loading';
@@ -2773,8 +2776,10 @@ async function loadMap() {
   if (G && G.status !== 'playing' && AZ.how === 'map') renderMap();   // the day, month or year map
 }
 // zones on the map and in the ranking that aren't in the puzzle or the Forecast challenge
-const MAP_ONLY_NOTE = 'Ireland, Great Britain and Italy\'s other zones are shown for comparison; they aren\'t in the puzzle (Italy is played as its North zone, IT-NORD). ' +
+const MAP_ONLY_NOTE = 'Ireland, Great Britain, the Western Balkans and Italy\'s other zones are shown for comparison; they aren\'t in the puzzle (Italy is played as its North zone, IT-NORD). ' +
+  'Montenegro, North Macedonia and Albania have prices from spring 2023, Kosovo from Feb 2024; Bosnia has no day-ahead market. ' +
   'Great Britain: N2EX day-ahead price from NESO\'s open data (before 21 Sep 2021: LCCC\'s reference price), in € at the ECB rate. Grey areas have no price here. Borders: entsoe-py, Natural Earth.';
+const TINY_ZONES = new Set(['ME', 'XK', 'MK', 'AL']);   // no price label on phone-sized maps (tap for it)
 const NO_GEN = new Set(['GB']);   // no generation by technology (GB left the ENTSO-E platform in 2021)
 function inkFor(hex) {   // white or near-black text on a fill, by its luminance
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim()); if (!m) return '#0f1722';
@@ -2813,7 +2818,7 @@ function renderMap() {
     s += '<path class="zone" data-z="' + z + '" d="' + g.d + '" fill="' + (v === undefined ? 'var(--map-land)' : ramp[bucket(v)]) + '" stroke="var(--surface)" stroke-width="1" vector-effect="non-scaling-stroke"/>';
   }
   for (const [z, g] of shapes) {
-    const v = price[z]; if (v === undefined) continue;
+    const v = price[z]; if (v === undefined || (small && TINY_ZONES.has(z))) continue;   // phones: too small to label
     // every zone with its name and price, the same on the day, month and year maps
     const ink = inkFor(ramp[bucket(v)]);
     s += '<g pointer-events="none" font-family="var(--f-mono)" text-anchor="middle" fill="' + ink + '">' +

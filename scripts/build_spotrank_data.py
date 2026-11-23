@@ -338,10 +338,13 @@ METRICS = ["load", "wind", "solar"]
 DRIVER_AREA = dict(ZONES)  # Italy: North zone for drivers in both --italy modes
 # Data-only zones for the Market data page and the All zones map and ranking (never in the puzzle or
 # the Forecast challenge): the other Italian bidding zones, Italy as a whole (forecasts, generation and
-# capacity; it has no single day-ahead price) and Ireland (SEM: Ireland and Northern Ireland, its own
-# day-ahead auction outside SDAC). Great Britain is added to the same file by build_gb_prices.py.
+# capacity; it has no single day-ahead price), Ireland (SEM: Ireland and Northern Ireland, its own
+# day-ahead auction outside SDAC) and the Western Balkans with a day-ahead market (Serbia: SEEPEX;
+# Montenegro: BELEN; North Macedonia: MEMO; Albania and Kosovo: ALPEX). Bosnia has none.
+# Great Britain is added to the same file by build_gb_prices.py.
 EXTRA_ZONES = {"IT-CNOR": "IT_CNOR", "IT-CSUD": "IT_CSUD", "IT-SUD": "IT_SUD", "IT-CALA": "IT_CALA",
-               "IT-SICI": "IT_SICI", "IT-SARD": "IT_SARD", "IT-ALL": "IT", "IE": "IE_SEM"}
+               "IT-SICI": "IT_SICI", "IT-SARD": "IT_SARD", "IT-ALL": "IT", "IE": "IE_SEM",
+               "RS": "RS", "ME": "ME", "MK": "MK", "AL": "AL", "XK": "XK"}
 EXTRA_NO_PRICE = {"IT-ALL"}
 # ENTSO-E reports capacity for Italy only as a whole, and none for Ireland (SEM)
 NO_CAPACITY = {"IT", "IT-CNOR", "IT-CSUD", "IT-SUD", "IT-CALA", "IT-SICI", "IT-SARD", "IE"}

@@ -1,12 +1,13 @@
 """Build site/data/zones-map.json: simplified SVG paths for the Spotrank price map.
 
 Bidding-zone borders come from the GeoJSON files shipped with entsoe-py (MIT licence).
-Great Britain, Ireland (SEM: Ireland and Northern Ireland) and the surrounding countries that have
-no price (the western Balkans, ...) come from Natural Earth's 1:110m countries (public domain), as
-bundled with geopandas 0.14. "zones" are the game's zones, "extra" the map-only zones with a price
-(the other Italian zones, IE, GB), "context" grey land.
+Great Britain, Ireland (SEM: Ireland and Northern Ireland), Montenegro, North Macedonia, Albania,
+Kosovo and Bosnia come from Natural Earth's 1:50m countries; the other surrounding countries that have
+no price from Natural Earth's 1:110m countries (public domain), as bundled with geopandas 0.14.
+"zones" are the game's zones, "extra" the map-only zones with a price (the other Italian zones, IE,
+GB, RS, ME, MK, AL, XK), "context" grey land.
 
-Great Britain and Ireland use Natural Earth's more detailed 1:50m countries, since they are coloured:
+The 1:50m countries (more detail, for the coloured map-only zones and their neighbour Bosnia):
     curl -L -o /tmp/ne_50m_admin_0_countries.geojson \
       https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson
 
@@ -34,10 +35,11 @@ GAME = {"NO1": "NO_1", "NO2": "NO_2", "NO3": "NO_3", "NO4": "NO_4", "NO5": "NO_5
         "SK": "SK", "HU": "HU", "SI": "SI", "HR": "HR", "RO": "RO", "BG": "BG", "GR": "GR",
         "IT": "IT_NORD", "ES": "ES", "PT": "PT", "CH": "CH"}
 EXTRA = {"IT-CNOR": "IT_CNOR", "IT-CSUD": "IT_CSUD", "IT-SUD": "IT_SUD", "IT-CALA": "IT_CALA",
-         "IT-SICI": "IT_SICI", "IT-SARD": "IT_SARD"}
-CONTEXT_ZONES = {"RS": "RS"}
-NE_CONTEXT = ["Bosnia and Herz.", "Montenegro", "Albania", "North Macedonia",
-              "Kosovo", "Ukraine", "Belarus", "Moldova", "Russia", "Turkey", "Morocco", "Algeria", "Tunisia",
+         "IT-SICI": "IT_SICI", "IT-SARD": "IT_SARD", "RS": "RS"}
+NE50_EXTRA = {"ME": "Montenegro", "MK": "North Macedonia", "AL": "Albania", "XK": "Kosovo"}
+NE50_CONTEXT = ["Bosnia and Herz."]
+CONTEXT_ZONES = {}
+NE_CONTEXT = ["Ukraine", "Belarus", "Moldova", "Russia", "Turkey", "Morocco", "Algeria", "Tunisia",
               "Iceland"]
 
 CRS = "EPSG:3035"                          # ETRS89 Lambert Azimuthal Equal Area, Europe
@@ -83,14 +85,21 @@ def main():
         g = load_geojson(f)
         x, y = anchor(g)
         zones[code] = {"d": to_path(g, 2500), "x": x, "y": y}
-    extra = {}
-    for code, f in EXTRA.items():
-        g = load_geojson(f)
-        x, y = anchor(g)
-        extra[code] = {"d": to_path(g, 2500), "x": x, "y": y}
     ne = gpd.read_file(gpd.datasets.get_path("naturalearth_lowres")).to_crs(CRS)
     ne50 = gpd.read_file(a.ne50).to_crs(CRS)
     name = "NAME" if "NAME" in ne50.columns else "name"
+    kosovo = ne50[ne50[name] == "Kosovo"].geometry.iloc[0]
+    extra = {}
+    for code, f in EXTRA.items():
+        g = load_geojson(f)
+        if code == "RS":   # entsoe-py's Serbia leaves Kosovo out; trim the few border slivers that overlap
+            g = g.difference(kosovo)
+        x, y = anchor(g)
+        extra[code] = {"d": to_path(g, 2500), "x": x, "y": y}
+    for code, nm in NE50_EXTRA.items():
+        g = ne50[ne50[name] == nm].geometry.iloc[0]
+        x, y = anchor(g)
+        extra[code] = {"d": to_path(g, 2500), "x": x, "y": y}
     uk = ne50[ne50[name] == "United Kingdom"].geometry.iloc[0]
     ie = ne50[ne50[name] == "Ireland"].geometry.iloc[0]
     parts = list(getattr(uk, "geoms", [uk]))
@@ -100,7 +109,7 @@ def main():
     for code, g in (("IE", sem), ("GB", gb)):
         x, y = anchor(g)
         extra[code] = {"d": to_path(g, 2500), "x": x, "y": y}
-    context = []
+    context = [{"id": nm, "d": to_path(ne50[ne50[name] == nm].geometry.iloc[0], 2500)} for nm in NE50_CONTEXT]
     for code, f in CONTEXT_ZONES.items():
         context.append({"id": code, "d": to_path(load_geojson(f), 2500)})
     for name in NE_CONTEXT:

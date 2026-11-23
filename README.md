@@ -58,7 +58,10 @@ and redeploys the site.
   table view lists what's on screen.
 - **Map-only zones** (All zones map and ranking, and Market data; never in the puzzle or the
   Forecast challenge): Italy's other zones (IT-CNOR, IT-CSUD, IT-SUD, IT-CALA, IT-SICI, IT-SARD),
-  Ireland (IE: the SEM, Ireland and Northern Ireland, from ENTSO-E) and Great Britain (GB). GB left
+  Ireland (IE: the SEM, Ireland and Northern Ireland, from ENTSO-E), the Western Balkans with a
+  day-ahead market, all from ENTSO-E (Serbia RS: SEEPEX; Montenegro ME: BELEN, from Apr 2023; North
+  Macedonia MK: MEMO, from May 2023; Albania AL and Kosovo XK: ALPEX, coupled, from Apr 2023 and Feb
+  2024; Bosnia has no day-ahead market and stays grey) and Great Britain (GB). GB left
   the ENTSO-E platform in June 2021, so `scripts/build_gb_prices.py` takes the N2EX GB day-ahead
   hourly price from NESO's open data portal (dataset `day-ahead-power-exchange-prices-nordpool`, NESO
   Open Data Licence, published the day before delivery, five-year rolling window). Days before NESO's
