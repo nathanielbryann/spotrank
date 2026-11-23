@@ -150,11 +150,12 @@ def balkans():
     from entsoe import EntsoePandasClient
     c = EntsoePandasClient(api_key=b.resolve_key(None), timeout=90, retry_count=1, retry_delay=5)
     today = pd.Timestamp.now(tz=b.TZ).normalize()
-    for area in ["RS", "ME", "MK", "AL", "XK", "BA"]:
+    req = open(os.path.join(HERE, "..", ".github", "new-zones-check.txt")).read()
+    areas = next((l.split(":", 1)[1].strip().split(",") for l in req.splitlines() if l.startswith("areas:")), ["RS", "ME", "MK", "AL", "XK", "BA"])
+    for area in areas:
         for label, start, end in [("last 3 days and tomorrow", today - pd.Timedelta(days=3), today + pd.Timedelta(days=2)),
-                                  ("2021", pd.Timestamp("2021-01-01", tz=b.TZ), pd.Timestamp("2022-01-01", tz=b.TZ)),
-                                  ("2023", pd.Timestamp("2023-01-01", tz=b.TZ), pd.Timestamp("2024-01-01", tz=b.TZ)),
-                                  ("2024", pd.Timestamp("2024-01-01", tz=b.TZ), pd.Timestamp("2025-01-01", tz=b.TZ))]:
+                                  ("Mar-May 2023", pd.Timestamp("2023-03-01", tz=b.TZ), pd.Timestamp("2023-06-01", tz=b.TZ)),
+                                  ("Jan-Mar 2024", pd.Timestamp("2024-01-01", tz=b.TZ), pd.Timestamp("2024-04-01", tz=b.TZ))]:
             try:
                 s = c.query_day_ahead_prices(area, start=start, end=end)
                 dl = b.daily_baseload(s, prices=True)

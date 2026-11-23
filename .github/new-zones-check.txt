@@ -1,2 +1,3 @@
 only: balkans
-# 2026-11-23T15:56:26Z
+areas: AL,XK,BA,MK
+# 2026-11-23T16:12:29Z
