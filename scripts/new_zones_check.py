@@ -146,8 +146,28 @@ def neso():
                 say(f"  {'Latest' if order == 'desc' else 'Earliest'} by {tf}: " + "; ".join(json.dumps({k: v for k, v in x.items() if k != '_id'}) for x in recs))
 
 
+def balkans():
+    from entsoe import EntsoePandasClient
+    c = EntsoePandasClient(api_key=b.resolve_key(None), timeout=90, retry_count=1, retry_delay=5)
+    today = pd.Timestamp.now(tz=b.TZ).normalize()
+    for area in ["RS", "ME", "MK", "AL", "XK", "BA"]:
+        for label, start, end in [("last 3 days and tomorrow", today - pd.Timedelta(days=3), today + pd.Timedelta(days=2)),
+                                  ("2021", pd.Timestamp("2021-01-01", tz=b.TZ), pd.Timestamp("2022-01-01", tz=b.TZ)),
+                                  ("2023", pd.Timestamp("2023-01-01", tz=b.TZ), pd.Timestamp("2024-01-01", tz=b.TZ)),
+                                  ("2024", pd.Timestamp("2024-01-01", tz=b.TZ), pd.Timestamp("2025-01-01", tz=b.TZ))]:
+            try:
+                s = c.query_day_ahead_prices(area, start=start, end=end)
+                dl = b.daily_baseload(s, prices=True)
+                say(f"{area} {label}: {len(s)} points, {s.index.min()} to {s.index.max()}, {len(dl)} full days"
+                    + (", last days " + ", ".join(f"{d}: {v:.2f}" for d, v in dl.tail(4).items()) if label.startswith("last") else ""))
+            except Exception as e:  # noqa: BLE001
+                say(f"{area} {label}: {type(e).__name__} {str(e)[:120]}")
+
+
 only = open(os.path.join(HERE, "..", ".github", "new-zones-check.txt")).read() if os.path.exists(os.path.join(HERE, "..", ".github", "new-zones-check.txt")) else ""
-if "only: neso" in only:
+if "only: balkans" in only:
+    section("Western Balkans on ENTSO-E", balkans)
+elif "only: neso" in only:
     section("Great Britain: NESO, N2EX day-ahead prices", neso)
 else:
     section("Ireland (SEM) on ENTSO-E", entsoe_ie)
