@@ -336,12 +336,15 @@ def write_outputs(args, df, cols):
 # ---------------------------------------------------------------------------
 METRICS = ["load", "wind", "solar"]
 DRIVER_AREA = dict(ZONES)  # Italy: North zone for drivers in both --italy modes
-# Data-only zones for the Market data page (never in the game): the other Italian bidding zones,
-# and Italy as a whole (forecasts, generation and capacity; it has no single day-ahead price).
+# Data-only zones for the Market data page and the All zones map and ranking (never in the puzzle or
+# the Forecast challenge): the other Italian bidding zones, Italy as a whole (forecasts, generation and
+# capacity; it has no single day-ahead price) and Ireland (SEM: Ireland and Northern Ireland, its own
+# day-ahead auction outside SDAC). Great Britain is added to the same file by build_gb_prices.py.
 EXTRA_ZONES = {"IT-CNOR": "IT_CNOR", "IT-CSUD": "IT_CSUD", "IT-SUD": "IT_SUD", "IT-CALA": "IT_CALA",
-               "IT-SICI": "IT_SICI", "IT-SARD": "IT_SARD", "IT-ALL": "IT"}
+               "IT-SICI": "IT_SICI", "IT-SARD": "IT_SARD", "IT-ALL": "IT", "IE": "IE_SEM"}
 EXTRA_NO_PRICE = {"IT-ALL"}
-NO_CAPACITY = {"IT", "IT-CNOR", "IT-CSUD", "IT-SUD", "IT-CALA", "IT-SICI", "IT-SARD"}   # ENTSO-E reports capacity for Italy only as a whole
+# ENTSO-E reports capacity for Italy only as a whole, and none for Ireland (SEM)
+NO_CAPACITY = {"IT", "IT-CNOR", "IT-CSUD", "IT-SUD", "IT-CALA", "IT-SICI", "IT-SARD", "IE"}
 DRIVER_AREA.update(EXTRA_ZONES)
 RECENT_DAYS = 35           # refetched every run (from the start of that month): the 30-day "normal" behind yesterday
 

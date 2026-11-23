@@ -229,6 +229,7 @@ th { font-weight: 600; color: var(--ink-2); font-size: 12.5px; }
 td.num, th.num { text-align: right; font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
 tr.mine td { font-weight: 700; }
 tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
+.tag-x { font-size: 11px; color: var(--muted); white-space: nowrap; margin-left: 4px; }
 
 /* Insights */
 .why-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 16px; }
@@ -631,7 +632,7 @@ table.fc-clues small { color: var(--muted); font-family: var(--f-body); font-siz
     <div id="mapview">
       <div class="map-wrap" id="map"></div>
       <div class="legend-scale" id="map-legend" aria-label="Colour scale, €/MWh"></div>
-      <p class="map-note" id="map-note">Each zone shows its price that day. Grey areas aren't part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.</p>
+      <p class="map-note" id="map-note">Each zone shows its price that day. Grey areas have no price here. Borders: entsoe-py, Natural Earth.</p>
     </div>
     <div id="rankview" hidden>
       <div class="key" style="margin-bottom:8px"><span><i style="background:var(--accent)"></i>Today's five</span><span><i style="background:var(--bar-muted)"></i>Other zones</span></div>
@@ -922,7 +923,9 @@ const ZONE_META = {
   RO:{c:'Romania',r:'South East'}, BG:{c:'Bulgaria',r:'South East'}, GR:{c:'Greece',r:'South East'},
   IT:{c:'Italy',a:'North (IT-NORD)',r:'Italy'}, ES:{c:'Spain',r:'Iberia'}, PT:{c:'Portugal',r:'Iberia'},
   CH:{c:'Switzerland',a:'Own auction, outside SDAC',r:'Central West'},
-  // data only (Market data page), never in the game
+  // data only (Market data page, All zones map and ranking), never in the puzzle or the Forecast challenge
+  IE:{c:'Ireland',a:'Ireland & Northern Ireland (SEM)',r:'Ireland & GB',x:1},
+  GB:{c:'Great Britain',a:'LCCC day-ahead reference price, in €',r:'Ireland & GB',x:1},
   'IT-CNOR':{c:'Italy',a:'Centre-North',r:'Italy',f:'IT',x:1}, 'IT-CSUD':{c:'Italy',a:'Centre-South',r:'Italy',f:'IT',x:1}, 'IT-SUD':{c:'Italy',a:'South',r:'Italy',f:'IT',x:1},
   'IT-CALA':{c:'Italy',a:'Calabria',r:'Italy',f:'IT',x:1}, 'IT-SICI':{c:'Italy',a:'Sicily',r:'Italy',f:'IT',x:1}, 'IT-SARD':{c:'Italy',a:'Sardinia',r:'Italy',f:'IT',x:1},
   'IT-ALL':{c:'Italy',a:'Whole country',r:'Italy',f:'IT',x:1}
@@ -2661,16 +2664,21 @@ function spanWhen(sp) {   // hover text: "1–16 Nov", "2026 1 Jan – 16 Nov", 
   if (sp.so) return (sp.kind === 'year' ? sp.label + ' ' : '') + spanRange(sp);
   return sp.label + ', full ' + (sp.kind === 'year' ? 'year' : 'month');
 }
+// All zones shows the game's zones and the map-only ones (the other Italian zones, IE, GB) once their file
+// is in; MX() has the same days as DS, so dayIdx works for both
 function zoneAvg(i, from, to) {
+  const D = MX().days;
   let sum = 0, n = 0;
-  for (let k = dayIdx(from); k < DS.days.length && DS.days[k][0] <= to; k++) { const v = DS.days[k][1][i]; if (v !== null && v !== undefined) { sum += v; n++; } }
+  for (let k = dayIdx(from); k < D.length && D[k][0] <= to; k++) { const v = D[k][1][i]; if (v !== null && v !== undefined) { sum += v; n++; } }
   return n ? {avg: sum / n, n} : null;
 }
 // a zone's average over a period, how many days it rests on, and the two months or years before
 function periodStats(z, sp) {
-  const key = DS.id + '|' + z + '|' + sp.kind + '|' + sp.from + '|' + sp.to;
+  const X = MX(), key = DS.id + (X === DS ? '' : '+x') + '|' + z + '|' + sp.kind + '|' + sp.from + '|' + sp.to;
   if (MS_CACHE.has(key)) return MS_CACHE.get(key);
-  const i = DS.zones.indexOf(z), r = zoneAvg(i, sp.from, sp.to), days = daysBetween(sp.from, sp.to) + 1;
+  const i = X.zones.indexOf(z);
+  if (i < 0) return {avg: null, n: 0, days: daysBetween(sp.from, sp.to) + 1, partial: false, prev: []};
+  const r = zoneAvg(i, sp.from, sp.to), days = daysBetween(sp.from, sp.to) + 1;
   const prev = [2, 1].map(k => {
     const p = sp.kind === 'year' ? spanOf('year', String(sp.y - k), sp.to) : spanOf('month', isoLocal(new Date(sp.y, sp.m - 1 - k, 1)).slice(0, 7), sp.to);
     const pr = zoneAvg(i, p.from, p.to);
@@ -2683,11 +2691,12 @@ function periodStats(z, sp) {
 // what's shown: {vals: {zone: €/MWh}, partial: zones whose average rests on fewer than 90% of the days}
 function measure(sp) {
   const vals = {}, partial = new Set();
+  const X = MX();
   if (!sp) {
-    const row = DS.byDate.get(azDate()) || [];
-    DS.zones.forEach((z, i) => { if (row[i] !== null && row[i] !== undefined) vals[z] = row[i]; });
+    const row = X.byDate.get(azDate()) || [];
+    X.zones.forEach((z, i) => { if (row[i] !== null && row[i] !== undefined) vals[z] = row[i]; });
   } else {
-    for (const z of DS.zones) { const ps = periodStats(z, sp); if (ps.avg !== null) { vals[z] = ps.avg; if (ps.partial) partial.add(z); } }
+    for (const z of X.zones) { const ps = periodStats(z, sp); if (ps.avg !== null) { vals[z] = ps.avg; if (ps.partial) partial.add(z); } }
   }
   return {vals, partial};
 }
@@ -2731,6 +2740,7 @@ function renderAllZones() {
   const sec = $('#all-zones');
   if (G.status === 'playing') { sec.hidden = true; return; }
   sec.hidden = false;
+  if (EXTRA_STATE === 'idle') loadExtra();   // the map-only zones; re-renders when they're in
   for (const w of AZ_WHATS) $('#az-' + w).setAttribute('aria-pressed', String(AZ.what === w));
   for (const h of AZ_HOWS) $('#az-' + h).setAttribute('aria-pressed', String(AZ.how === h));
   const sp = azSpan(), M = measure(sp), n = Object.keys(M.vals).length;
@@ -2751,7 +2761,7 @@ function renderAllZones() {
 }
 
 let MAPDATA = null, MAP_STATE = 'idle';
-const MAP_VERSION = '2026-11-15-ch';   // change when site/data/zones-map.json changes
+const MAP_VERSION = '2026-11-23-ie-gb';   // change when site/data/zones-map.json changes
 async function loadMap() {
   if (MAP_STATE !== 'idle') return;
   MAP_STATE = 'loading';
@@ -2762,6 +2772,10 @@ async function loadMap() {
   } catch (e) { MAP_STATE = 'none'; }
   if (G && G.status !== 'playing' && AZ.how === 'map') renderMap();   // the day, month or year map
 }
+// zones on the map and in the ranking that aren't in the puzzle or the Forecast challenge
+const MAP_ONLY_NOTE = 'Ireland, Great Britain and Italy\'s other zones are shown for comparison; they aren\'t in the puzzle (Italy is played as its North zone, IT-NORD). ' +
+  'Great Britain: LCCC\'s day-ahead reference price in €, published a few days after delivery. Grey areas have no price here. Borders: entsoe-py, Natural Earth.';
+const NO_GEN = new Set(['GB']);   // no generation by technology (GB left the ENTSO-E platform in 2021)
 function inkFor(hex) {   // white or near-black text on a fill, by its luminance
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim()); if (!m) return '#0f1722';
   const n = parseInt(m[1], 16), c = [n >> 16, (n >> 8) & 255, n & 255].map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
@@ -2793,16 +2807,17 @@ function renderMap() {
   const small = cw < 560;
   let s = '<svg viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="' + esc(month ? 'Map of average day-ahead prices by bidding zone, ' + spanTitle(sp) : 'Map of day-ahead prices by bidding zone on ' + fmtDay(azDate())) + '">';
   for (const c of MAPDATA.context) s += '<path d="' + c.d + '" fill="var(--map-land)" stroke="var(--line-strong)" stroke-width="0.6" vector-effect="non-scaling-stroke"/>';
-  for (const [z, g] of Object.entries(MAPDATA.zones)) {
+  const shapes = Object.entries(MAPDATA.zones).concat(Object.entries(MAPDATA.extra || {}));
+  for (const [z, g] of shapes) {
     const v = price[z];
     s += '<path class="zone" data-z="' + z + '" d="' + g.d + '" fill="' + (v === undefined ? 'var(--map-land)' : ramp[bucket(v)]) + '" stroke="var(--surface)" stroke-width="1" vector-effect="non-scaling-stroke"/>';
   }
-  for (const [z, g] of Object.entries(MAPDATA.zones)) {
+  for (const [z, g] of shapes) {
     const v = price[z]; if (v === undefined) continue;
     // every zone with its name and price, the same on the day, month and year maps
     const ink = inkFor(ramp[bucket(v)]);
     s += '<g pointer-events="none" font-family="var(--f-mono)" text-anchor="middle" fill="' + ink + '">' +
-      (small ? '' : '<text x="' + g.x + '" y="' + (g.y - 2 * u) + '" font-size="' + (9.5 * u) + '" opacity=".85">' + esc(z) + '</text>') +
+      (small ? '' : '<text x="' + g.x + '" y="' + (g.y - 2 * u) + '" font-size="' + (9.5 * u) + '" opacity=".85">' + esc(z.replace(/^IT-/, '')) + '</text>') +
       '<text x="' + g.x + '" y="' + (g.y + (small ? 3 : 9.5) * u) + '" font-size="' + ((small ? 9 : 11) * u) + '" font-weight="700">' + fmtP(v, 0) + (M.partial.has(z) ? '*' : '') + '</text></g>';
   }
   s += '</svg><div class="tip" id="maptip"></div>';
@@ -2823,11 +2838,11 @@ function renderMap() {
       tip.style.top = (e.clientY - r.top - 12) + 'px';
     });
     el.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
-    el.addEventListener('click', () => { if (price[el.dataset.z] !== undefined) selectMeritZone(el.dataset.z, true); });
+    el.addEventListener('click', () => { const z = el.dataset.z; if (price[z] !== undefined && !NO_GEN.has(z)) selectMeritZone(z, true); });
   });
   $('#map-note').textContent = month
-    ? 'Each zone shows its average ' + (sp.so ? 'so far this ' + (sp.kind === 'year' ? 'year' : 'month') : 'for ' + sp.label) + '. Click a zone for its merit order. Grey areas aren\'t part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.'
-    : 'Each zone shows its price that day. Click a zone for its merit order. Grey areas aren\'t part of the game; Italy is played as its North zone (IT-NORD). Borders: entsoe-py, Natural Earth.';
+    ? 'Each zone shows its average ' + (sp.so ? 'so far this ' + (sp.kind === 'year' ? 'year' : 'month') : 'for ' + sp.label) + '. Click a zone for its merit order. ' + MAP_ONLY_NOTE
+    : 'Each zone shows its price that day. Click a zone for its merit order. ' + MAP_ONLY_NOTE;
   legend.innerHTML = ramp.map((c, k) => '<div class="sw"><i style="background:' + c + '"></i><span>' + (k === 0 ? fmtP(b0, 0) : (b0 + k * step).toFixed(0)) + (k === nb - 1 ? '–' + (b0 + nb * step).toFixed(0) : '') + '</span></div>').join('');
 }
 /* ---------- merit order: what ran that day, ordered by estimated running cost ---------- */
@@ -2974,11 +2989,12 @@ function renderMerit() {
   if (!G || G.status === 'playing' || !$('#mo-chart')) return;
   const day = azDate(), forKey = G.mode + '|' + day + '|' + G.answer.join(',');
   if (MO_FOR !== forKey) { MO_FOR = forKey; MO_Z = moDefaultZone(); }
-  moZoneOptions($('#mo-zone'));
+  moZoneOptions($('#mo-zone'), MX().zones);
   $('#mo-zone').value = MO_Z;
   drawMerit('mo', MO_Z, day, 'Merit order: ' + zoneLabel(MO_Z) + ', ' + fmtShortDay(day));
 }
 function moZoneOptions(sel, zones = DS.zones) {
+  zones = zones.filter(z => !NO_GEN.has(z));
   if (sel.dataset.n === String(zones.length)) return;
   sel.dataset.n = zones.length;
   sel.innerHTML = zones.slice().sort().map(z => '<option value="' + esc(z) + '">' + esc(z) + ' · ' + esc(zm(z).c + (z.indexOf('IT') === 0 && zm(z).a ? ', ' + zm(z).a : '')) + '</option>').join('');
@@ -3089,26 +3105,31 @@ function drawMerit(p, z, date, title) {
     'Efficiency: gas ' + pct0(A.gas_ccgt.eff) + ', coal ' + pct0(A.coal.eff) + ', lignite ' + pct0(A.lignite.eff) + '. Nuclear, biomass and "other" use fixed costs (' +
     fmtP(A.fixed.nuclear, 0) + ', ' + fmtP(A.fixed.biomass, 0) + ', ' + fmtP(A.fixed.other, 0) + ').' + (z === 'IT' ? ' Italy is its North zone (IT-NORD).' : '');
 }
-/* ---------- data-only zones for the Market data page ---------- */
-// The other Italian bidding zones and Italy as a whole live in their own files, which only this
-// page loads, so the game never sees them.
-let MDS = null, DRVX = null, EXTRA_STATE = 'idle';
-function MX() { return MDS && MDS.baseId === DS.id ? MDS : DS; }
+/* ---------- data-only zones: Market data page, All zones map and ranking ---------- */
+// The other Italian bidding zones, Italy as a whole, Ireland (SEM) and Great Britain live in their own
+// files. Only Market data and the All zones view read them (through MX()); the puzzle and the Forecast
+// challenge use DS, so they never see these zones.
+let MDS = null, DRVX = null, XRAW = null, EXTRA_STATE = 'idle';
+function MX() {   // DS plus the data-only zones, rebuilt when DS itself is reloaded
+  if (XRAW && (!MDS || MDS.baseId !== DS.id)) {
+    const xb = new Map(XRAW.days), empty = XRAW.zones.map(() => null);
+    const days = DS.days.map(([dd, vals]) => [dd, vals.concat(xb.get(dd) || empty)]);
+    MDS = {...DS, zones: DS.zones.concat(XRAW.zones), days, byDate: new Map(days), baseId: DS.id};
+  }
+  return MDS && MDS.baseId === DS.id ? MDS : DS;
+}
 async function loadExtra() {
   if (EXTRA_STATE !== 'idle' || !HOSTED) return;
   EXTRA_STATE = 'loading';
   const v = '?v=' + isoLocal(new Date()), get = u => fetch(u + v, {cache: 'no-cache'}).then(r => (r.ok ? r.json() : null)).catch(() => null);
   const [p, d] = await Promise.all([get('data/spotrank_data_extra.json'), get('data/spotrank_drivers_extra.json')]);
   try {
-    if (p && Array.isArray(p.zones) && Array.isArray(p.days)) {
-      const xb = new Map(p.days), empty = p.zones.map(() => null);
-      const days = DS.days.map(([dd, vals]) => [dd, vals.concat(xb.get(dd) || empty)]);
-      MDS = {...DS, zones: DS.zones.concat(p.zones), days, byDate: new Map(days), baseId: DS.id};
-    }
+    if (p && Array.isArray(p.zones) && Array.isArray(p.days)) { XRAW = p; MDS = null; MX(); }
     if (d && d.series && Array.isArray(d.dates)) DRVX = {di: new Map(d.dates.map((x, i) => [x, i])), s: d.series};
   } catch (e) { /* the extra zones are optional */ }
   EXTRA_STATE = 'done';
   if (!$('#prices-view').hidden) renderPrices();
+  if (G && !$('#game-view').hidden && !$('#all-zones').hidden) renderAllZones();
 }
 function drvOn(z, date) {   // day-ahead demand and wind/solar for any zone, game or data-only
   if (DRV && DRV.s[z]) return drvAt(z, DRV.di.get(date));
@@ -3550,6 +3571,7 @@ function renderPMO() {
   drawMerit('pmo', PMO.z, PMO.date, zoneLabel(PMO.z) + ' · ' + fmtDay(PMO.date));
 }
 function pmoSet(z, date) { if (z) PMO.z = z; if (date) PMO.date = date; lsSet('pmo', {z: PMO.z}); renderPMO(); }
+function mapOnly(z) { return !!(ZONE_META[z] && ZONE_META[z].x); }
 function renderBars() {
   const sp = azSpan(), per = !!sp, M = measure(sp), cur = M.vals, byDay = per ? measure(null).vals : cur;
   const rows = Object.entries(cur).map(([z, p]) => ({z, p})).sort((a, b) => a.p - b.p);
@@ -3584,7 +3606,7 @@ function renderBars() {
   box.querySelectorAll('.hit').forEach(r => {
     r.addEventListener('mouseenter', () => {
       const o = rows[+r.dataset.k], m = zm(o.z);
-      tip.innerHTML = '<b>' + esc(o.z) + '</b> ' + esc(m.c) + (m.a ? ' · ' + esc(m.a) : '') + '<br>' + (per ? esc(spanWhen(sp)) + ' avg ' : '') + '<b>' + fmtP(o.p) + star(o.z) + '</b> /MWh · rank ' + (+r.dataset.k + 1) + ' of ' + rows.length +
+      tip.innerHTML = '<b>' + esc(o.z) + '</b> ' + esc(m.c) + (m.a ? ' · ' + esc(m.a) : '') + (mapOnly(o.z) ? '<br><i>Not in the puzzle</i>' : '') + '<br>' + (per ? esc(spanWhen(sp)) + ' avg ' : '') + '<b>' + fmtP(o.p) + star(o.z) + '</b> /MWh · rank ' + (+r.dataset.k + 1) + ' of ' + rows.length +
         (per && sp.so && byDay[o.z] !== undefined ? '<br>On ' + esc(fmtShortDay(azDate())) + ': ' + fmtP(byDay[o.z]) + ' · rank ' + dayRank[o.z] : '');
       tip.style.display = 'block';
       const ty = top + (+r.dataset.k) * rowH;
@@ -3595,7 +3617,7 @@ function renderBars() {
     r.addEventListener('mouseleave', () => { tip.style.display = 'none'; r.setAttribute('fill', 'transparent'); });
   });
   $('#table').innerHTML = '<table><thead><tr><th>#</th><th>Zone</th><th>Name</th><th class="num">' + (per ? 'Average €/MWh, ' + esc(spanTitle(sp)) : '€/MWh, ' + esc(fmtShortDay(azDate()))) + '</th></tr></thead><tbody>' +
-    rows.map((o, k) => { const m = zm(o.z); return '<tr' + (mine.has(o.z) ? ' class="mine"' : '') + '><td>' + (k + 1) + '</td><td>' + esc(o.z) + '</td><td>' + esc(m.c + (m.a ? ' · ' + m.a : '')) + '</td><td class="num">' + o.p.toFixed(2) + star(o.z) + '</td></tr>'; }).join('') +
+    rows.map((o, k) => { const m = zm(o.z); return '<tr' + (mine.has(o.z) ? ' class="mine"' : '') + '><td>' + (k + 1) + '</td><td>' + esc(o.z) + '</td><td>' + esc(m.c + (m.a ? ' · ' + m.a : '')) + (mapOnly(o.z) ? ' <span class="tag-x">not in the puzzle</span>' : '') + '</td><td class="num">' + o.p.toFixed(2) + star(o.z) + '</td></tr>'; }).join('') +
     '</tbody></table>';
 }
 

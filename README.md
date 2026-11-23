@@ -56,6 +56,17 @@ and redeploys the site.
   asterisk marks an average that rests on fewer than 90% of the period's days. The month or year
   picked resets to "so far" on a new puzzle day; Day/Month/Year and Map/Ranking are remembered. The
   table view lists what's on screen.
+- **Map-only zones** (All zones map and ranking, and Market data; never in the puzzle or the
+  Forecast challenge): Italy's other zones (IT-CNOR, IT-CSUD, IT-SUD, IT-CALA, IT-SICI, IT-SARD),
+  Ireland (IE: the SEM, Ireland and Northern Ireland, from ENTSO-E) and Great Britain (GB). GB left
+  the ENTSO-E platform in June 2021, so `scripts/build_gb_prices.py` takes LCCC's Intermittent Market
+  Reference Price (the GB day-ahead hourly price from the EPEX SPOT and N2EX auctions, UK Open
+  Government Licence), averages each GB delivery day (UK local time, at least 20 hours) and converts
+  it at the ECB euro reference rate (latest on or before the day). LCCC publishes a few days after
+  delivery, so GB trails the other zones: it is grey on the Day map until then, and a current month
+  or year marks it with an asterisk. The ranking tags these zones "not in the puzzle"; clicking IE or
+  an Italian zone on the map shows its merit order (GB has no generation data). GB and Ireland's map
+  shapes come from Natural Earth 1:50m (`build_map.py --ne50`).
 - **Prices page** (`#prices`): daily baseload history for up to six zones, a period picker (presets,
   dates, or drag on the overview strip) and the period average per zone, for the chart's zones and
   for all zones in a table. The average is the mean of the daily baseload prices in the period.
@@ -73,8 +84,9 @@ and redeploys the site.
     bidding zones (IT-CNOR, IT-CSUD, IT-SUD, IT-CALA, IT-SICI, IT-SARD) and Italy as a whole (IT-ALL,
     generation mix and installed capacity only: no single day-ahead price, and ENTSO-E reports
     Italy's capacity only for the whole country). They live in `site/data/spotrank_data_extra.json`,
-    `site/data/spotrank_drivers_extra.json` and `site/data/gen/`, which the game never loads, so they
-    are never in puzzles, clues or rankings. Builder: `--zones extra`.
+    `site/data/spotrank_drivers_extra.json` and `site/data/gen/`, which the puzzle never loads, so they
+    are never in puzzles or clues (only in the All zones map and ranking). Builder: `--zones extra`,
+    which also covers Ireland; GB is added by `scripts/build_gb_prices.py`.
 - **Practice:** a random day, or any day from 2021 to yesterday.
 - **Generation mix (Prices page):** for one zone over the period chosen in the price chart, a
   stacked chart of generation by technology (GW or % share) with demand (day-ahead forecast) and the

@@ -92,7 +92,7 @@ jobs:
           python scripts/build_spotrank_data.py --skip-prices --end today --workers 16 \
             --gen-out site/data/gen --gen-budget $((MINUTES * 60))
 
-      - name: Fetch the other Italian zones and Italy as a whole (Market data only)
+      - name: Fetch the data-only zones (other Italian zones, Italy as a whole, Ireland)
         if: github.event_name != 'push' && inputs.mode != 'clues'
         continue-on-error: true
         timeout-minutes: 30
@@ -107,6 +107,12 @@ jobs:
             --drivers-out site/data/spotrank_drivers_extra.json --drivers-budget 300 || true
           python scripts/build_spotrank_data.py --skip-prices --zones extra --end today --workers 8 \
             --gen-out site/data/gen --gen-budget 300 || true
+
+      - name: Great Britain's prices (LCCC day-ahead reference price, map and ranking only)
+        if: github.event_name != 'push' && inputs.mode != 'clues'
+        continue-on-error: true
+        timeout-minutes: 10
+        run: python scripts/build_gb_prices.py
 
       - name: The other Italian zones' prices again (clues run, when prices are missing)
         if: github.event_name != 'push' && inputs.mode == 'clues' && steps.gap.outputs.missing == 'true'

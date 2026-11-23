@@ -42,6 +42,7 @@ jobs:
           if [ "$(get set)" = "extra" ]; then   # the data-only zones (Market data), in their own file
             python scripts/build_spotrank_data.py --update --no-csv --workers 6 --zones extra --fetch-from 2021-01-01 \
               --end tomorrow --time-budget $((MIN * 60)) --out site/data/spotrank_data_extra.json
+            python scripts/build_gb_prices.py --from 2021-01-01 || true   # Great Britain (LCCC), same file
             exit 0
           fi
           if [ -n "$FROM" ]; then
@@ -119,12 +120,21 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy-again.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with: {ref: main}
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with: {path: site}
+      - name: Wait for the site artifact to be listed
+        run: sleep 15
       - id: deploy
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - name: Wait before deploying again
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 60
+      - id: deploy-again
+        if: steps.deploy.outcome == 'failure'
         uses: actions/deploy-pages@v4

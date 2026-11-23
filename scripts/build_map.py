@@ -1,13 +1,20 @@
 """Build site/data/zones-map.json: simplified SVG paths for the Spotrank price map.
 
 Bidding-zone borders come from the GeoJSON files shipped with entsoe-py (MIT licence).
-Surrounding countries that are not in the game (GB, IE, the western Balkans, ...) come from
-Natural Earth's 1:110m countries (public domain), as bundled with geopandas 0.14.
+Great Britain, Ireland (SEM: Ireland and Northern Ireland) and the surrounding countries that have
+no price (the western Balkans, ...) come from Natural Earth's 1:110m countries (public domain), as
+bundled with geopandas 0.14. "zones" are the game's zones, "extra" the map-only zones with a price
+(the other Italian zones, IE, GB), "context" grey land.
+
+Great Britain and Ireland use Natural Earth's more detailed 1:50m countries, since they are coloured:
+    curl -L -o /tmp/ne_50m_admin_0_countries.geojson \
+      https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson
 
 Run once; the output is static:
     pip install "geopandas==0.14.4" pyogrio shapely pyproj entsoe-py
-    python scripts/build_map.py
+    python scripts/build_map.py [--ne50 /tmp/ne_50m_admin_0_countries.geojson]
 """
+import argparse
 import json
 import os
 
@@ -26,9 +33,10 @@ GAME = {"NO1": "NO_1", "NO2": "NO_2", "NO3": "NO_3", "NO4": "NO_4", "NO5": "NO_5
         "DE-LU": "DE_LU", "NL": "NL", "BE": "BE", "FR": "FR", "AT": "AT", "CZ": "CZ",
         "SK": "SK", "HU": "HU", "SI": "SI", "HR": "HR", "RO": "RO", "BG": "BG", "GR": "GR",
         "IT": "IT_NORD", "ES": "ES", "PT": "PT", "CH": "CH"}
-CONTEXT_ZONES = {"IT-CNOR": "IT_CNOR", "IT-CSUD": "IT_CSUD", "IT-SUD": "IT_SUD", "IT-CALA": "IT_CALA",
-                 "IT-SICI": "IT_SICI", "IT-SARD": "IT_SARD", "RS": "RS"}
-NE_CONTEXT = ["United Kingdom", "Ireland", "Bosnia and Herz.", "Montenegro", "Albania", "North Macedonia",
+EXTRA = {"IT-CNOR": "IT_CNOR", "IT-CSUD": "IT_CSUD", "IT-SUD": "IT_SUD", "IT-CALA": "IT_CALA",
+         "IT-SICI": "IT_SICI", "IT-SARD": "IT_SARD"}
+CONTEXT_ZONES = {"RS": "RS"}
+NE_CONTEXT = ["Bosnia and Herz.", "Montenegro", "Albania", "North Macedonia",
               "Kosovo", "Ukraine", "Belarus", "Moldova", "Russia", "Turkey", "Morocco", "Algeria", "Tunisia",
               "Iceland"]
 
@@ -43,6 +51,9 @@ def load_geojson(name):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--ne50", default="/tmp/ne_50m_admin_0_countries.geojson", help="Natural Earth 1:50m countries (GeoJSON)")
+    a = ap.parse_args()
     clip = gpd.GeoSeries([box(*BBOX_LL)], crs="EPSG:4326").to_crs(CRS).iloc[0].envelope
     minx, miny, maxx, maxy = clip.bounds
     scale = W / (maxx - minx)
@@ -72,10 +83,26 @@ def main():
         g = load_geojson(f)
         x, y = anchor(g)
         zones[code] = {"d": to_path(g, 2500), "x": x, "y": y}
+    extra = {}
+    for code, f in EXTRA.items():
+        g = load_geojson(f)
+        x, y = anchor(g)
+        extra[code] = {"d": to_path(g, 2500), "x": x, "y": y}
+    ne = gpd.read_file(gpd.datasets.get_path("naturalearth_lowres")).to_crs(CRS)
+    ne50 = gpd.read_file(a.ne50).to_crs(CRS)
+    name = "NAME" if "NAME" in ne50.columns else "name"
+    uk = ne50[ne50[name] == "United Kingdom"].geometry.iloc[0]
+    ie = ne50[ne50[name] == "Ireland"].geometry.iloc[0]
+    parts = list(getattr(uk, "geoms", [uk]))
+    ni = [p for p in parts if p.distance(ie) < 1000]           # Northern Ireland touches Ireland
+    gb = MultiPolygon([p for p in parts if p not in ni]) if len(parts) - len(ni) > 1 else [p for p in parts if p not in ni][0]
+    sem = ie.union(MultiPolygon(ni) if len(ni) > 1 else ni[0]).buffer(1).buffer(-1)   # close the border sliver
+    for code, g in (("IE", sem), ("GB", gb)):
+        x, y = anchor(g)
+        extra[code] = {"d": to_path(g, 2500), "x": x, "y": y}
     context = []
     for code, f in CONTEXT_ZONES.items():
         context.append({"id": code, "d": to_path(load_geojson(f), 2500)})
-    ne = gpd.read_file(gpd.datasets.get_path("naturalearth_lowres")).to_crs(CRS)
     for name in NE_CONTEXT:
         row = ne[ne["name"] == name]
         if len(row):
@@ -84,11 +111,12 @@ def main():
         "note": "Bidding-zone borders: entsoe-py (MIT). Other countries: Natural Earth (public domain). Projection: EPSG:3035.",
         "viewBox": [0, 0, W, H],
         "zones": zones,
+        "extra": extra,
         "context": [c for c in context if c["d"]],
     }
     with open(OUT, "w", encoding="utf-8") as fh:
         json.dump(out, fh, separators=(",", ":"))
-    print(f"wrote {OUT}: {os.path.getsize(OUT) / 1024:.0f} KB, viewBox {W}x{H}, {len(zones)} zones, {len(out['context'])} context shapes")
+    print(f"wrote {OUT}: {os.path.getsize(OUT) / 1024:.0f} KB, viewBox {W}x{H}, {len(zones)} zones, {len(extra)} map-only zones, {len(out['context'])} context shapes")
 
 
 if __name__ == "__main__":
