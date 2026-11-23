@@ -119,9 +119,37 @@ def ecb():
     say("ECB EUR/GBP (GBP per EUR): " + ", ".join(f"{r.split(',')[iT]}: {r.split(',')[iV]}" for r in rows[1:]))
 
 
-section("Ireland (SEM) on ENTSO-E", entsoe_ie)
-section("Great Britain: LCCC IMRP actuals", lccc)
-section("ECB exchange rate", ecb)
+def neso():
+    api = "https://api.neso.energy/api/3/action"
+    try:
+        pkg = json.loads(get(f"{api}/package_show?id=day-ahead-power-exchange-prices-nordpool"))["result"]
+        say(f"Dataset metadata_modified {pkg.get('metadata_modified')}")
+        rids = [(r["id"], r.get("name"), r.get("datastore_active"), r.get("last_modified")) for r in pkg.get("resources", [])]
+    except Exception as e:  # noqa: BLE001
+        say(f"package_show failed: {e}")
+        rids = [("4f27eea5-7038-4f73-9740-e3e4ad47c26a", "N2EX GB Day-Ahead Price", True, None)]
+    for rid, name, active, mod in rids:
+        say(f"- {rid} | {name} | datastore {active} | modified {mod}")
+        res = json.loads(get(f"{api}/datastore_search?resource_id={rid}&limit=3"))["result"]
+        fields = [(f["id"], f.get("type")) for f in res.get("fields", [])]
+        say(f"  {res.get('total')} rows; fields {fields}")
+        say("  First rows: " + "; ".join(json.dumps({k: v for k, v in x.items() if k != '_id'}) for x in res["records"]))
+        tf = next((f for f, t in fields if t in ("timestamp", "date") or "date" in f.lower() or "time" in f.lower()), None)
+        if tf:
+            for order in ("desc", "asc"):
+                q = urllib.parse.urlencode({"resource_id": rid, "limit": 30 if order == "desc" else 3, "sort": f'"{tf}" {order}'})
+                recs = json.loads(get(f"{api}/datastore_search?{q}"))["result"]["records"]
+                say(f"  {'Latest' if order == 'desc' else 'Earliest'} by {tf}: " + "; ".join(json.dumps({k: v for k, v in x.items() if k != '_id'}) for x in recs))
+
+
+only = open(os.path.join(HERE, "..", ".github", "new-zones-check.txt")).read() if os.path.exists(os.path.join(HERE, "..", ".github", "new-zones-check.txt")) else ""
+if "only: neso" in only:
+    section("Great Britain: NESO, N2EX day-ahead prices", neso)
+else:
+    section("Ireland (SEM) on ENTSO-E", entsoe_ie)
+    section("Great Britain: LCCC IMRP actuals", lccc)
+    section("Great Britain: NESO, N2EX day-ahead prices", neso)
+    section("ECB exchange rate", ecb)
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 with open(OUT, "w", encoding="utf-8") as f:
     f.write("\n".join(lines) + "\n")
