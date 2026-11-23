@@ -1,3 +1,3 @@
-set: extra
-minutes: 40
-# 2026-11-23T14:57:07Z Ireland and Great Britain history (after the daily update)
+set: gb
+minutes: 20
+# 2026-11-23T15:44:00Z Great Britain from NESO
