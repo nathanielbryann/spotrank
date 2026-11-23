@@ -73,6 +73,20 @@ def lccc():
         say(f"- {r.get('id')} | {r.get('name')} | {r.get('format')} | datastore {r.get('datastore_active')} | "
             f"created {r.get('created')} | modified {r.get('last_modified') or r.get('metadata_modified')} | {r.get('url')}")
     for r in pkg.get("resources", []):
+        if r.get("format") == "CSV" and "definition" not in (r.get("name") or "").lower() + (r.get("url") or ""):
+            raw, hdr = get(r["url"], timeout=120)
+            rows = raw.decode("utf-8-sig").splitlines()
+            say(f"\nCSV {r['id']}: {len(raw) / 1e6:.1f} MB, {len(rows) - 1} rows, Last-Modified {hdr.get('Last-Modified')}; header {rows[0]}")
+            df = pd.read_csv(__import__('io').StringIO(raw.decode('utf-8-sig')))
+            dcol = next(c for c in df.columns if 'date' in c.lower())
+            df[dcol] = pd.to_datetime(df[dcol].astype(str).str[:10])
+            last = df[dcol].max()
+            say(f"First date {df[dcol].min().date()}, last date {last.date()}; periods on the last 4 dates: "
+                + ", ".join(f"{d.date()}: {n}" for d, n in df.groupby(dcol).size().tail(4).items()))
+            for d in sorted(df[dcol].unique())[-3:]:
+                sub = df[df[dcol] == d]
+                say(f"  {pd.Timestamp(d).date()}: " + " ".join(f"{int(p)}={v}" for p, v in zip(sub.iloc[:, 1], sub.iloc[:, 2])))
+    for r in pkg.get("resources", []):
         if not r.get("datastore_active"):
             continue
         rid = r["id"]
