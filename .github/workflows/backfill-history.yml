@@ -1,6 +1,7 @@
 name: Backfill history
 
 # One-off catch-up of older data (prices, forecasts, generation) and of new zones.
+# "set: extra" does the data-only zones (Market data, map-only zones); "set: gb" only Great Britain.
 # Starts when .github/history-request.txt changes, or with "Run workflow".
 # The request file holds: prices_from, prices_to, new_zones, minutes (per job).
 on:
@@ -39,6 +40,10 @@ jobs:
         run: |
           get() { sed -n "s/^$1: *//p" "$REQ" | head -1; }
           FROM=$(get prices_from); TO=$(get prices_to); NEW=$(get new_zones); MIN=$(get minutes); MIN=${MIN:-90}
+          if [ "$(get set)" = "gb" ]; then   # Great Britain only (NESO, LCCC before Sep 2021)
+            python scripts/build_gb_prices.py --from 2021-01-01
+            exit 0
+          fi
           if [ "$(get set)" = "extra" ]; then   # the data-only zones (Market data), in their own file
             python scripts/build_spotrank_data.py --update --no-csv --workers 6 --zones extra --fetch-from 2021-01-01 \
               --end tomorrow --time-budget $((MIN * 60)) --out site/data/spotrank_data_extra.json
@@ -75,6 +80,7 @@ jobs:
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
         run: |
+          if [ "$(sed -n 's/^set: *//p' "$REQ" | head -1)" = "gb" ]; then exit 0; fi
           MIN=$(sed -n 's/^minutes: *//p' "$REQ" | head -1); MIN=${MIN:-90}
           OUT=site/data/spotrank_drivers.json; Z=""
           if [ "$(sed -n 's/^set: *//p' "$REQ" | head -1)" = "extra" ]; then OUT=site/data/spotrank_drivers_extra.json; Z="--zones extra"; fi
@@ -102,6 +108,7 @@ jobs:
         env:
           ENTSOE_API_KEY: ${{ secrets.ENTSOE_API_KEY }}
         run: |
+          if [ "$(sed -n 's/^set: *//p' "$REQ" | head -1)" = "gb" ]; then exit 0; fi
           MIN=$(sed -n 's/^minutes: *//p' "$REQ" | head -1); MIN=${MIN:-90}
           Z=""; if [ "$(sed -n 's/^set: *//p' "$REQ" | head -1)" = "extra" ]; then Z="--zones extra"; fi
           python scripts/build_spotrank_data.py --skip-prices --end today --workers 24 $Z \

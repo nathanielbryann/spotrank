@@ -925,7 +925,7 @@ const ZONE_META = {
   CH:{c:'Switzerland',a:'Own auction, outside SDAC',r:'Central West'},
   // data only (Market data page, All zones map and ranking), never in the puzzle or the Forecast challenge
   IE:{c:'Ireland',a:'Ireland & Northern Ireland (SEM)',r:'Ireland & GB',x:1},
-  GB:{c:'Great Britain',a:'LCCC day-ahead reference price, in €',r:'Ireland & GB',x:1},
+  GB:{c:'Great Britain',a:'N2EX day-ahead price (NESO), in €',r:'Ireland & GB',x:1},
   'IT-CNOR':{c:'Italy',a:'Centre-North',r:'Italy',f:'IT',x:1}, 'IT-CSUD':{c:'Italy',a:'Centre-South',r:'Italy',f:'IT',x:1}, 'IT-SUD':{c:'Italy',a:'South',r:'Italy',f:'IT',x:1},
   'IT-CALA':{c:'Italy',a:'Calabria',r:'Italy',f:'IT',x:1}, 'IT-SICI':{c:'Italy',a:'Sicily',r:'Italy',f:'IT',x:1}, 'IT-SARD':{c:'Italy',a:'Sardinia',r:'Italy',f:'IT',x:1},
   'IT-ALL':{c:'Italy',a:'Whole country',r:'Italy',f:'IT',x:1}
@@ -2774,7 +2774,7 @@ async function loadMap() {
 }
 // zones on the map and in the ranking that aren't in the puzzle or the Forecast challenge
 const MAP_ONLY_NOTE = 'Ireland, Great Britain and Italy\'s other zones are shown for comparison; they aren\'t in the puzzle (Italy is played as its North zone, IT-NORD). ' +
-  'Great Britain: LCCC\'s day-ahead reference price in €, published a few days after delivery. Grey areas have no price here. Borders: entsoe-py, Natural Earth.';
+  'Great Britain: N2EX day-ahead price from NESO\'s open data (before 21 Sep 2021: LCCC\'s reference price), in € at the ECB rate. Grey areas have no price here. Borders: entsoe-py, Natural Earth.';
 const NO_GEN = new Set(['GB']);   // no generation by technology (GB left the ENTSO-E platform in 2021)
 function inkFor(hex) {   // white or near-black text on a fill, by its luminance
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex).trim()); if (!m) return '#0f1722';

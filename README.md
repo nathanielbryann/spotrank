@@ -59,12 +59,13 @@ and redeploys the site.
 - **Map-only zones** (All zones map and ranking, and Market data; never in the puzzle or the
   Forecast challenge): Italy's other zones (IT-CNOR, IT-CSUD, IT-SUD, IT-CALA, IT-SICI, IT-SARD),
   Ireland (IE: the SEM, Ireland and Northern Ireland, from ENTSO-E) and Great Britain (GB). GB left
-  the ENTSO-E platform in June 2021, so `scripts/build_gb_prices.py` takes LCCC's Intermittent Market
-  Reference Price (the GB day-ahead hourly price from the EPEX SPOT and N2EX auctions, UK Open
-  Government Licence), averages each GB delivery day (UK local time, at least 20 hours) and converts
-  it at the ECB euro reference rate (latest on or before the day). LCCC publishes a few days after
-  delivery, so GB trails the other zones: it is grey on the Day map until then, and a current month
-  or year marks it with an asterisk. The ranking tags these zones "not in the puzzle"; clicking IE or
+  the ENTSO-E platform in June 2021, so `scripts/build_gb_prices.py` takes the N2EX GB day-ahead
+  hourly price from NESO's open data portal (dataset `day-ahead-power-exchange-prices-nordpool`, NESO
+  Open Data Licence, published the day before delivery, five-year rolling window). Days before NESO's
+  data starts (21 Sep 2021), and any day NESO is missing, use LCCC's Intermittent Market Reference
+  Price (EPEX SPOT and N2EX day-ahead, UK Open Government Licence; published a few days late). Each GB
+  delivery day (UK local time, at least 20 hours) is averaged and converted at the ECB euro reference
+  rate (latest on or before the day). The ranking tags these zones "not in the puzzle"; clicking IE or
   an Italian zone on the map shows its merit order (GB has no generation data). GB and Ireland's map
   shapes come from Natural Earth 1:50m (`build_map.py --ne50`).
 - **Prices page** (`#prices`): daily baseload history for up to six zones, a period picker (presets,
