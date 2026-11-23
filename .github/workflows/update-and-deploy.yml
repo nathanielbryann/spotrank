@@ -33,7 +33,7 @@ jobs:
     timeout-minutes: 120
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy-again.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -168,5 +168,19 @@ jobs:
         with:
           path: site
 
+      # deploy-pages sometimes looks for the artifact before GitHub lists it ("Found 0 artifact(s)"),
+      # so wait a moment, and if the first try still misses it, wait longer and try once more
+      - name: Wait for the site artifact to be listed
+        run: sleep 15
+
       - id: deploy
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+
+      - name: Wait before deploying again
+        if: steps.deploy.outcome == 'failure'
+        run: sleep 60
+
+      - id: deploy-again
+        if: steps.deploy.outcome == 'failure'
         uses: actions/deploy-pages@v4
