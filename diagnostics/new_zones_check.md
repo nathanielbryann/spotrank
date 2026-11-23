@@ -1,6 +1,6 @@
 # New zones check
 
-Checked 2026-11-23 14:26 UTC.
+Checked 2026-11-23 14:28 UTC.
 
 
 ## Ireland (SEM) on ENTSO-E
@@ -20,10 +20,36 @@ Dataset metadata_modified 2026-11-23T03:12:14.095002, 3 resources
 - d0e58993-d8b2-4ab5-90e0-518b1e7b2f1e | IMRP actuals | JSON | datastore True | created 2025-12-08T07:15:02.072305 | modified 2025-12-15T11:46:52.036323 | https://dp.lowcarboncontracts.uk/datastore/dump/d0e58993-d8b2-4ab5-90e0-518b1e7b2f1e
 - 866e6a4e-86c7-411e-9464-2ac3ad56ae35 | IMRP actuals | CSV | datastore False | created 2025-12-08T07:16:21.003706 | modified 2026-11-23T03:12:14.084065 | https://dp.lowcarboncontracts.uk/dataset/19f1ebee-93b7-4ef4-9465-bba50fa4ad06/resource/866e6a4e-86c7-411e-9464-2ac3ad56ae35/download/imrp_actuals.csv
 - c296e070-4bc8-449b-abab-6bdfee831d88 | IMRP actuals - Data Type Definitions | CSV | datastore False | created 2025-12-08T07:16:21.634559 | modified 2025-12-08T07:16:21.604987 | https://dp.lowcarboncontracts.uk/dataset/19f1ebee-93b7-4ef4-9465-bba50fa4ad06/resource/c296e070-4bc8-449b-abab-6bdfee831d88/download/imrp-actuals-data-type-definitions.csv
+ERROR HTTPError: HTTP Error 403: Forbidden
+```
+py", line 39, in section
+    fn()
+  File "/home/runner/work/spotrank/spotrank/scripts/new_zones_check.py", line 77, in lccc
+    raw, hdr = get(r["url"], timeout=120)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/runner/work/spotrank/spotrank/scripts/new_zones_check.py", line 32, in get
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/urllib/request.py", line 215, in urlopen
+    return opener.open(url, data, timeout)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/urllib/request.py", line 521, in open
+    response = meth(req, response)
+               ^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/urllib/request.py", line 630, in http_response
+    response = self.parent.error(
+               ^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/urllib/request.py", line 559, in error
+    return self._call_chain(*args)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/urllib/request.py", line 492, in _call_chain
+    result = func(*args)
+             ^^^^^^^^^^^
+  File "/opt/hostedtoolcache/Python/3.12.16/x64/lib/python3.12/urllib/request.py", line 639, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 403: Forbidden
 
-Resource d0e58993-d8b2-4ab5-90e0-518b1e7b2f1e: 91081 rows; fields ['_id', 'IMRP_Date', 'Settlement_Period', 'IMRP_Amount']
-Latest rows: {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "9", "IMRP_Amount": "201.62"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "8", "IMRP_Amount": "192.94"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "7", "IMRP_Amount": "183.05"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "6", "IMRP_Amount": "169.81"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "5", "IMRP_Amount": "161.77"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "4", "IMRP_Amount": "161.66"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "3", "IMRP_Amount": "162.10"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "24", "IMRP_Amount": "157.46"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "23", "IMRP_Amount": "166.38"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "22", "IMRP_Amount": "175.03"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "21", "IMRP_Amount": "190.09"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "20", "IMRP_Amount": "212.85"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "2", "IMRP_Amount": "162.52"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "19", "IMRP_Amount": "217.63"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "18", "IMRP_Amount": "221.13"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "17", "IMRP_Amount": "224.24"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "16", "IMRP_Amount": "216.11"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "15", "IMRP_Amount": "203.72"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "14", "IMRP_Amount": "191.39"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "13", "IMRP_Amount": "186.55"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "12", "IMRP_Amount": "186.44"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "11", "IMRP_Amount": "190.73"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "10", "IMRP_Amount": "197.95"}; {"IMRP_Date": "2026-11-19 00:00:00.0000000", "Settlement_Period": "1", "IMRP_Amount": "162.62"}; {"IMRP_Date": "2026-11-18 00:00:00.0000000", "Settlement_Period": "9", "IMRP_Amount": "182.44"}; {"IMRP_Date": "2026-11-18 00:00:00.0000000", "Settlement_Period": "8", "IMRP_Amount": "175.97"}; {"IMRP_Date": "2026-11-18 00:00:00.0000000", "Settlement_Period": "7", "IMRP_Amount": "177.27"}; {"IMRP_Date": "2026-11-18 00:00:00.0000000", "Settlement_Period": "6", "IMRP_Amount": "164.00"}; {"IMRP_Date": "2026-11-18 00:00:00.0000000", "Settlement_Period": "5", "IMRP_Amount": "162.79"}; {"IMRP_Date": "2026-11-18 00:00:00.0000000", "Settlement_Period": "4", "IMRP_Amount": "162.41"}
-First rows: {"IMRP_Date": "2016-06-30 00:00:00.0000000", "Settlement_Period": "1", "IMRP_Amount": "29.55"}; {"IMRP_Date": "2016-06-30 00:00:00.0000000", "Settlement_Period": "10", "IMRP_Amount": "46.92"}; {"IMRP_Date": "2016-06-30 00:00:00.0000000", "Settlement_Period": "11", "IMRP_Amount": "45.00"}
+```
 
 ## ECB exchange rate
 
