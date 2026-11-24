@@ -2696,7 +2696,7 @@ function measure(sp) {
   const vals = {}, partial = new Set();
   const X = MX();
   if (!sp) {
-    const row = X.byDate.get(azDate()) || [];
+    const row = X.byDate.get(azDay()) || [];
     X.zones.forEach((z, i) => { if (row[i] !== null && row[i] !== undefined) vals[z] = row[i]; });
   } else {
     for (const z of X.zones) { const ps = periodStats(z, sp); if (ps.avg !== null) { vals[z] = ps.avg; if (ps.partial) partial.add(z); } }
@@ -2716,16 +2716,34 @@ const AZ = (function () {   // what is shown (day, month, year) and how (map, ra
 function azDate() { return G.mode === 'daily' && TODAY && DS.byDate.has(TODAY) ? TODAY : G.date; }
 function azPick(kind) { const p = AZ.pick; return p && p.date === azDate() ? p[kind] || null : null; }
 function azSpan() { return AZ.what === 'day' ? null : spanOf(AZ.what, azPick(AZ.what), azDate()); }
+const AZ_BACK = 10;   // the Day view can go back this many days (never ahead: tomorrow is tomorrow's puzzle)
+function azDays() {   // the days the Day view offers, newest first: the puzzle's day and the ones before it with prices
+  const ad = azDate(), out = [];
+  for (let k = dayIdx(ad); k >= 0 && out.length <= AZ_BACK; k--) if (DS.days[k] && DS.days[k][0] <= ad) out.push(DS.days[k][0]);
+  return out;
+}
+function dayLabel(s) { const d = parseISO(s); return WDAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONS[d.getMonth()]; }
+function azDay() {   // the day on the Day map, ranking and merit order; month and year views keep azDate()
+  const d = AZ.what === 'day' ? azPick('day') : null;
+  return d && azDays().includes(d) ? d : azDate();
+}
 function setAzWhat(w) { AZ.what = w; lsSet('az-what', w); renderAllZones(); }
 function setAzHow(h) { AZ.how = h; lsSet('az-how', h); renderAllZones(); }
 function setAzPick(v) {
   const p = AZ.pick && AZ.pick.date === azDate() ? AZ.pick : {date: azDate()};
   p[AZ.what] = v || null; AZ.pick = p; lsSet('az-pick', p); renderAllZones();
 }
-function azOptions(sp) {   // the month or year list, newest first, back to the first day in the data
+function azOptions(sp) {   // the day, month or year list, newest first
   const sel = $('#az-pick');
-  sel.hidden = !sp;
-  if (!sp) return;
+  if (!sp) {   // the last AZ_BACK days before the puzzle's day
+    const ad = azDate(), cur = azDay();
+    sel.hidden = false;
+    sel.innerHTML = azDays().map(d => '<option value="' + (d === ad ? '' : d) + '"' + (d === cur ? ' selected' : '') + '>' +
+      esc(dayLabel(d) + (d === TODAY ? ' (today)' : d === isoLocal(addDays(parseISO(TODAY), -1)) ? ' (yesterday)' : '')) + '</option>').join('');
+    sel.setAttribute('aria-label', 'Choose a day');
+    return;
+  }
+  sel.hidden = false;
   const ad = azDate(), d = parseISO(ad), first = DS.days[0][0], fy = +first.slice(0, 4), opts = [];
   if (sp.kind === 'year') {
     for (let y = d.getFullYear(); y >= fy; y--) opts.push([y === d.getFullYear() ? '' : String(y), String(y), y + (y === d.getFullYear() ? ' (so far)' : '')]);
@@ -2751,7 +2769,7 @@ function renderAllZones() {
   $('#mapview').hidden = AZ.how !== 'map';
   $('#rankview').hidden = AZ.how !== 'rank';
   const kw = sp && sp.kind === 'year' ? 'year' : 'month';
-  $('#all-title').textContent = sp ? spanTitle(sp) : 'All ' + n + ' zones on ' + fmtDay(azDate());
+  $('#all-title').textContent = sp ? spanTitle(sp) : 'All ' + n + ' zones on ' + fmtDay(azDay());
   $('#all-sub').textContent = (sp
     ? 'Average of the daily baseload prices ' + (sp.so ? (sp.kind === 'year' ? 'from 1 January' : 'from the 1st of the month') + ' up to the delivery day' : 'over the whole ' + kw) + ', €/MWh'
     : 'Daily baseload average, €/MWh') +
@@ -2811,7 +2829,7 @@ function renderMap() {
   const [, , VW, VH] = MAPDATA.viewBox;
   const cw = box.clientWidth || 800, u = VW / cw;   // viewBox units per screen pixel
   const small = cw < 560;
-  let s = '<svg viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="' + esc(month ? 'Map of average day-ahead prices by bidding zone, ' + spanTitle(sp) : 'Map of day-ahead prices by bidding zone on ' + fmtDay(azDate())) + '">';
+  let s = '<svg viewBox="0 0 ' + VW + ' ' + VH + '" role="img" aria-label="' + esc(month ? 'Map of average day-ahead prices by bidding zone, ' + spanTitle(sp) : 'Map of day-ahead prices by bidding zone on ' + fmtDay(azDay())) + '">';
   for (const c of MAPDATA.context) s += '<path d="' + c.d + '" fill="var(--map-land)" stroke="var(--line-strong)" stroke-width="0.6" vector-effect="non-scaling-stroke"/>';
   const shapes = Object.entries(MAPDATA.zones).concat(Object.entries(MAPDATA.extra || {}));
   for (const [z, g] of shapes) {
@@ -2926,7 +2944,7 @@ function moCapacity(gd, g, date, ran) {
 function moDefaultZone() {
   if (!G) return null;
   let best = null, bp = -Infinity;
-  for (const z of G.answer) { const p = DS.zones.indexOf(z) >= 0 ? (DS.byDate.get(azDate()) || [])[DS.zones.indexOf(z)] : null; if (p !== null && p !== undefined && p > bp) { bp = p; best = z; } }
+  for (const z of G.answer) { const p = DS.zones.indexOf(z) >= 0 ? (DS.byDate.get(azDay()) || [])[DS.zones.indexOf(z)] : null; if (p !== null && p !== undefined && p > bp) { bp = p; best = z; } }
   return best || G.answer[0];
 }
 function selectMeritZone(z, scroll) {
@@ -2993,7 +3011,7 @@ function moSummary(z, date, M) {
 }
 function renderMerit() {
   if (!G || G.status === 'playing' || !$('#mo-chart')) return;
-  const day = azDate(), forKey = G.mode + '|' + day + '|' + G.answer.join(',');
+  const day = azDay(), forKey = G.mode + '|' + day + '|' + G.answer.join(',');
   if (MO_FOR !== forKey) { MO_FOR = forKey; MO_Z = moDefaultZone(); }
   moZoneOptions($('#mo-zone'), MX().zones);
   $('#mo-zone').value = MO_Z;
@@ -3622,7 +3640,7 @@ function renderBars() {
     });
     r.addEventListener('mouseleave', () => { tip.style.display = 'none'; r.setAttribute('fill', 'transparent'); });
   });
-  $('#table').innerHTML = '<table><thead><tr><th>#</th><th>Zone</th><th>Name</th><th class="num">' + (per ? 'Average €/MWh, ' + esc(spanTitle(sp)) : '€/MWh, ' + esc(fmtShortDay(azDate()))) + '</th></tr></thead><tbody>' +
+  $('#table').innerHTML = '<table><thead><tr><th>#</th><th>Zone</th><th>Name</th><th class="num">' + (per ? 'Average €/MWh, ' + esc(spanTitle(sp)) : '€/MWh, ' + esc(fmtShortDay(azDay()))) + '</th></tr></thead><tbody>' +
     rows.map((o, k) => { const m = zm(o.z); return '<tr' + (mine.has(o.z) ? ' class="mine"' : '') + '><td>' + (k + 1) + '</td><td>' + esc(o.z) + '</td><td>' + esc(m.c + (m.a ? ' · ' + m.a : '')) + (mapOnly(o.z) ? ' <span class="tag-x">not in the puzzle</span>' : '') + '</td><td class="num">' + o.p.toFixed(2) + star(o.z) + '</td></tr>'; }).join('') +
     '</tbody></table>';
 }

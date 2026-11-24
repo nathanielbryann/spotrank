@@ -50,11 +50,13 @@ and redeploys the site.
   and surrounding countries from Natural Earth (public domain); `scripts/build_map.py` rebuilds
   `site/data/zones-map.json`.
 - **All zones** (after a round): choose what to show, **Day**, **Month** or **Year**, and how,
-  **Map** or **Ranking**. Month and Year open on the current period so far (up to the puzzle's
+  **Map** or **Ranking**. Day opens on the puzzle's day (today) and has a dropdown back 10 days, never
+  ahead (tomorrow's prices are tomorrow's puzzle); the merit order follows the day picked. Month and
+  Year open on the current period so far (up to the puzzle's
   delivery day) and have a dropdown back to Jan 2021 / 2021 for full past months and years. The
   ranking always follows the choice. Hovering a zone shows the two previous months or years. An
-  asterisk marks an average that rests on fewer than 90% of the period's days. The month or year
-  picked resets to "so far" on a new puzzle day; Day/Month/Year and Map/Ranking are remembered. The
+  asterisk marks an average that rests on fewer than 90% of the period's days. The day, month or year
+  picked resets on a new puzzle day; Day/Month/Year and Map/Ranking are remembered. The
   table view lists what's on screen.
 - **Map-only zones** (All zones map and ranking, and Market data; never in the puzzle or the
   Forecast challenge): Italy's other zones (IT-CNOR, IT-CSUD, IT-SUD, IT-CALA, IT-SICI, IT-SARD),
