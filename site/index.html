@@ -2779,6 +2779,7 @@ async function loadMap() {
 const MAP_ONLY_NOTE = 'Ireland, Great Britain, the Western Balkans and Italy\'s other zones are shown for comparison; they aren\'t in the puzzle (Italy is played as its North zone, IT-NORD). ' +
   'Montenegro, North Macedonia and Albania have prices from spring 2023, Kosovo from Feb 2024; Bosnia has no day-ahead market. ' +
   'Great Britain: N2EX day-ahead price from NESO\'s open data (before 21 Sep 2021: LCCC\'s reference price), in € at the ECB rate. Grey areas have no price here. Borders: entsoe-py, Natural Earth.';
+const DARK_LABEL = new Set(['DK1', 'DK2']);   // labels run over the sea, where white text disappears
 const TINY_ZONES = new Set(['ME', 'XK', 'MK', 'AL']);   // no price label on phone-sized maps (tap for it)
 const NO_GEN = new Set(['GB']);   // no generation by technology (GB left the ENTSO-E platform in 2021)
 function inkFor(hex) {   // white or near-black text on a fill, by its luminance
@@ -2820,7 +2821,7 @@ function renderMap() {
   for (const [z, g] of shapes) {
     const v = price[z]; if (v === undefined || (small && TINY_ZONES.has(z))) continue;   // phones: too small to label
     // every zone with its name and price, the same on the day, month and year maps
-    const ink = inkFor(ramp[bucket(v)]);
+    const ink = DARK_LABEL.has(z) ? '#0f1722' : inkFor(ramp[bucket(v)]);
     s += '<g pointer-events="none" font-family="var(--f-mono)" text-anchor="middle" fill="' + ink + '">' +
       (small ? '' : '<text x="' + g.x + '" y="' + (g.y - 2 * u) + '" font-size="' + (9.5 * u) + '" opacity=".85">' + esc(z.replace(/^IT-/, '')) + '</text>') +
       '<text x="' + g.x + '" y="' + (g.y + (small ? 3 : 9.5) * u) + '" font-size="' + ((small ? 9 : 11) * u) + '" font-weight="700">' + fmtP(v, 0) + (M.partial.has(z) ? '*' : '') + '</text></g>';
