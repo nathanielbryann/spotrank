@@ -169,6 +169,22 @@ This updates `data/fuel_prices.csv`, lists any stored values that changed, and r
 `site/data/fuel_prices.json`. Commit both files. Between updates the chart uses the latest
 prices before the day and says which date they are from.
 
+### European Spot Price Daily
+
+A daily newsletter page built from the same data: today's map, the month and the year so far, and
+rule-based findings, as a web page and a 3-page A4 PDF.
+
+- Issues: https://nathanielbryann.github.io/spotrank/daily/ (archive, newest first) and `daily/<date>/`.
+- Built by `scripts/build_daily_issue.py --pdf --skip-if-done` in every run of **Update prices and deploy**.
+  The first run of the day that has today's prices (normally the 09:45 morning run) builds the issue; later
+  runs leave it alone unless more zones have arrived. The PDF is printed with the runner's Chrome.
+- Maps show every zone, with the four regions of `scripts/regions.json` (their borders are drawn into
+  `site/data/zones-map.json` by `scripts/build_map.py`) and a Europe box. Regional and European averages count
+  each country once; a country with several zones counts as the average of its zones.
+- Today: in Biggest moves only one Italian zone is listed, with a note for the others that moved as much.
+  Month and year rankings use Italy North (IT) as the benchmark for Italian prices.
+- To build an issue by hand: `python scripts/build_daily_issue.py --date 2026-11-24 --pdf`.
+
 ## One-time setup
 
 1. **Create the repository.** On GitHub, click **New repository**, name it `spotrank`, set it to

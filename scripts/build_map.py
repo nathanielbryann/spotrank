@@ -21,8 +21,8 @@ import os
 
 import entsoe
 import geopandas as gpd
-from shapely.geometry import box, MultiPolygon, Polygon
-from shapely.ops import polylabel
+from shapely.geometry import box, LineString, MultiPolygon, Polygon
+from shapely.ops import linemerge, polylabel, unary_union
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "site", "data", "zones-map.json")
@@ -80,9 +80,21 @@ def main():
         pt = polylabel(big, tolerance=2000)
         return round((pt.x - minx) * scale, 1), round((maxy - pt.y) * scale, 1)
 
+    def to_line_path(geom, tol_m):
+        geom = geom.intersection(clip).simplify(tol_m)
+        lines = [geom] if isinstance(geom, LineString) else [g for g in getattr(geom, "geoms", []) if isinstance(g, LineString)]
+        parts = []
+        for ln in lines:
+            pts = [((x - minx) * scale, (maxy - y) * scale) for x, y in ln.coords]
+            if len(pts) >= 2 and ln.length > tol_m:
+                parts.append("M" + "L".join(f"{x:.1f},{y:.1f}" for x, y in pts))
+        return "".join(parts)
+
+    geoms = {}
     zones = {}
     for code, f in GAME.items():
         g = load_geojson(f)
+        geoms[code] = g
         x, y = anchor(g)
         zones[code] = {"d": to_path(g, 2500), "x": x, "y": y}
     ne = gpd.read_file(gpd.datasets.get_path("naturalearth_lowres")).to_crs(CRS)
@@ -94,10 +106,12 @@ def main():
         g = load_geojson(f)
         if code == "RS":   # entsoe-py's Serbia leaves Kosovo out; trim the few border slivers that overlap
             g = g.difference(kosovo)
+        geoms[code] = g
         x, y = anchor(g)
         extra[code] = {"d": to_path(g, 2500), "x": x, "y": y}
     for code, nm in NE50_EXTRA.items():
         g = ne50[ne50[name] == nm].geometry.iloc[0]
+        geoms[code] = g
         x, y = anchor(g)
         extra[code] = {"d": to_path(g, 2500), "x": x, "y": y}
     uk = ne50[ne50[name] == "United Kingdom"].geometry.iloc[0]
@@ -107,6 +121,7 @@ def main():
     gb = MultiPolygon([p for p in parts if p not in ni]) if len(parts) - len(ni) > 1 else [p for p in parts if p not in ni][0]
     sem = ie.union(MultiPolygon(ni) if len(ni) > 1 else ni[0]).buffer(1).buffer(-1)   # close the border sliver
     for code, g in (("IE", sem), ("GB", gb)):
+        geoms[code] = g
         x, y = anchor(g)
         extra[code] = {"d": to_path(g, 2500), "x": x, "y": y}
     context = [{"id": nm, "d": to_path(ne50[ne50[name] == nm].geometry.iloc[0], 2500)} for nm in NE50_CONTEXT]
@@ -116,12 +131,26 @@ def main():
         row = ne[ne["name"] == name]
         if len(row):
             context.append({"id": name, "d": to_path(row.geometry.iloc[0], 4000)})
+    # borders between the regions of scripts/regions.json: each region's outline where it runs along another
+    # region (within 3 km, since the zone shapes come from two sources and don't meet exactly)
+    with open(os.path.join(HERE, "regions.json"), encoding="utf-8") as fh:
+        regions = {k: v for k, v in json.load(fh).items() if not k.startswith("_")}
+    union = {r: unary_union([geoms[z].buffer(0) for z in zs if z in geoms]) for r, zs in regions.items()}
+    names = list(union)
+    border_lines = []
+    for i, r1 in enumerate(names):
+        for r2 in names[i + 1:]:
+            seg = union[r1].boundary.intersection(union[r2].buffer(3000))
+            if not seg.is_empty:
+                border_lines.append(linemerge(seg) if seg.geom_type == "MultiLineString" else seg)
+    region_borders = "".join(to_line_path(g, 2500) for g in border_lines)
     out = {
         "note": "Bidding-zone borders: entsoe-py (MIT). Other countries: Natural Earth (public domain). Projection: EPSG:3035.",
         "viewBox": [0, 0, W, H],
         "zones": zones,
         "extra": extra,
         "context": [c for c in context if c["d"]],
+        "region_borders": region_borders,
     }
     with open(OUT, "w", encoding="utf-8") as fh:
         json.dump(out, fh, separators=(",", ":"))

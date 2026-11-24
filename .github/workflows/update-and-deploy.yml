@@ -153,16 +153,26 @@ jobs:
           SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
         run: python scripts/push_day_prices.py --days 10
 
+      - name: European Spot Price Daily (today's issue, web page and PDF)
+        # Built by the first run of the day that has today's prices (normally the 09:45 morning run), then left alone;
+        # a later run builds it again only if more zones have arrived. Chrome comes with GitHub's Ubuntu runners.
+        continue-on-error: true
+        timeout-minutes: 6
+        run: python scripts/build_daily_issue.py --pdf --skip-if-done
+
       - name: Commit updated prices
         env:
           MSG: ${{ inputs.mode != 'clues' && 'Data updated' || steps.gap.outputs.missing == 'true' && 'Clues and prices updated' || 'Clues updated' }}
         run: |
-          if [ -z "$(git status --porcelain site/data)" ]; then
+          DATA="$(git status --porcelain site/data)"
+          DAILY="$(git status --porcelain site/daily)"
+          if [ -z "$DATA$DAILY" ]; then
             echo "No new prices."
           else
+            if [ -z "$DATA" ]; then MSG="Daily issue"; elif [ -n "$DAILY" ]; then MSG="$MSG + daily issue"; fi
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add site/data
+            git add site/data site/daily
             git commit -m "$MSG $(date -u +%F)"
             git pull --rebase
             git push
