@@ -808,11 +808,21 @@ fitLabels(); addEventListener('resize', fitLabels); addEventListener('beforeprin
         if not chrome:
             raise SystemExit("No Chrome found for the PDF.")
         out = os.path.join(target, pdf_name)
-        with tempfile.TemporaryDirectory() as tmp:
-            subprocess.run([chrome, "--headless=new", "--no-sandbox", "--disable-gpu", f"--user-data-dir={tmp}", "--no-pdf-header-footer",
-                            "--virtual-time-budget=8000", "--window-size=900,1200", f"--print-to-pdf={out}", "file://" + os.path.abspath(page)],
-                           check=True, capture_output=True, timeout=180)
-        print(f"wrote {out} ({os.path.getsize(out) // 1024} KB)")
+        # Aim for 3 pages (today, month, year): a long day (wrapped date, many findings) can push Today onto page 2,
+        # so print again with a smaller map until it fits.
+        for mh in (100, 92, 84, 76):
+            with tempfile.TemporaryDirectory() as tmp:
+                copy = os.path.join(tmp, "issue.html")
+                with open(copy, "w", encoding="utf-8") as f:
+                    f.write(doc.replace("</head>", f"<style>@media print {{ .map {{ max-height: {mh}mm !important; }} }}</style>\n</head>", 1))
+                subprocess.run([chrome, "--headless=new", "--no-sandbox", "--disable-gpu", f"--user-data-dir={tmp}/profile", "--no-pdf-header-footer",
+                                "--virtual-time-budget=8000", "--window-size=900,1200", f"--print-to-pdf={out}", "file://" + copy],
+                               check=True, capture_output=True, timeout=180)
+            with open(out, "rb") as f:
+                pages = len(re.findall(rb"/Type\s*/Page(?![s\w])", f.read()))
+            if pages <= 3:
+                break
+        print(f"wrote {out} ({os.path.getsize(out) // 1024} KB, {pages} pages, map {mh} mm)")
     meta = dict(date=D, zones=len(today), countries=len({NAMES.get(z, (z, ""))[0] for z in today}),
                 pdf=pdf_name if pdf else None, headline=key[0] if key else "",
                 built=datetime.now(ZoneInfo("Europe/Helsinki")).isoformat(timespec="minutes"))
