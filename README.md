@@ -181,6 +181,8 @@ rule-based findings, as a web page and a 3-page A4 PDF.
 - Maps show every zone, with the four regions of `scripts/regions.json` (their borders are drawn into
   `site/data/zones-map.json` by `scripts/build_map.py`) and a Europe box. Regional and European averages count
   each country once; a country with several zones counts as the average of its zones.
+- Comparisons: today against yesterday, the month so far against the whole previous month, and the year so far
+  against the whole previous year (each map says so above it).
 - Today: in Biggest moves only one Italian zone is listed, with a note for the others that moved as much.
   Month and year rankings use Italy North (IT) as the benchmark for Italian prices.
 - To build an issue by hand: `python scripts/build_daily_issue.py --date 2026-11-24 --pdf`.

@@ -476,7 +476,7 @@ def map_svg(mapdata, values, partial, title, tip_suffix, regions=None, vs=None, 
         legend.append('<div class="regrow">' + eu_chip + "".join(
             f'<div><b>{r.upper()}</b><strong>{eur(avg)}</strong><span>{ch or ""}</span><i>{html.escape(" · ".join(region_zone_lines(r)))}</i></div>'
             for r, (avg, ch) in regions.items() if avg is not None) + '</div>')
-        legend.append(f'<p class="cap">The dark box is the European average; thick lines mark the four regions. Each shows its average and the change against {html.escape(vs)}.</p>')
+        legend.append('<p class="cap">The dark box is the European average; thick lines mark the four regions. Each shows its average and its change.</p>')
     return "".join(s) + "".join(legend)
 
 
@@ -561,10 +561,9 @@ def build(D, out_dir, pdf, skip_done=False):
     mon = period_avg(P, zones, m0, D)
     lm_end = (Dd.replace(day=1) - timedelta(days=1))
     lmon = period_avg(P, zones, lm_end.replace(day=1).isoformat(), lm_end.isoformat())
-    ly_m = period_avg(P, zones, Dd.replace(year=Dd.year - 1, day=1).isoformat(), Dd.replace(year=Dd.year - 1).isoformat())
     y0 = Dd.replace(month=1, day=1).isoformat()
     yr = period_avg(P, zones, y0, D)
-    ly = period_avg(P, zones, Dd.replace(year=Dd.year - 1, month=1, day=1).isoformat(), Dd.replace(year=Dd.year - 1).isoformat())
+    ly = period_avg(P, zones, f"{Dd.year - 1}-01-01", f"{Dd.year - 1}-12-31")   # the whole of last year
     monv = {z: v[0] for z, v in mon.items()}
     yrv = {z: v[0] for z, v in yr.items()}
     mon_part = {z for z, v in mon.items() if v[2]}
@@ -591,23 +590,23 @@ def build(D, out_dir, pdf, skip_done=False):
         if abs(dr) >= 5:
             mf.append(f"Biggest move in the ranking: {label(zr)}, from {rk_prev[zr] + 1}{'st' if rk_prev[zr] == 0 else 'th'} cheapest in "
                       f"{MONTHS[lm_end.month - 1]} to {rk_now[zr] + 1}{'st' if rk_now[zr] == 0 else 'th'} now.")
-    vy = [z for z in monv if z in ly_m and not ly_m[z][2]]
+    vy = [z for z in monv if z in lmon and not lmon[z][2]]
     if vy:                                   # the European average, each country once, as in the map's Europe box
         avg_now = europe_avg({z: monv[z] for z in vy})[0]
-        avg_then = europe_avg({z: ly_m[z][0] for z in vy})[0]
-        both = "" if len(vy) == len(monv) else " (zones with data both years)"
-        mf.append(f"The European average{both} is {eur(avg_now)} against {eur(avg_then)} "
-                  f"over the same days of {MONTHS[Dd.month - 1]} {Dd.year - 1} ({signed(avg_now - avg_then)}).")
+        avg_then = europe_avg({z: lmon[z][0] for z in vy})[0]
+        both = "" if len(vy) == len(monv) else " (zones with data in both months)"
+        mf.append(f"The European average so far{both} is {eur(avg_now)} against {eur(avg_then)} "
+                  f"for the whole of {MONTHS[lm_end.month - 1]} ({signed(avg_now - avg_then)}).")
 
     yf = []
     yz = ranked(yrr, 1)[0][0], ranked(yrr, 1, rev=True)[0][0]
     yf.append(f"Cheapest so far: {label(yz[0])} at {eur(yrr[yz[0]])}. Most expensive: {label(yz[1])} at {eur(yrr[yz[1]])}.")
-    cy = it_bench({z: yrv[z] - ly[z][0] for z in yrv if z in ly and not ly[z][2] and not yr[z][2]})   # €/MWh against the same days last year
+    cy = it_bench({z: yrv[z] - ly[z][0] for z in yrv if z in ly and not ly[z][2] and not yr[z][2]})   # €/MWh against the whole of last year
     if cy:
         up = sum(1 for v in cy.values() if v > 0)
         zu, zd = max(cy, key=cy.get), min(cy, key=cy.get)
         tail = (f"biggest fall: {label(zd)} ({signed(cy[zd])})" if cy[zd] < 0 else f"smallest rise: {label(zd)} ({signed(cy[zd])})")
-        yf.append(f"Against the same days of {Dd.year - 1}, prices are up in {up} of {len(cy)} zones. "
+        yf.append(f"Against the whole of {Dd.year - 1}, prices are up in {up} of {len(cy)} zones. "
                   f"Biggest rise: {label(zu)} ({signed(cy[zu])}); {tail}.")
 
     # ---- regions
@@ -657,7 +656,7 @@ def build(D, out_dir, pdf, skip_done=False):
     mon_map = map_svg(mapdata, monv, mon_part, f"Average prices, 1–{Dd.day} {MONTHS[Dd.month - 1]}", "/MWh average",
                       reg_labels("m", "lm", "eur", MONS[lm_end.month - 1]), "the whole of " + MONTHS[lm_end.month - 1], eu_label("m", "lm", "eur"))
     yr_map = map_svg(mapdata, yrv, yr_part, f"Average prices, 1 Jan–{nice_day(D)}", "/MWh average",
-                     reg_labels("y", "ly", "eur", str(Dd.year - 1)), "the same days of " + str(Dd.year - 1), eu_label("y", "ly", "eur"))
+                     reg_labels("y", "ly", "eur", str(Dd.year - 1)), "the whole of " + str(Dd.year - 1), eu_label("y", "ly", "eur"))
     it_note = lambda vals: (f'<p class="tnote">IT (Italy North) is used as the benchmark for Italian prices in these rankings; '
                             f'the map shows all {sum(1 for z in vals if is_italian(z))} Italian zones.</p>' if "IT" in vals else "")   # noqa: E731
     star = lambda part: (lambda z: "*" if z in part else "")   # noqa: E731
@@ -688,6 +687,7 @@ header {{ display: flex; flex-wrap: wrap; align-items: flex-end; justify-content
 .spoiler {{ background: #fff7e0; border: 1px solid #f0d58a; border-radius: 10px; padding: 8px 12px; font-size: 13.5px; margin-bottom: 14px; }}
 section {{ background: var(--surface); border-radius: 14px; padding: 18px 20px; margin-bottom: 14px; box-shadow: 0 1px 2px rgba(15,23,34,.06); }}
 h2 {{ font-family: var(--f-display); font-weight: 800; text-transform: uppercase; letter-spacing: .03em; font-size: 22px; line-height: 1; margin: 0 0 10px; }}
+.cmp {{ margin: -4px 0 8px; font-size: 12.5px; color: var(--ink-2); border-left: 3px solid var(--accent); padding: 1px 0 1px 8px; }}
 h2 small {{ font-family: var(--f-body); font-weight: 600; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--muted); margin-left: 6px; }}
 ul.find {{ margin: 0; padding-left: 18px; }} ul.find li {{ margin: 4px 0; }}
 .key ul.find li {{ font-size: 15.5px; }}
@@ -740,6 +740,7 @@ footer a {{ color: var(--muted); }}
 
 
 <section class="today"><h2>Today <small>{nice_day(D, True)}, €/MWh</small></h2>
+<p class="cmp">Changes are against yesterday ({WDAYS[(Dd - timedelta(days=1)).weekday()][:3]} {(Dd - timedelta(days=1)).day} {MONS[(Dd - timedelta(days=1)).month - 1]}).</p>
 {day_map}
 <div class="grid">
 {table(cheap, "Cheapest")}
@@ -753,6 +754,7 @@ footer a {{ color: var(--muted); }}
 </section>
 
 <section class="month"><h2>{MONTHS[Dd.month - 1]} so far <small>1–{Dd.day} {MONTHS[Dd.month - 1]}, average €/MWh</small></h2>
+<p class="cmp">Changes are against the whole of {MONTHS[lm_end.month - 1]} (1–{lm_end.day} {MONS[lm_end.month - 1]} {lm_end.year}), the previous full month.</p>
 {mon_map}
 <div class="grid">
 {table(ranked(monr, 10), "Cheapest", extra=star(mon_part_r))}
@@ -764,11 +766,12 @@ footer a {{ color: var(--muted); }}
 </section>
 
 <section><h2>{Dd.year} so far <small>1 Jan–{nice_day(D)}, average €/MWh</small></h2>
+<p class="cmp">Changes are against the whole of {Dd.year - 1} (1 Jan–31 Dec {Dd.year - 1}), the previous full year.</p>
 {yr_map}
 <div class="grid">
 {table(ranked(yrr, 10), "Cheapest", extra=star(yr_part_r))}
 {table(ranked(yrr, 10, rev=True), "Most expensive", extra=star(yr_part_r))}
-{table(sorted(cy.items(), key=lambda kv: -abs(kv[1]))[:10] if cy else [], "Change against " + str(Dd.year - 1) + " (same days)", fmt=lambda v: signed(v))}
+{table(sorted(cy.items(), key=lambda kv: -abs(kv[1]))[:10] if cy else [], "Change against " + str(Dd.year - 1), fmt=lambda v: signed(v))}
 </div>
 {it_note(yrv)}
 <ul class="find" style="margin-top:12px">{li(yf)}</ul>
